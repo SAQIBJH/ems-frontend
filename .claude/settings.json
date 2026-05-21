@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm dev)",
+      "Bash(pnpm build)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm format)",
+      "Bash(pnpm dlx shadcn:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch)",
+      "Bash(git switch:*)",
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(sudo:*)",
+      "Bash(npm publish:*)",
+      "Bash(pnpm publish:*)",
+      "Bash(git push --force:*)",
+      "Read(./.env)",
+      "Read(./.env.local)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATHS\" | grep -qE '\\.(ts|tsx)$'; then pnpm exec eslint $CLAUDE_FILE_PATHS --fix --max-warnings=0 2>&1 | tail -10 || true; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

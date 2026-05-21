@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Project-specific
+.env.local
+.env.*.local
+.vercel
+coverage/
+playwright-report/
+test-results/
