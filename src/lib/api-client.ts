@@ -48,6 +48,12 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Don't attempt token refresh for auth endpoints — it would be circular/pointless
+    const url: string = original.url ?? '';
+    if (url.includes('/auth/login') || url.includes('/auth/refresh')) {
+      return Promise.reject(error);
+    }
+
     if (_isRefreshing) {
       return new Promise<string>((resolve, reject) => {
         _queue.push({ resolve, reject });

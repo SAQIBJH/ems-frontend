@@ -22,7 +22,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 - [x] Step 1 — Foundations: tokens, providers, API client, auth
 - [x] Step 2 — Layout shell (AppShell + AuthShell)
-- [ ] Step 3 — Login screen (real backend auth)
+- [x] Step 3 — Login screen (real backend auth)
 - [ ] Step 4 — Auth guard + route protection
 - [ ] Step 5 — MSW infrastructure + first mock
 - [ ] Step 6 — Feedback components (Skeleton, EmptyState, ErrorState)
