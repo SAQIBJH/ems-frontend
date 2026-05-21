@@ -20,7 +20,7 @@
 
 Mark each step as you complete it (change `[ ]` to `[x]`):
 
-- [ ] Step 1 — Foundations: tokens, providers, API client, auth
+- [x] Step 1 — Foundations: tokens, providers, API client, auth
 - [ ] Step 2 — Layout shell (AppShell + AuthShell)
 - [ ] Step 3 — Login screen (real backend auth)
 - [ ] Step 4 — Auth guard + route protection
@@ -40,6 +40,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [ ] Step 18 — HR / Manager / Employee dashboards
 - [ ] Step 19 — Global polish: error boundaries, dark mode, a11y pass
 - [ ] Step 20 — Final verification + demo readiness
+- [ ] Step 21 — Security gate (DO NOT SKIP — B1 tenant test + B2 secrets are non-negotiable)
 
 ---
 
@@ -448,6 +449,92 @@ pnpm build
 Plus manual click-through on the deployed URL.
 
 **Commit:** `chore: demo-ready build`
+
+---
+
+## STEP 21 — Security gate (DO NOT SKIP)
+
+**Goal:** Find security problems before someone else does. This step is mostly NOT code Claude Code writes — it is checks a HUMAN must run and act on. Claude Code's job here is to run the automated parts, report findings honestly, and refuse to mark this step "done" if any CRITICAL check fails.
+
+> **Read this first, out loud if you have to:** A passing checklist does not mean the app is secure. It means these specific things were checked. The two CRITICAL checks below (multi-tenant isolation and secret exposure) are the ones that, if failed, can leak real employee data. They are not optional. If either fails, this step BLOCKS the demo until fixed — no exceptions for deadlines.
+
+### Part A — Automated frontend scan (Claude Code runs these)
+
+```bash
+# 1. React code health + frontend security lint
+npx -y react-doctor@latest . --verbose
+
+# 2. Dependency vulnerability audit
+pnpm audit --audit-level=high
+
+# 3. Confirm no secrets are committed or about to be
+git log --all --full-history -p | grep -iE "tenant.key|api.key|secret|password|bearer " || echo "No obvious secrets in git history"
+grep -rIn -E "(NEXT_PUBLIC_TENANT_KEY|Bearer |sk-|password.*=.*['\"])" src/ || echo "No hardcoded secrets in src/"
+```
+
+**Pass criteria for Part A:**
+
+- react-doctor score ≥ 70, and ZERO error-severity findings in the `security` category.
+- `pnpm audit` shows no HIGH or CRITICAL vulnerabilities (moderate is acceptable for a demo; note them).
+- No secrets found in git history or source.
+
+### Part B — CRITICAL manual checks (the human runs these; Claude Code cannot)
+
+These are the checks that actually protect employee data. Claude Code: present these to the user as a checklist and require explicit confirmation of each before marking Step 21 done. Do NOT perform them yourself against the live backend without the user's involvement — they require two real tenant accounts.
+
+**B1 — MULTI-TENANT ISOLATION BREACH TEST (highest priority in the whole project):**
+
+1. Create or obtain two separate tenants: Tenant A and Tenant B, each with its own user and tenant key.
+2. Log in as Tenant A. Create one employee. Note the employee's ID.
+3. Log in as Tenant B. Get Tenant B's access token.
+4. Attempt each of these and record the result:
+   - `GET /employees/{tenant-A-employee-id}` with Tenant B's token + Tenant B's key → **MUST return 403 or 404, NOT the data.**
+   - Same request with Tenant B's token + Tenant A's key in the header → **MUST be rejected.**
+   - Same request with Tenant A's token but NO `x-tenant-key` header → **MUST be rejected.**
+5. **If ANY of these returns Tenant A's employee data, you have a data leak. STOP. This blocks everything. Report it to the backend dev as a P0. Do not demo until fixed.**
+
+**B2 — SECRET EXPOSURE:**
+
+- Confirm `.env.local` is in `.gitignore` and was never committed: `git log --all -- .env.local` should return nothing.
+- Confirm `.claude/settings.local.json` is gitignored.
+- Confirm the tenant key / any credential has never appeared in a commit, screenshot shared publicly, or pushed branch.
+
+**B3 — AUTH BEHAVIOR:**
+
+- Access token actually expires (wait past the 15-min TTL, confirm a protected call then forces refresh).
+- Logout invalidates the session (after logout, the old token is rejected by the backend).
+- A protected route accessed with a tampered/garbage token returns 401, and the UI redirects to login rather than crashing.
+
+**B4 — PERMISSION ENFORCEMENT IS SERVER-SIDE:**
+
+- Pick one action an Employee role should NOT be able to do (e.g. delete an employee).
+- Confirm the UI hides it (PermissionWrapper) AND that calling the endpoint directly (e.g. via curl with an Employee token) is rejected by the backend with 403.
+- If the UI hides it but the API allows it, your permissions are theater. Report to backend dev.
+
+**B5 — TRANSPORT & ERRORS:**
+
+- All API calls are HTTPS (no mixed content).
+- Error responses do not leak stack traces, SQL, or internal paths to the client.
+- CORS allows only your known origins (localhost dev, Vercel preview, production domain) — not `*`.
+
+### Definition of done
+
+- Part A automated checks pass (or findings are documented and consciously accepted as non-blocking for a demo).
+- Part B1 (tenant isolation) and B2 (secrets) are confirmed PASSING. **These two are non-negotiable. A failure here blocks the demo regardless of timeline.**
+- B3, B4, B5 are either confirmed passing or logged as known issues with an owner and a date, AND none of the open issues involve cross-tenant data access.
+
+### Test Gate
+
+```bash
+npx -y react-doctor@latest . --score
+pnpm audit --audit-level=high
+```
+
+Plus the human's written confirmation of B1–B5. Claude Code: do not mark Step 21 complete on automated checks alone. Require the user to state the result of the B1 breach test explicitly.
+
+**Commit:** `chore: security gate — automated scans clean, manual checks recorded`
+
+> **Honest scope note for when this stops being a demo:** The checks above are the floor for showing this to stakeholders. Before real companies put real employee data in this system — especially "globally," across jurisdictions — you need more than this gate: a professional security review / penetration test, dependency supply-chain monitoring, rate-limit and brute-force protection verified under load, audit logging that's tamper-evident, data-retention and deletion flows, and legal/compliance work (GDPR, India DPDP Act, and the rules of every region you operate in). No markdown checklist replaces that. When you cross from demo to real customers, budget for it explicitly.
 
 ---
 
