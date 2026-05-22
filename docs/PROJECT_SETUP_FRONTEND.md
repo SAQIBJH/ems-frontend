@@ -114,7 +114,7 @@ Also commit a `.env.example` with the keys but no values, for other devs.
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Login page should appear. Use these seed users (live backend, password `ChangeMe123!`):
+Open `http://localhost:3000`. Login page should appear. Use these seed users (live backend, password `Password123!`):
 
 - `superadmin@acme.test` → SUPER_ADMIN
 - `hr@acme.test` → HR_ADMIN

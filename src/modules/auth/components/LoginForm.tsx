@@ -33,8 +33,20 @@ export function LoginForm({ next }: LoginFormProps) {
   async function onSubmit(values: LoginInput) {
     setGeneralError(null);
     try {
-      await mutateAsync(values);
-      router.push(next);
+      const { user } = await mutateAsync(values);
+      // Honor an explicit redirect (e.g. from the auth guard's ?next= param).
+      // Otherwise fall back to the role-appropriate dashboard.
+      if (next !== '/dashboard') {
+        router.push(next);
+      } else {
+        const roleDefaults: Record<string, string> = {
+          SUPER_ADMIN: '/dashboard',
+          HR_ADMIN: '/dashboard',
+          MANAGER: '/dashboard',
+          EMPLOYEE: '/dashboard',
+        };
+        router.push(roleDefaults[user.memberType] ?? '/dashboard');
+      }
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;
       const status = axiosErr.response?.status;

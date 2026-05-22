@@ -1,40 +1,34 @@
 import axios from 'axios';
-import { env } from './env';
-import { clearAccessToken, getAccessToken, setAccessToken } from './auth';
 
+/* baseURL is our own origin's `/api` — the browser never calls the real
+ * backend directly. Requests hit the BFF proxy (src/app/api/[...path]),
+ * which forwards them to the backend with the x-tenant-key attached
+ * server-side. Auth is entirely cookie-based: the server sets httpOnly
+ * accessToken and refreshToken cookies; withCredentials ensures they are
+ * sent automatically on every request without any client-side token handling. */
 export const apiClient = axios.create({
-  baseURL: env.NEXT_PUBLIC_API_BASE_URL,
+  baseURL: '/api',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
-/* Separate bare instance used only for /auth/refresh — no interceptors,
- * so a failed refresh doesn't trigger another refresh attempt. */
+/* Separate bare instance for /auth/refresh only — no interceptors,
+ * so a failed refresh doesn't recurse into another refresh attempt. */
 const _refreshClient = axios.create({
-  baseURL: env.NEXT_PUBLIC_API_BASE_URL,
+  baseURL: '/api',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
-/* ── Request interceptor ──────────────────────────────────────────────── */
-apiClient.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  config.headers['x-tenant-key'] = env.NEXT_PUBLIC_TENANT_KEY;
-  return config;
-});
-
-/* ── Response interceptor — refresh on 401 ────────────────────────────── */
+/* ── Response interceptor — silent cookie refresh on 401 ─────────────────── */
 let _isRefreshing = false;
-type QueueEntry = { resolve: (token: string) => void; reject: (err: unknown) => void };
+type QueueEntry = { resolve: () => void; reject: (err: unknown) => void };
 let _queue: QueueEntry[] = [];
 
-function _drainQueue(error: unknown, token: string | null = null) {
+function _drainQueue(error: unknown) {
   _queue.forEach(({ resolve, reject }) => {
     if (error) reject(error);
-    else resolve(token!);
+    else resolve();
   });
   _queue = [];
 }
@@ -48,36 +42,30 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't attempt token refresh for auth endpoints — it would be circular/pointless
+    // Don't attempt refresh for auth endpoints — it would be circular.
     const url: string = original.url ?? '';
     if (url.includes('/auth/login') || url.includes('/auth/refresh')) {
       return Promise.reject(error);
     }
 
     if (_isRefreshing) {
-      return new Promise<string>((resolve, reject) => {
+      // Queue this request until the in-flight refresh completes.
+      return new Promise<void>((resolve, reject) => {
         _queue.push({ resolve, reject });
-      }).then((token) => {
-        original.headers.Authorization = `Bearer ${token}`;
-        return apiClient(original);
-      });
+      }).then(() => apiClient(original));
     }
 
     original._retry = true;
     _isRefreshing = true;
 
     try {
-      const { data } = await _refreshClient.post<{ data: { accessToken: string } }>(
-        '/auth/refresh',
-      );
-      const newToken = data.data.accessToken;
-      setAccessToken(newToken);
-      original.headers.Authorization = `Bearer ${newToken}`;
-      _drainQueue(null, newToken);
+      // The refreshToken cookie is sent automatically. The server rotates it
+      // and sets a fresh accessToken cookie — no body extraction needed.
+      await _refreshClient.post('/auth/refresh');
+      _drainQueue(null);
       return apiClient(original);
     } catch (refreshError) {
       _drainQueue(refreshError);
-      clearAccessToken();
       if (typeof window !== 'undefined') {
         const isAuthPage =
           window.location.pathname.startsWith('/login') ||

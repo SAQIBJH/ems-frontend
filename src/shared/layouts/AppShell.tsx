@@ -35,7 +35,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useUIStore } from '@/store/ui.store';
 import { useAuth } from '@/providers';
-import { clearAccessToken } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
@@ -183,7 +182,6 @@ function UserMenu() {
     } catch {
       /* best effort */
     }
-    clearAccessToken();
     router.push('/login');
   }
 

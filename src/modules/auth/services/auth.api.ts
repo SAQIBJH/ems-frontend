@@ -9,9 +9,11 @@ export const authApi = {
     return data.data;
   },
 
-  refresh: async (): Promise<LoginResponse> => {
-    const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/refresh');
-    return data.data;
+  refresh: async (): Promise<void> => {
+    // Under cookie auth the server rotates the accessToken cookie silently.
+    // The 401 interceptor in api-client.ts calls this directly; callers
+    // outside that interceptor should not need to inspect the response.
+    await apiClient.post('/auth/refresh');
   },
 
   logout: async (): Promise<void> => {
