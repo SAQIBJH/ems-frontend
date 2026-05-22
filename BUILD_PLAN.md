@@ -413,6 +413,13 @@ A step is DONE only when its Test Gate passes AND the step-specific "Definition 
 3. Full dark mode pass on every screen.
 4. a11y pass: keyboard nav, focus rings, aria labels, `prefers-reduced-motion`.
 5. Loading skeletons audited on every data screen.
+6. Clear deferred react-doctor findings from the Step 4 scan:
+   - `size-N` shorthand (`w-N h-N → size-N`): AppShell, AuthGuard, AuthShell, LoginForm, PageHeader (~18 instances)
+   - `p-N` shorthand (`px-6 py-6 → p-6`): dashboard/page.tsx
+   - Destructure router methods (`const { push } = useRouter()`): AppShell, AuthGuard, LoginForm
+   - `useContext` → `use(Context)`: AuthProvider
+   - `bg-black` → `bg-gray-950`: app/page.tsx
+   - Re-run react-doctor at end of Step 19; target 99–100.
 
 **Definition of done:** Kill the backend (or set an invalid API URL) and click through the app — nothing crashes; every screen shows a clean error or empty state.
 
