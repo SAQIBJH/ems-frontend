@@ -102,12 +102,18 @@ GET    /api/v1/auth/me
 GET    /api/v1/auth/sessions
 DELETE /api/v1/auth/sessions/:id
 
-# Employees (read)
+# Employees (read + write)
 GET    /api/v1/employees
 GET    /api/v1/employees/:id
+POST   /api/v1/employees
+PATCH  /api/v1/employees/:id
+DELETE /api/v1/employees/:id          # soft-delete — sets employmentStatus=TERMINATED
 
-# Departments (read)
+# Departments (read + write)
 GET    /api/v1/departments
+POST   /api/v1/departments
+PATCH  /api/v1/departments/:id
+DELETE /api/v1/departments/:id
 
 # Analytics (HR_ADMIN / SUPER_ADMIN)
 GET    /api/v1/analytics/summary
@@ -125,16 +131,25 @@ GET    /api/v1/leave/types
 GET    /api/v1/leave/balance
 GET    /api/v1/leave/requests
 POST   /api/v1/leave/requests
+POST   /api/v1/leave/requests/:id/approve
+POST   /api/v1/leave/requests/:id/reject
+POST   /api/v1/leave/requests/:id/withdraw
 
 # Attendance
 GET    /api/v1/attendance/today
 GET    /api/v1/attendance/records?month=YYYY-MM
 GET    /api/v1/attendance/summary
+POST   /api/v1/attendance/check-in
+POST   /api/v1/attendance/check-out
 POST   /api/v1/attendance/regularization
+PATCH  /api/v1/attendance/regularization/:id/approve
+PATCH  /api/v1/attendance/regularization/:id/deny
 
-# Holidays
+# Holidays (read + write)
 GET    /api/v1/holidays?year=YYYY
 POST   /api/v1/holidays
+PATCH  /api/v1/holidays/:id
+DELETE /api/v1/holidays/:id
 
 # Manager
 GET    /api/v1/manager/dashboard
@@ -143,20 +158,30 @@ GET    /api/v1/manager/approvals
 
 # Audit logs
 GET    /api/v1/audit-logs
+GET    /api/v1/admin/logs
 
 # Settings
 GET    /api/v1/settings/tenant
+PATCH  /api/v1/settings/tenant
+GET    /api/v1/settings/roles-permissions
+PATCH  /api/v1/settings/roles-permissions
+
+# Email templates
+GET    /api/v1/email-templates
+PATCH  /api/v1/email-templates/:id
+
+# Reports & export
+GET    /api/v1/reports
+GET    /api/v1/export
 ```
 
 ### What still needs MSW
 
-Use MSW for any endpoint **not listed above**. This includes:
+The backend is nearly complete. MSW is now only required for:
 
-- Employee mutations: `POST /employees`, `PATCH /employees/:id`, `DELETE /employees/:id`
-- Department mutations: `POST /departments`, `PATCH /departments/:id`, `DELETE /departments/:id`
-- Leave approval actions: `POST /leave/requests/:id/approve`, `/reject`, `/withdraw`
-- Settings update: `PATCH /settings/tenant`
-- Roles / permissions matrix management (no endpoints exist yet)
+- **Document upload:** `POST /employees/:id/documents` (file upload — not yet implemented)
+- **Notifications:** any `/notifications` endpoints
+- **Resignations:** any `/resignations` endpoints
 
 ### MSW discipline (unchanged)
 
@@ -256,7 +281,7 @@ Key quirks (see the full Quirks Summary table in `API_MAPPING.md`):
 | Endpoint                    | List/data lives at                                    |
 | --------------------------- | ----------------------------------------------------- |
 | `GET /employees`            | `data.data[]` + `data.pagination` — **double-nested** |
-| `GET /departments`          | `data[]` — flat array directly                        |
+| `GET /departments`          | `data[]` — nested tree; each node has `children[]`    |
 | `GET /leave/requests`       | `data.requests[]` + `data.pagination`                 |
 | `GET /attendance/records`   | `data.records[]` + `data.pagination`                  |
 | `GET /audit-logs`           | `data.logs[]` + `data.pagination`                     |
@@ -273,11 +298,24 @@ Error envelope (this one IS consistent):
   "error": {
     "code": "ERROR_CODE",
     "message": "Human readable message",
-    "details": {},
+    "details": [{ "field": "email", "message": "already in use" }],
     "requestId": "req-id"
   }
 }
 ```
+
+### Status codes
+
+- `409 Conflict` — duplicate record, circular department reference, or department not empty on delete
+- `404 Not Found` — resource does not exist
+- `422 Unprocessable Entity` — validation failure; `error.details` is `{ field: string, message: string }[]`
+
+### Field casing — varies by endpoint
+
+Do NOT normalize. Write TypeScript types that match the wire format of each endpoint:
+
+- **`camelCase`:** employees, departments (e.g. `firstName`, `departmentId`, `employmentType`)
+- **`snake_case`:** audit-logs, settings/tenant (e.g. `user_email`, `company_name`, `created_at`)
 
 ### Roles (from backend) — all live
 
@@ -288,9 +326,20 @@ Error envelope (this one IS consistent):
 **EmploymentType:** `FULL_TIME | PART_TIME | CONTRACT | INTERNSHIP`
 (not `INTERN` — use `INTERNSHIP`)
 
-**Date writes:** All date inputs to POST/PATCH endpoints must be **ISO datetime
-strings**: `"2026-06-15T00:00:00.000Z"`. Plain date strings (`"2026-06-15"`)
-fail validation with `FST_ERR_VALIDATION`.
+**Date writes:** All date fields on POST/PATCH endpoints must be written as
+**`YYYY-MM-DD`** strings: `"2026-06-15"`. Do **not** send full ISO datetime strings —
+`holidayDate` specifically rejects them. The server returns full ISO strings on reads;
+convert on write with a helper:
+
+```ts
+// lib/date.ts
+import { format, parseISO } from 'date-fns';
+export const formatDateForApi = (date: Date | string) =>
+  format(typeof date === 'string' ? parseISO(date) : date, 'yyyy-MM-dd');
+```
+
+Use `formatDateForApi(value)` in every service method that sends a date field.
+Parse incoming ISO strings from the server with `parseISO` from date-fns.
 
 ### Seed test users (against live backend)
 
@@ -565,6 +614,7 @@ A component that handles only the success path is **not done**.
 - Don't introduce a new state library, UI kit, or styling solution. See §2.
 - Don't claim work is complete unless: TypeScript passes, ESLint passes, all four component states are handled, and the screen renders correctly in light and dark mode.
 - Don't write a generic API response unwrap utility. Each service method unwraps its own endpoint's specific shape (see §4 Quirks Summary and `docs/API_MAPPING.md`).
+- Don't build the departments tree client-side from `parentId`. `GET /departments` returns a nested tree with `children[]` — render what the server returns.
 
 ---
 
@@ -594,8 +644,8 @@ A component that handles only the success path is **not done**.
 4. **MSW setup.** Install, configure for browser (dev) and Node (tests). Verify a mock endpoint resolves.
 5. **API client + auth.** Axios instance, interceptor, cookie-based flow. Login page → real backend → AppShell.
 6. **Auth-gated route group.** `(dashboard)/layout.tsx` enforces auth via `AuthGuard`. Add `PermissionWrapper`.
-7. **Employees module (canonical).** Build directly: `EmployeesPage`, `EmployeeTable` (TanStack Table), `EmployeeForm` (RHF + Zod), `EmployeeProfile`. Live GET endpoints + MSW for mutations.
-8. **Departments module.** Tree view. Refactor common bits with Employees into `DynamicTable`.
+7. **Employees module (canonical).** Build directly: `EmployeesPage`, `EmployeeTable` (TanStack Table), `EmployeeForm` (RHF + Zod), `EmployeeProfile`. All endpoints (read + write) are live.
+8. **Departments module.** Tree view. Refactor common bits with Employees into `DynamicTable`. The server returns a nested tree — each node has a `children[]` array. Render what the server returns; do **not** reconstruct the tree client-side from `parentId`.
 9. **Attendance module.** Calendar grid + summary. Add `FilterEngine` while you're at it.
 10. **Leave module.** Approvals table. `DynamicTable` should now cover everything.
 11. **Holidays module.** Year grid.
