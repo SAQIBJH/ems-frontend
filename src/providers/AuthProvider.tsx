@@ -9,12 +9,15 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** Shorthand for user.permissions — empty array when unauthenticated. */
+  permissions: string[];
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  permissions: [],
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -29,7 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   return (
-    <AuthContext.Provider value={{ user: user ?? null, isLoading, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user: user ?? null,
+        isLoading,
+        isAuthenticated: !!user,
+        permissions: user?.permissions ?? [],
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

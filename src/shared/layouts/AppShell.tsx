@@ -173,7 +173,9 @@ function UserMenu() {
   const isDark = resolvedTheme === 'dark';
 
   const initials = user
-    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
+    ? user.employee
+      ? `${user.employee.firstName[0]}${user.employee.lastName[0]}`.toUpperCase()
+      : user.email[0].toUpperCase()
     : '?';
 
   async function handleLogout() {
@@ -193,7 +195,7 @@ function UserMenu() {
         aria-label="User menu"
       >
         <Avatar className="h-8 w-8 pointer-events-none">
-          <AvatarImage src={user?.avatarUrl} alt={user?.firstName} />
+          <AvatarImage src={undefined} alt={user?.employee?.firstName ?? user?.email} />
           <AvatarFallback className="text-xs bg-brand text-on-primary">{initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
@@ -204,7 +206,9 @@ function UserMenu() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-fg">
-                  {user.firstName} {user.lastName}
+                  {user.employee
+                    ? `${user.employee.firstName} ${user.employee.lastName}`
+                    : user.email}
                 </span>
                 <span className="text-xs text-fg-muted truncate">{user.email}</span>
               </div>
