@@ -1,12 +1,8 @@
 import { healthMockHandlers } from './health-mock';
+import { employeeHandlers } from './employees';
 
-// MSW only covers endpoints not yet live on the backend:
-//   - POST /employees/:id/documents  (document upload)
-//   - /notifications  (any method)
-//   - /resignations   (any method)
-//
-// All other endpoints pass through to the real backend via onUnhandledRequest: 'bypass'.
-// When a real endpoint ships for documents/notifications/resignations, add its handler
-// here and delete this comment line for that item.
+// MSW intercepts these when NEXT_PUBLIC_USE_MOCKS=true.
+// Auth endpoints always pass through to the real backend (no handler defined here).
+// When NEXT_PUBLIC_USE_MOCKS=false, all requests bypass MSW entirely.
 
-export const handlers = [...healthMockHandlers];
+export const handlers = [...healthMockHandlers, ...employeeHandlers];
