@@ -35,7 +35,7 @@ export function PageHeader({
           {breadcrumbs && breadcrumbs.length > 0 && (
             <nav className="flex items-center gap-1 mb-1" aria-label="Breadcrumb">
               {breadcrumbs.map((crumb, i) => (
-                <span key={i} className="flex items-center gap-1">
+                <span key={crumb.label} className="flex items-center gap-1">
                   {i > 0 && (
                     <ChevronRight className="h-3 w-3 text-fg-disabled shrink-0" aria-hidden />
                   )}
