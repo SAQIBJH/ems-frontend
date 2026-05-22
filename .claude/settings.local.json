@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d D:\\\\Ems\\\\ems-frontend)",
+      "Bash(find . -maxdepth 2 -name \".env*\" -o -maxdepth 2 -name \"tsconfig.json\")",
+      "Bash(pnpm shadcn *)",
+      "Bash(git reset *)",
+      "Bash(node -e \"console.log\\('node', process.version\\)\")",
+      "Bash(pnpm add *)",
+      "Bash(Remove-Item *)",
+      "Bash(rm *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx eslint *)"
+    ]
+  }
+}

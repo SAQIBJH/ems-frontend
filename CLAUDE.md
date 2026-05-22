@@ -60,6 +60,31 @@ The primary near-term goal is a **working demo** that can be shown to stakeholde
 
 This frontend talks to a backend that is **partially built**. Status as of repo creation:
 
+### How the frontend reaches the backend — BFF proxy
+
+The browser **never** calls the Render backend directly and **never** sees the
+tenant key or the real backend URL. All backend traffic flows through a
+server-side BFF (Backend-for-Frontend) layer inside this Next.js app:
+
+```
+browser  ──►  Next.js /api/*  (same origin)  ──►  Render backend
+                    │                                   ▲
+                    └─ BFF route handler attaches ───────┘
+                       x-tenant-key here, server-side
+```
+
+- The browser-side Axios client (`src/lib/api-client.ts`) has `baseURL: "/api"`.
+  Every request goes to our own Next.js origin.
+- The BFF route handler at `src/app/api/[...path]/route.ts` catches `/api/*`,
+  reads `API_BASE_URL` and `TENANT_KEY` from **server-only** env, attaches the
+  `x-tenant-key` header, forwards the request, and relays the response back.
+- `API_BASE_URL` and `TENANT_KEY` are server-only. They are **not** prefixed
+  `NEXT_PUBLIC_` and must never be — that would inline them into the browser
+  bundle and leak the tenant key. Server env is validated in `src/lib/env.server.ts`
+  (which imports `server-only`); public env stays in `src/lib/env.ts`.
+- The `Authorization` bearer token still lives client-side and is passed
+  through the BFF unchanged — that is correct and intended.
+
 ### What's REAL on the backend
 
 Only the auth surface is implemented and deployed. These are the only endpoints that exist:
@@ -101,16 +126,27 @@ DO:
 
 ### Base URL
 
-- Production: `https://employee-management-system-2b9q.onrender.com/api/v1`
-- Local backend (when running): `http://localhost:3000/api/v1`
+The browser always calls our **own origin** at `/api/*`. It never addresses the
+backend directly.
+
+- Browser → `/api/*` (same origin as the app).
+- BFF → backend:
+  - Production: `https://employee-management-system-2b9q.onrender.com/api/v1`
+  - Local backend (when running): `http://localhost:3000/api/v1`
+- The backend base URL is the **server-only** `API_BASE_URL` env var (no
+  `NEXT_PUBLIC_` prefix). See §3 "BFF proxy".
 
 ### Required headers on every request
 
 ```
-x-tenant-key:   <tenant key — from env, never user-input>
-Authorization:  Bearer <access token>      # except for /auth/login itself
+x-tenant-key:   attached server-side by the BFF (TENANT_KEY env). Never set on the client.
+Authorization:  Bearer <access token>      # client-side; passed through the BFF. Except /auth/login.
 Content-Type:   application/json
 ```
+
+The browser-side Axios client only sets `Authorization` and `Content-Type`.
+`x-tenant-key` is added by the BFF route handler so the tenant key never
+reaches the browser.
 
 ### Auth flow
 
@@ -151,12 +187,16 @@ Content-Type:   application/json
 
 ### Seed test users (against live backend)
 
-Password for all: `ChangeMe123!`
+### Seed test users (against live backend)
+
+Password for all: `Password123!`
 
 - `superadmin@acme.test` — SUPER_ADMIN
 - `hr@acme.test` — HR_ADMIN
 - `aman@acme.test` — MANAGER
 - `priya@acme.test` — EMPLOYEE
+
+Alternate HR Admin account (different password): `admin@testorg.com` / `password123`
 
 ---
 
@@ -450,15 +490,26 @@ Follow this sequence. Do not skip ahead.
 `.env.local` (gitignored):
 
 ```
-NEXT_PUBLIC_API_BASE_URL=https://employee-management-system-2b9q.onrender.com/api/v1
-NEXT_PUBLIC_TENANT_KEY=<obtained from backend dev>
+# Server-only — NEVER prefixed NEXT_PUBLIC_, never sent to the browser.
+# Read only by the BFF proxy (src/app/api/[...path]/route.ts).
+API_BASE_URL=https://employee-management-system-2b9q.onrender.com/api/v1
+TENANT_KEY=<obtained from backend dev>
+
+# Public — exposed to the browser. No secrets here.
 NEXT_PUBLIC_USE_MOCKS=true
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-When `NEXT_PUBLIC_USE_MOCKS=true`, MSW intercepts non-auth requests. When `false`, requests hit the real backend (and most will 404 until those endpoints are built).
+`API_BASE_URL` and `TENANT_KEY` are **server-only**. They must never carry the
+`NEXT_PUBLIC_` prefix — that would inline them into the browser bundle and leak
+the tenant key. See §3 "BFF proxy".
 
-Env is validated at boot via `lib/env.ts` with Zod. If a required var is missing, the app fails fast.
+When `NEXT_PUBLIC_USE_MOCKS=true`, MSW intercepts non-auth requests. When `false`, requests hit the real backend through the BFF (and most will 404 until those endpoints are built).
+
+Env is validated at boot with Zod, split into two files: server vars in
+`lib/env.server.ts` (imports `server-only`, so a client import is a build
+error) and public vars in `lib/env.ts`. If a required var is missing, the app
+fails fast.
 
 ---
 
