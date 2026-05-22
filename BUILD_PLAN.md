@@ -23,8 +23,8 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 1 — Foundations: tokens, providers, API client, auth
 - [x] Step 2 — Layout shell (AppShell + AuthShell)
 - [x] Step 3 — Login screen (real backend auth)
-- [ ] Step 4 — Auth guard + route protection
-- [ ] Step 5 — MSW infrastructure + first mock
+- [x] Step 4 — Auth guard + route protection
+- [x] Step 5 — MSW infrastructure + first mock
 - [ ] Step 6 — Feedback components (Skeleton, EmptyState, ErrorState)
 - [ ] Step 7 — Employees module skeleton
 - [ ] Step 8 — Employees list screen

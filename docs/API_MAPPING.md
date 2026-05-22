@@ -1,24 +1,102 @@
 # EMS API — Actual Response Mapping
 
-> **Verified against live Render API on 2026-05-22**
+> **Last verified: 2026-05-22 (local inject tests against live DB)**
 > Base URL: `https://employee-management-system-2b9q.onrender.com/api/v1`
->
-> The `docs/openapi.json` file contains the Swagger spec (generated from route schemas).
-> This file documents what the API **actually returns** — use this as the source of truth.
->
-> ## Envelope
->
-> Every response is wrapped in:
->
-> ```json
-> { "success": true, "data": <payload>, "meta": {} }
-> ```
->
-> On error:
->
-> ```json
-> { "success": false, "error": { "code": "ERROR_CODE", "message": "...", "details": {} } }
-> ```
+> Local: `http://localhost:3000/api/v1`
+
+---
+
+## Response Envelope
+
+**Success:**
+
+```json
+{ "success": true, "data": <payload>, "meta": {} }
+```
+
+**Error:**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "MACHINE_READABLE_CODE",
+    "message": "Human-readable message",
+    "details": {},
+    "requestId": "req-1"
+  }
+}
+```
+
+**Validation Error (422):**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed",
+    "details": [{ "field": "email", "message": "Invalid email" }]
+  }
+}
+```
+
+> `details` is always an **array of `{field, message}`** for 422s. For all other errors, `details` is an object (may be `{}`).
+
+---
+
+## Date Format — Definitive Answer
+
+**Depends on the field — not uniform across all endpoints:**
+
+| Field                                   | Validator           | Accepts YYYY-MM-DD | Accepts full ISO |
+| --------------------------------------- | ------------------- | ------------------ | ---------------- |
+| `joinedOn`, `dateOfBirth` (employees)   | `z.coerce.date()`   | ✅                 | ✅               |
+| `startDate`, `endDate` (leave requests) | `z.coerce.date()`   | ✅                 | ✅               |
+| `holidayDate` (holidays)                | `z.string().date()` | ✅                 | ❌ fails 422     |
+
+**Rule:** Use `"YYYY-MM-DD"` everywhere — it works for all fields. Full ISO (`"2026-10-20T00:00:00.000Z"`) fails on `holidayDate`.
+
+The server stores and returns all dates as full ISO strings (`"2024-01-15T00:00:00.000Z"`).
+
+---
+
+## Auth Headers
+
+After login, two httpOnly cookies are set automatically:
+
+- `accessToken` — 15-minute JWT
+- `ems_session` — 30-day opaque refresh token
+
+**Browser:** cookies auto-send — no headers needed after login.
+**Swagger / Postman:** copy `accessToken` from login response body, use `Authorization: Bearer <token>`.
+**Tenant:** resolved automatically from JWT cookie. No `X-Tenant-Key` needed after first login.
+
+---
+
+## Seeded Test Credentials
+
+| Role        | Email                  | Password       | Notes                                           |
+| ----------- | ---------------------- | -------------- | ----------------------------------------------- |
+| SUPER_ADMIN | `superadmin@acme.test` | `Password123!` | No employee record — dashboard calls won't work |
+| HR_ADMIN    | `hr@acme.test`         | `Password123!` | Full HR access                                  |
+| MANAGER     | `aman@acme.test`       | `Password123!` | Sees own team                                   |
+| EMPLOYEE    | `priya@acme.test`      | `Password123!` | Sees own data only                              |
+
+---
+
+## HTTP Status Code Rules
+
+| Situation                                 | Status |
+| ----------------------------------------- | ------ |
+| Success GET/PATCH/DELETE                  | 200    |
+| Success POST (create)                     | 201    |
+| Validation error (missing/invalid fields) | 422    |
+| Conflict (duplicate, cycle, not-empty)    | 409    |
+| Not found                                 | 404    |
+| Auth/token missing or invalid             | 401    |
+| Insufficient role                         | 403    |
+| Other bad request                         | 400    |
 
 ---
 
@@ -26,7 +104,7 @@
 
 ### `POST /auth/login`
 
-No headers required. Server resolves tenant from email automatically.
+No headers required. Tenant auto-resolved from email.
 
 **Body:**
 
@@ -34,7 +112,7 @@ No headers required. Server resolves tenant from email automatically.
 { "email": "hr@acme.test", "password": "Password123!" }
 ```
 
-**Response — `data`:**
+**Response `data`:**
 
 ```json
 {
@@ -45,74 +123,93 @@ No headers required. Server resolves tenant from email automatically.
     "email": "hr@acme.test",
     "memberType": "HR_ADMIN",
     "employeeId": "cmpfypsvr001iunacpwa3m6cf",
-    "employee": {
-      "id": "cmpfypsvr001iunacpwa3m6cf",
-      "tenantId": "cmpfyl9sx0000ug81ekztst0p",
-      "userId": "cmpfypbqs000sunacwj0lfpx3",
-      "employeeCode": "E0003",
-      "firstName": "HR",
-      "lastName": "Admin",
-      "workEmail": "hr@acme.test",
-      "personalEmail": "hr@acme.test",
-      "phone": "+91 98765 43212",
-      "dateOfBirth": null,
-      "gender": null,
-      "address": null,
-      "emergencyContactName": null,
-      "emergencyContactPhone": null,
-      "designation": "HR Manager",
-      "departmentId": "cmpfypjsk0012unac2shsfsi3",
-      "managerId": null,
-      "joinedOn": "2019-01-10T00:00:00.000Z",
-      "employmentType": "FULL_TIME",
-      "employmentStatus": "ACTIVE",
-      "location": "Delhi",
-      "payCurrency": "INR",
-      "createdBy": "cmpfypbcl000qunac4ncom4qx",
-      "updatedBy": null,
-      "createdAt": "2026-05-21T20:47:51.927Z",
-      "updatedAt": "2026-05-21T20:47:51.927Z",
-      "deletedAt": null
-    }
+    "employee": { "...full employee object..." }
   },
-  "permissions": [
-    "employees:read",
-    "employees:write",
-    "employees:delete",
-    "employees:export",
-    "departments:read",
-    "departments:write",
-    "attendance:read",
-    "attendance:write",
-    "leave:read",
-    "leave:approve",
-    "analytics:read",
-    "audit:read"
-  ]
+  "permissions": ["employees:read", "employees:write", "leave:approve", "..."]
 }
 ```
 
-> ⚠️ **SUPER_ADMIN** has `employeeId: null` and `employee: null` — no employee profile.
-> ⚠️ `accessToken` is also set as an **httpOnly cookie** (`accessToken`). Browser uses cookie automatically. `accessToken` in body is for Swagger/Postman only.
-> ⚠️ `refreshToken` is set as httpOnly cookie only — never in the body.
+> SUPER_ADMIN: `user.employee` is `null`, `employeeId` absent from JWT. Employee-specific endpoints (dashboard, attendance check-in, leave) will fail.
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `INVALID_CREDENTIALS` | 401 | Wrong password / unknown email |
+| `AMBIGUOUS_EMAIL` | 400 | Email exists in multiple tenants — send `X-Tenant-Key` |
+| `VALIDATION_ERROR` | 422 | Missing email or password |
+
+---
+
+### `POST /auth/refresh`
+
+Uses `ems_session` cookie. Returns new `accessToken` in cookie + body, rotates refresh cookie.
+
+**Response `data`:** `{ "accessToken": "eyJ...", "sessionId": "abc123" }`
+
+On any error, both cookies are cleared. Error codes: `REFRESH_TOKEN_MISSING`, `INVALID_SESSION`, `TOKEN_REUSE`, `SESSION_EXPIRED`
 
 ---
 
 ### `GET /auth/me`
 
-**`data`:**
+**Response `data`:**
 
 ```json
 {
-  "id": "cmpfypbqs000sunacwj0lfpx3",
+  "id": "...",
   "email": "hr@acme.test",
   "memberType": "HR_ADMIN",
-  "employeeId": "cmpfypsvr001iunacpwa3m6cf",
+  "employeeId": "...",
   "status": "ACTIVE",
-  "employee": { ...full employee object (same shape as login.user.employee)... },
-  "permissions": ["employees:read", ...]
+  "employee": { "...full employee fields..." },
+  "permissions": ["employees:read", "..."],
+  "lastLoginAt": "2026-05-22T12:31:07.353Z"
 }
 ```
+
+---
+
+### `GET /auth/sessions`
+
+**Response `data`** — array of:
+
+```json
+{
+  "id": "96ad0f7f4f24312030a3b75e",
+  "deviceName": null,
+  "ipAddress": "127.0.0.1",
+  "userAgent": "Mozilla/5.0...",
+  "loginAt": "2026-05-22T12:31:06.816Z",
+  "lastSeenAt": "2026-05-22T12:31:06.816Z",
+  "expiresAt": "2026-06-21T12:31:06.815Z",
+  "isRevoked": false
+}
+```
+
+---
+
+### `POST /auth/logout`
+
+**Response `data`:** `{ "message": "Logged out successfully" }`
+
+### `DELETE /auth/sessions/:sessionId`
+
+**Response `data`:** `{ "message": "Session revoked successfully" }`
+
+### `POST /auth/forgot-password`
+
+**Body:** `{ "email": "hr@acme.test" }`
+**Response `data`:** `{ "message": "If that email exists, a reset link was sent" }`
+Rate limited: 5/15 min.
+
+### `POST /auth/reset-password`
+
+**Body:** `{ "token": "...", "password": "NewPass123!" }`
+
+### `POST /auth/verify-otp`
+
+**Body:** `{ "challengeId": "...", "otp": "123456" }`
+**Response `data`:** same shape as login
 
 ---
 
@@ -120,17 +217,17 @@ No headers required. Server resolves tenant from email automatically.
 
 ### `GET /employees`
 
-> ⚠️ **QUIRK — double-nested data**: the list is at `data.data`, NOT `data`.
+**Query params:** `page`, `limit`, `search`, `departmentId`, `status`, `location`
 
-**`data`:**
+**Response `data`:**
+
+> **Note:** Double-nested — `data.data` is the array, `data.pagination` has counts.
 
 ```json
 {
   "data": [
     {
       "id": "cmpfypq1h001eunacja7guack",
-      "tenantId": "cmpfyl9sx0000ug81ekztst0p",
-      "userId": "cmpfypby3000uunacu0jo96k0",
       "employeeCode": "E0001",
       "firstName": "Aman",
       "lastName": "Kumar",
@@ -140,62 +237,42 @@ No headers required. Server resolves tenant from email automatically.
       "dateOfBirth": "1990-03-15T00:00:00.000Z",
       "gender": "MALE",
       "address": "Delhi, India",
-      "emergencyContactName": "Priya Kumar",
-      "emergencyContactPhone": "+91 98765 43215",
       "designation": "Engineering Manager",
-      "departmentId": "cmpfyph7t000yunacvy5kouqi",
+      "departmentId": "...",
       "managerId": null,
       "joinedOn": "2020-01-15T00:00:00.000Z",
       "employmentType": "FULL_TIME",
       "employmentStatus": "ACTIVE",
       "location": "Delhi",
       "payCurrency": "INR",
-      "createdBy": "...",
-      "updatedBy": null,
-      "createdAt": "...",
-      "updatedAt": "...",
-      "deletedAt": null,
       "department": { "id": "...", "name": "Engineering" },
       "manager": null,
       "user": { "email": "aman@acme.test", "memberType": "MANAGER", "status": "ACTIVE" }
     }
   ],
-  "pagination": { "page": 1, "limit": 20, "total": 65, "pages": 4 }
+  "pagination": { "page": 1, "limit": 20, "total": 67, "pages": 4 }
 }
 ```
 
-**Query params:** `page`, `limit`, `search`, `departmentId`, `status` (`ACTIVE`/`INACTIVE`)
+**Role filtering (server-enforced):**
 
-**Role behaviour (server-enforced):**
-
-- `HR_ADMIN / SUPER_ADMIN` → all employees
-- `MANAGER` → direct reports only
-- `EMPLOYEE` → themselves only
+- SUPER_ADMIN / HR_ADMIN — all employees
+- MANAGER — direct reports + self
+- EMPLOYEE — self only
 
 ---
 
 ### `GET /employees/:id`
 
-> ⚠️ Data is at `data` directly (not double-nested).
-
-**`data`:**
+**Response `data`** — full employee with leaveBalances and documents:
 
 ```json
 {
-  "id": "cmpfypsvr001iunacpwa3m6cf",
-  "tenantId": "...",
-  "userId": "...",
+  "id": "...",
   "employeeCode": "E0003",
   "firstName": "HR",
   "lastName": "Admin",
   "workEmail": "hr@acme.test",
-  "personalEmail": "hr@acme.test",
-  "phone": "+91 98765 43212",
-  "dateOfBirth": null,
-  "gender": null,
-  "address": null,
-  "emergencyContactName": null,
-  "emergencyContactPhone": null,
   "designation": "HR Manager",
   "departmentId": "...",
   "managerId": null,
@@ -203,22 +280,92 @@ No headers required. Server resolves tenant from email automatically.
   "employmentType": "FULL_TIME",
   "employmentStatus": "ACTIVE",
   "location": "Delhi",
-  "payCurrency": "INR",
-  "createdBy": "...",
-  "updatedBy": null,
-  "createdAt": "...",
-  "updatedAt": "...",
-  "deletedAt": null,
-  "user": {
-    "email": "hr@acme.test",
-    "memberType": "HR_ADMIN",
-    "status": "ACTIVE",
-    "mfaEnabled": false
-  },
+  "user": { "email": "...", "memberType": "HR_ADMIN", "status": "ACTIVE", "mfaEnabled": false },
   "department": { "id": "...", "name": "HR" },
-  "manager": null
+  "manager": null,
+  "leaveBalances": [
+    {
+      "leaveTypeId": "...",
+      "balance": 21,
+      "used": 0,
+      "pending": 0,
+      "leaveType": { "name": "Annual Leave", "code": "ANNUAL" }
+    }
+  ],
+  "documents": []
 }
 ```
+
+**Error:** `NOT_FOUND` → 404
+
+---
+
+### `POST /employees`
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN
+
+**Body:**
+
+```json
+{
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "workEmail": "jane.doe@acme.test",
+  "employeeCode": "E0010",
+  "employmentType": "FULL_TIME",
+  "joinedOn": "2024-01-15",
+  "designation": "Software Engineer",
+  "departmentId": "...",
+  "managerId": "...",
+  "phone": "+91 9876543210",
+  "location": "Mumbai",
+  "gender": "FEMALE",
+  "dateOfBirth": "1995-06-15"
+}
+```
+
+> Dates: `"2024-01-15"` and `"2024-01-15T00:00:00.000Z"` both accepted.
+
+**Response:** 201, `data` = full employee object
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `DUPLICATE_EMPLOYEE_CODE` | 409 | Code already taken |
+| `DUPLICATE_WORK_EMAIL` | 409 | Email already taken |
+| `VALIDATION_ERROR` | 422 | Missing required fields |
+
+---
+
+### `PATCH /employees/:id`
+
+**Body:** any subset of employee fields (all optional)
+
+**Response:** 200, `data` = updated employee object
+
+**Error codes:** `DUPLICATE_EMPLOYEE_CODE` (409), `DUPLICATE_WORK_EMAIL` (409), `NOT_FOUND` (404)
+
+---
+
+### `DELETE /employees/:id`
+
+Soft-deletes (sets `employmentStatus = 'TERMINATED'`).
+
+**Response:** 200, `data`: `{ "id": "...", "status": "TERMINATED" }`
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `NOT_FOUND` | 404 | Employee doesn't exist |
+| `EMPLOYEE_HAS_DEPENDENTS` | 409 | Is manager of others or heads a department |
+
+`EMPLOYEE_HAS_DEPENDENTS` details: `{ "managedEmployees": 3, "departmentsHeaded": 1 }`
+
+---
+
+### `GET /employees/export/csv`
+
+Returns CSV file. `Content-Type: text/csv`, `Content-Disposition: attachment; filename="employees.csv"`.
 
 ---
 
@@ -226,161 +373,125 @@ No headers required. Server resolves tenant from email automatically.
 
 ### `GET /departments`
 
-> ⚠️ **QUIRK — data is a flat array directly at `data`** (not nested).
+Returns array of root departments. Each has a `children` array (populated if sub-departments exist with `parentId` pointing to the parent — all seeded departments are root-level so `children: []` in the demo, but nesting works correctly for real data).
 
-**`data`:** (array)
-
-```json
-[
-  {
-    "id": "cmpfyporh001cunacw7t4f2qx",
-    "tenantId": "...",
-    "parentId": null,
-    "name": "Customer Success",
-    "departmentCode": "CUS",
-    "headEmployeeId": null,
-    "depth": 0,
-    "createdAt": "...",
-    "updatedAt": "...",
-    "deletedAt": null,
-    "headEmployee": null,
-    "_count": { "employees": 7 },
-    "children": []
-  }
-]
-```
-
-> `children` is always `[]` — the API returns a flat list. Build hierarchy on client using `parentId`.
-
----
-
-## Analytics (HR_ADMIN / SUPER_ADMIN only)
-
-### `GET /analytics/summary`
-
-**`data`:**
+**Response `data`** — array of:
 
 ```json
 {
-  "totalEmployees": 65,
-  "activeToday": 0,
-  "onLeaveToday": 0,
-  "openRequests": 0
+  "id": "...",
+  "parentId": null,
+  "name": "Customer Success",
+  "departmentCode": "CUS",
+  "headEmployeeId": null,
+  "depth": 0,
+  "headEmployee": null,
+  "_count": { "employees": 7 },
+  "children": []
 }
 ```
 
-**`meta`:** `{ "cached": false, "generatedAt": "2026-05-22T06:49:07.105Z" }`
+> Tree is server-built. `children[]` is populated when sub-departments exist. If all departments are root-level, all `children` arrays are empty — build nothing client-side, the server returns the tree.
 
 ---
 
-### `GET /analytics/attendance?range=7d`
+### `POST /departments`
 
-Supported ranges: `7d`, `30d`, `90d`
+**Body:**
 
-**`data`:**
+```json
+{ "name": "Marketing", "departmentCode": "MKT", "parentId": null }
+```
+
+> `budget` field does NOT exist in the database. Do not send it.
+
+**Response:** 201, `data` = department object
+
+**Error codes:** `DUPLICATE_CODE` (409), `INVALID_PARENT` (400)
+
+---
+
+### `PATCH /departments/:id`
+
+**Body:** any subset
+
+**Response:** 200, `data` = updated department
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `NOT_FOUND` | 404 | Department doesn't exist |
+| `DEPARTMENT_CYCLE` | 409 | Setting parentId would create a cycle |
+| `INVALID_PARENT` | 400 | Parent department doesn't exist |
+| `DUPLICATE_CODE` | 409 | Code taken by another department |
+
+---
+
+### `DELETE /departments/:id`
+
+**Response:** 200, `data`: `{ "id": "...", "status": "archived" }`
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `NOT_FOUND` | 404 | Department doesn't exist |
+| `DEPARTMENT_NOT_EMPTY` | 409 | Has active employees or sub-departments |
+
+---
+
+## Holidays
+
+### `GET /holidays`
+
+**Query params:** `year` (number), `country` (string)
+
+**Response `data`:**
 
 ```json
 {
-  "range": "7d",
-  "series": [
-    { "date": "2026-05-16", "present": 0, "absent": 0, "leave": 0, "wfh": 0, "halfDay": 0 },
-    { "date": "2026-05-17", "present": 3, "absent": 0, "leave": 0, "wfh": 0, "halfDay": 0 }
-  ]
-}
-```
-
----
-
-### `GET /analytics/headcount-by-department`
-
-> ⚠️ Data is an array directly at `data`.
-
-**`data`:** (array)
-
-```json
-[
-  {
-    "departmentId": "cmpfyph7t000yunacvy5kouqi",
-    "departmentName": "Engineering",
-    "employeeCount": 10,
-    "activeCount": 8
-  }
-]
-```
-
----
-
-### `GET /analytics/recent-activity?limit=10`
-
-> ⚠️ Data is an array directly at `data`.
-
-**`data`:** (array)
-
-```json
-[
-  {
-    "id": "cmpgk6ym700056d9wcvw28vp0",
-    "actorName": "Priya",
-    "action": "login",
-    "entityType": "User",
-    "entityId": "cmpfypc6d000wunac1zlr789l",
-    "resourceLabel": "User #CMPFY",
-    "createdAt": "2026-05-22T06:49:04.447Z",
-    "createdAtIstDisplay": "22/05/2026 12:19:04 pm IST"
-  }
-]
-```
-
----
-
-### `GET /analytics/leave-summary?range=30d`
-
-**`data`:**
-
-```json
-{
-  "pending": 0,
-  "approved": 0,
-  "rejected": 0,
-  "withdrawn": 1
+  "holidays": [
+    {
+      "id": "...",
+      "name": "Independence Day",
+      "holidayDate": "2026-08-15T00:00:00.000Z",
+      "location": "India",
+      "isOptional": false,
+      "createdAt": "2026-05-21T20:47:59.685Z",
+      "updatedAt": "2026-05-21T20:47:59.685Z"
+    }
+  ],
+  "total": 4
 }
 ```
 
 ---
 
-## Employee Dashboard
+### `POST /holidays`
 
-### `GET /employee/dashboard`
-
-> Uses `employeeId` from JWT — no URL param needed.
-> Returns `400 NO_EMPLOYEE_RECORD` for SUPER_ADMIN.
-
-**`data`:**
+**Body:**
 
 ```json
 {
-  "employeeName": "HR Admin",
-  "designation": "HR Manager",
-  "department": "HR",
-  "todayAttendance": {},
-  "pendingLeaves": 0
+  "name": "Diwali",
+  "holidayDate": "2026-10-20",
+  "isOptional": false,
+  "location": "India"
 }
 ```
+
+> Field is `holidayDate` (not `date`). Optional flag is `isOptional: boolean` (not `type: string`).
+
+**Response:** 201, `data` = holiday object
 
 ---
 
-### `GET /employee/team` (also `/employees/me/team`)
+### `PATCH /holidays/:id`
 
-> ⚠️ Known seed data issue — returns empty object `{}` for current seeded employees (manager linkage not set in seed). Schema is correct; data will populate when employee `managerId` fields are set.
+**Body:** any subset. **Response:** 200, `data` = updated holiday.
 
-**`data`:**
+### `DELETE /holidays/:id`
 
-```json
-{
-  "manager": { "name": "...", "designation": "...", "email": "..." },
-  "peers": [{ "name": "...", "designation": "...", "email": "..." }]
-}
-```
+**Response:** 200, `data` = `{ "id": "...", "status": "deleted" }`
 
 ---
 
@@ -388,51 +499,31 @@ Supported ranges: `7d`, `30d`, `90d`
 
 ### `GET /leave/types`
 
-> ⚠️ Data is an array directly at `data`.
-
-**`data`:** (array)
+**Response `data`** — array of:
 
 ```json
-[
-  {
-    "id": "cmpfypuvg001kunacml0quuvj",
-    "name": "Annual Leave",
-    "code": "ANNUAL",
-    "annualAllowance": 21,
-    "carryForwardAllowed": true,
-    "isPaid": true
-  },
-  {
-    "id": "cmpfypwib001munacc41r3802",
-    "name": "Sick Leave",
-    "code": "SICK",
-    "annualAllowance": 10,
-    "carryForwardAllowed": false,
-    "isPaid": true
-  },
-  {
-    "id": "cmpfypxhn001ounacxdcl8j2r",
-    "name": "Casual Leave",
-    "code": "CASUAL",
-    "annualAllowance": 12,
-    "carryForwardAllowed": false,
-    "isPaid": true
-  }
-]
+{
+  "id": "...",
+  "name": "Annual Leave",
+  "code": "ANNUAL",
+  "annualAllowance": 21,
+  "carryForwardAllowed": true,
+  "isPaid": true
+}
 ```
 
 ---
 
 ### `GET /leave/balance`
 
-**`data`:**
+**Response `data`:**
 
 ```json
 {
   "balances": [
     {
       "id": "...",
-      "leaveTypeId": "cmpfypuvg001kunacml0quuvj",
+      "leaveTypeId": "...",
       "leaveTypeName": "Annual Leave",
       "leaveTypeCode": "ANNUAL",
       "total": 21,
@@ -448,7 +539,9 @@ Supported ranges: `7d`, `30d`, `90d`
 
 ### `GET /leave/requests`
 
-**`data`:**
+**Query params:** `page`, `limit`, `status`, `leaveTypeId`, `fromDate`, `toDate`
+
+**Response `data`:**
 
 ```json
 {
@@ -460,8 +553,8 @@ Supported ranges: `7d`, `30d`, `90d`
       "startDate": "2026-06-15T00:00:00.000Z",
       "endDate": "2026-06-15T00:00:00.000Z",
       "totalDays": 1,
-      "status": "WITHDRAWN",
-      "reason": "Personal appointment scheduled",
+      "status": "PENDING",
+      "reason": "Personal appointment",
       "submittedAt": "2026-05-21T21:13:37.484Z",
       "decidedAt": null,
       "approverComment": null
@@ -471,46 +564,93 @@ Supported ranges: `7d`, `30d`, `90d`
 }
 ```
 
-**Status enum:** `PENDING | APPROVED | DENIED | WITHDRAWN | CANCELLED`
+**Statuses:** `PENDING`, `APPROVED`, `DENIED`, `WITHDRAWN`
+
+---
+
+### `GET /leave/team/requests`
+
+**Required roles:** MANAGER, HR_ADMIN. Same shape as above.
+
+---
 
 ### `POST /leave/requests`
 
+**Body:**
+
 ```json
 {
-  "leaveTypeId": "<id from GET /leave/types>",
-  "startDate": "2026-06-15T00:00:00.000Z",
-  "endDate": "2026-06-15T00:00:00.000Z",
-  "reason": "At least 10 characters"
+  "leaveTypeId": "...",
+  "startDate": "2026-07-01",
+  "endDate": "2026-07-03",
+  "reason": "Family vacation trip"
 }
 ```
 
-> ⚠️ Dates must be ISO datetime strings (`T00:00:00.000Z`), NOT plain date strings (`2026-06-15`).
+**Error codes:** `LEAVE_TYPE_NOT_FOUND` (404), `NO_LEAVE_BALANCE` (400), `OVERLAPPING_LEAVE` (400), `INSUFFICIENT_BALANCE` (400)
+
+---
+
+### `PATCH /leave/requests/:id/approve`
+
+**Required roles:** MANAGER, HR_ADMIN
+
+**Body:** `{ "comment": "Approved" }` (optional)
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `LEAVE_REQUEST_NOT_FOUND` | 404 | Not found |
+| `LEAVE_ALREADY_DECIDED` | 409 | Not PENDING (already approved/denied/withdrawn) |
+
+---
+
+### `PATCH /leave/requests/:id/reject`
+
+**Required roles:** MANAGER, HR_ADMIN
+
+**Body:** `{ "comment": "Team at capacity" }`
+
+**Response `data`:** updated request (status = `DENIED`)
+
+**Error codes:** `LEAVE_REQUEST_NOT_FOUND` (404), `LEAVE_ALREADY_DECIDED` (409)
+
+---
+
+### `PATCH /leave/requests/:id/withdraw`
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `LEAVE_REQUEST_NOT_FOUND` | 404 | Not found |
+| `UNAUTHORIZED_ACTION` | 403 | Not your request |
+| `LEAVE_ALREADY_DECIDED` | 409 | Not PENDING |
 
 ---
 
 ## Attendance
 
-### `GET /attendance/today`
+### `POST /attendance/check-in`
 
-**`data`:**
+**Body:** `{ "workMode": "OFFICE", "notes": "On time" }`
 
-```json
-{
-  "date": "2026-05-22T00:00:00.000Z",
-  "status": "NOT_MARKED",
-  "checkInAt": null,
-  "checkOutAt": null,
-  "duration": null
-}
-```
+`workMode` values: `OFFICE`, `WFH`, `HYBRID`
 
-**status enum:** `NOT_MARKED | PRESENT | ABSENT`
+**Response `data`:** attendance record object
 
 ---
 
-### `GET /attendance/records?month=2026-05`
+### `POST /attendance/check-out`
 
-**`data`:**
+**Body:** `{ "notes": "Done for the day" }` (optional)
+
+---
+
+### `GET /attendance/records`
+
+**Query params:** `page`, `limit`, `month` (YYYY-MM), `fromDate`, `toDate`
+
+**Response `data`:**
 
 ```json
 {
@@ -518,31 +658,35 @@ Supported ranges: `7d`, `30d`, `90d`
     {
       "id": "...",
       "attendanceDate": "2026-05-21T00:00:00.000Z",
-      "checkInAt": "2026-05-21T21:12:13.605Z",
-      "checkOutAt": null,
+      "checkInAt": "2026-05-21T09:12:13.605Z",
+      "checkOutAt": "2026-05-21T18:30:00.000Z",
       "status": "PRESENT",
       "workMode": "OFFICE",
-      "totalMinutes": null,
+      "totalMinutes": 558,
       "notes": null
     }
   ],
-  "pagination": { "page": 1, "limit": 10, "total": 15, "pages": 2 }
+  "pagination": { "page": 1, "limit": 10, "total": 23, "pages": 3 }
 }
 ```
 
-**Query params:** `month=YYYY-MM` OR `fromDate=` + `toDate=`
+---
+
+### `GET /attendance/team/records`
+
+**Required roles:** MANAGER, HR_ADMIN. **Query:** `month` (YYYY-MM), `departmentId`. Same shape.
 
 ---
 
 ### `GET /attendance/summary`
 
-**`data`:**
+**Response `data`:**
 
 ```json
 {
-  "period": { "startDate": "2026-05-01T00:00:00.000Z", "endDate": "2026-05-22T..." },
-  "totalDays": 15,
-  "present": 15,
+  "period": { "startDate": "2026-04-30T18:30:00.000Z", "endDate": "2026-05-22T12:31:33.010Z" },
+  "totalDays": 16,
+  "present": 16,
   "absent": 0,
   "leave": 0,
   "wfh": 0,
@@ -557,135 +701,68 @@ Supported ranges: `7d`, `30d`, `90d`
 
 ### `POST /attendance/regularization`
 
-```json
-{
-  "attendanceDate": "2026-05-20T00:00:00.000Z",
-  "type": "MISSED_CHECKOUT",
-  "reason": "Minimum 20 characters reason here"
-}
-```
+**Body:** `{ "attendanceDate": "2026-05-20", "reason": "Forgot to check in while in office" }`
 
-> ⚠️ `attendanceDate` must be ISO datetime string.
-> `type` enum: `LATE | MISSED_CHECKOUT | EARLY_CHECKOUT`
-> `reason` minimum 20 characters.
+### `GET /attendance/regularization`
 
----
+Own regularization requests.
 
-## Holidays
+### `GET /attendance/team/regularization`
 
-### `GET /holidays?year=2026`
+**Required roles:** MANAGER, HR_ADMIN.
 
-**`data`:**
+### `PATCH /attendance/regularization/:id/approve`
 
-```json
-{
-  "holidays": [
-    {
-      "id": "...",
-      "tenantId": "...",
-      "name": "Independence Day",
-      "holidayDate": "2026-08-15T00:00:00.000Z",
-      "location": "India",
-      "isOptional": false,
-      "createdAt": "...",
-      "updatedAt": "..."
-    }
-  ],
-  "total": 3
-}
-```
+**Required roles:** MANAGER, HR_ADMIN.
 
-### `POST /holidays`
+### `PATCH /attendance/regularization/:id/deny`
 
-```json
-{ "name": "Diwali", "holidayDate": "2026-10-20", "location": "India", "isOptional": false }
-```
+**Required roles:** MANAGER, HR_ADMIN.
 
 ---
 
-## Manager Dashboard
+## Analytics
 
-### `GET /manager/dashboard`
+All require HR_ADMIN or SUPER_ADMIN.
 
-**`data`:**
+### `GET /analytics/summary`
+
+```json
+{ "totalEmployees": 67, "activeToday": 0, "onLeaveToday": 0, "openRequests": 0 }
+```
+
+### `GET /analytics/attendance`
+
+**Query:** `range` = `7d` | `30d` | `90d`
 
 ```json
 {
-  "managerName": "Aman Kumar",
-  "teamSize": 19,
-  "pendingApprovals": 0,
-  "todayAttendance": {}
+  "range": "30d",
+  "series": [
+    { "date": "2026-04-22", "present": 3, "absent": 0, "leave": 0, "wfh": 0, "halfDay": 0 }
+  ]
 }
 ```
 
----
+### `GET /analytics/headcount-by-department`
 
-### `GET /manager/team`
+Array of: `{ "departmentId": "...", "departmentName": "Engineering", "employeeCount": 10, "activeCount": 8 }`
 
-> ⚠️ Data is an array directly at `data`.
-
-**`data`:** (array)
+### `GET /analytics/leave-summary`
 
 ```json
-[
-  {
-    "id": "...",
-    "employeeCode": "E0002",
-    "firstName": "Priya",
-    "lastName": "Sharma",
-    "designation": "Senior Engineer"
-  }
-]
+{ "pending": 0, "approved": 0, "rejected": 0, "withdrawn": 1 }
 ```
 
----
+### `GET /analytics/recent-activity`
 
-### `GET /manager/approvals`
-
-**`data`:**
-
-```json
-{
-  "leaveRequests": [],
-  "regularizationRequests": []
-}
-```
-
----
-
-## Audit Logs
-
-### `GET /audit-logs`
-
-**`data`:**
-
-```json
-{
-  "logs": [
-    {
-      "id": "...",
-      "user_email": "priya@acme.test",
-      "action": "LOGIN",
-      "entity_type": "User",
-      "entity_id": "...",
-      "old_value": null,
-      "new_value": null,
-      "ip_address": "127.0.0.1",
-      "user_agent": "curl/8.7.1",
-      "created_at": "2026-05-22T06:49:04.447Z"
-    }
-  ],
-  "pagination": { "page": 1, "limit": 10, "total": 71, "pages": 8 }
-}
-```
+Array of recent activity events.
 
 ---
 
 ## Settings
 
 ### `GET /settings/tenant`
-
-**`data`:**
 
 ```json
 {
@@ -697,26 +774,349 @@ Supported ranges: `7d`, `30d`, `90d`
 }
 ```
 
+### `PATCH /settings/tenant`
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN. **Body (snake_case):**
+
+```json
+{
+  "company_name": "Acme Corp",
+  "timezone": "Asia/Kolkata",
+  "working_hours_start": "09:00",
+  "working_hours_end": "18:00"
+}
+```
+
+**Response `data`:** same shape as GET.
+
 ---
 
-## Quirks Summary for Frontend Team
+### `GET /settings/email-templates`
 
-| Endpoint                                 | Where the list/data lives             | Notes                                      |
-| ---------------------------------------- | ------------------------------------- | ------------------------------------------ |
-| `GET /employees`                         | `data.data[]` + `data.pagination`     | **Double-nested** — list is at `data.data` |
-| `GET /departments`                       | `data[]`                              | Flat array, build tree from `parentId`     |
-| `GET /analytics/headcount-by-department` | `data[]`                              | Array directly                             |
-| `GET /analytics/recent-activity`         | `data[]`                              | Array directly                             |
-| `GET /leave/types`                       | `data[]`                              | Array directly                             |
-| `GET /manager/team`                      | `data[]`                              | Array directly                             |
-| `GET /leave/requests`                    | `data.requests[]` + `data.pagination` | Nested under `requests` key                |
-| `GET /attendance/records`                | `data.records[]` + `data.pagination`  | Nested under `records` key                 |
-| `GET /audit-logs`                        | `data.logs[]` + `data.pagination`     | Nested under `logs` key                    |
-| `GET /leave/balance`                     | `data.balances[]`                     | Nested under `balances` key                |
-| `GET /holidays`                          | `data.holidays[]` + `data.total`      | Nested under `holidays` key                |
-| All others                               | `data` (object)                       | Single object                              |
+**Required roles:** HR_ADMIN, SUPER_ADMIN.
 
-## Date Format Warning
+**Response `data`:**
 
-> All date inputs to POST/PATCH endpoints must be **ISO datetime strings**: `"2026-06-15T00:00:00.000Z"`
-> Plain date strings like `"2026-06-15"` will fail validation with `FST_ERR_VALIDATION`.
+```json
+{
+  "templates": [
+    {
+      "id": "...",
+      "type": "LEAVE_APPROVAL",
+      "subject": "Your Leave Request Has Been Approved",
+      "body": "..."
+    }
+  ]
+}
+```
+
+`type` values: `LEAVE_APPROVAL`, `LEAVE_REJECTION`, `ATTENDANCE_ALERT`
+
+### `PATCH /settings/email-templates/:type`
+
+**Body:** `{ "subject": "...", "body": "..." }`
+
+---
+
+### `GET /settings/roles-permissions`
+
+**Required roles:** SUPER_ADMIN.
+
+**Response `data`:**
+
+```json
+{
+  "roles": ["EMPLOYEE", "HR_ADMIN", "AUDITOR", "MANAGER", "SUPER_ADMIN"],
+  "permissions": [
+    "analytics:read",
+    "attendance:read",
+    "attendance:write",
+    "audit:read",
+    "departments:read",
+    "departments:write",
+    "employees:delete",
+    "employees:export",
+    "employees:read",
+    "employees:write",
+    "leave:approve",
+    "leave:read",
+    "leave:request",
+    "permissions:manage"
+  ],
+  "matrix": {
+    "EMPLOYEE": [
+      "attendance:read",
+      "attendance:write",
+      "leave:read",
+      "leave:request",
+      "audit:read"
+    ],
+    "HR_ADMIN": [
+      "employees:read",
+      "employees:write",
+      "employees:delete",
+      "employees:export",
+      "departments:read",
+      "departments:write",
+      "attendance:read",
+      "attendance:write",
+      "leave:read",
+      "leave:approve",
+      "analytics:read",
+      "audit:read"
+    ],
+    "MANAGER": ["attendance:read", "leave:approve", "audit:read"],
+    "AUDITOR": [
+      "employees:read",
+      "departments:read",
+      "attendance:read",
+      "leave:read",
+      "analytics:read",
+      "audit:read"
+    ],
+    "SUPER_ADMIN": [
+      "employees:read",
+      "employees:write",
+      "employees:delete",
+      "employees:export",
+      "departments:read",
+      "departments:write",
+      "attendance:read",
+      "attendance:write",
+      "leave:read",
+      "leave:request",
+      "leave:approve",
+      "analytics:read",
+      "permissions:manage",
+      "audit:read"
+    ]
+  }
+}
+```
+
+---
+
+### `PATCH /settings/roles-permissions`
+
+**Required roles:** SUPER_ADMIN.
+
+**Body:** `{ "role": "MANAGER", "permissions": ["attendance:read", "leave:approve"] }`
+
+Replaces full permission set for the role.
+
+**Error codes:**
+| Code | Status | When |
+|------|--------|------|
+| `CANNOT_LOCK_OUT_SUPER_ADMIN` | 403 | Tried to modify SUPER_ADMIN role |
+| `ROLE_NOT_FOUND` | 404 | Unknown role key |
+
+---
+
+## Dashboards
+
+### `GET /employee/dashboard`
+
+```json
+{
+  "employeeName": "Priya Sharma",
+  "designation": "Senior Engineer",
+  "department": "Engineering",
+  "todayAttendance": {},
+  "pendingLeaves": 0
+}
+```
+
+### `GET /employee/team`
+
+Manager + peers in same department.
+
+### `GET /employee/documents`
+
+Array of `EmployeeDocument` records. Also at: `GET /employees/me/documents`
+
+### `GET /manager/dashboard`
+
+**Required roles:** MANAGER, HR_ADMIN, SUPER_ADMIN.
+
+```json
+{ "managerName": "Aman Kumar", "teamSize": 19, "pendingApprovals": 0, "todayAttendance": {} }
+```
+
+### `GET /manager/team`
+
+Team members under the logged-in manager.
+
+### `GET /manager/approvals`
+
+Pending leave and regularization requests.
+
+---
+
+## Reports
+
+All require HR_ADMIN or SUPER_ADMIN.
+
+### `GET /reports/attendance`
+
+```json
+{
+  "period": {},
+  "summary": {
+    "present": 67,
+    "absent": 0,
+    "late": 0,
+    "on_time": 0,
+    "leave": 0,
+    "wfh": 0,
+    "half_day": 0,
+    "holiday": 0
+  },
+  "by_department": [
+    {
+      "department_id": "...",
+      "department_name": "Engineering",
+      "present": 45,
+      "absent": 0,
+      "late": 0,
+      "on_time": 0,
+      "leave": 0,
+      "wfh": 0,
+      "half_day": 0,
+      "holiday": 0
+    }
+  ]
+}
+```
+
+### `GET /reports/leaves`
+
+Leave summary by department and leave type.
+
+### `GET /reports/payroll`
+
+Payroll summary data.
+
+---
+
+## Audit Logs
+
+### `GET /audit-logs`
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN. **Query:** `page`, `limit`, `entity`, `action`, `userId`
+
+**Response `data`:**
+
+```json
+{
+  "logs": [
+    {
+      "id": "...",
+      "user_email": "hr@acme.test",
+      "action": "UPDATE",
+      "entity_type": "Employee",
+      "entity_id": "...",
+      "old_value": null,
+      "new_value": {},
+      "ip_address": "127.0.0.1",
+      "user_agent": "Mozilla/5.0...",
+      "created_at": "2026-05-22T12:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 10, "pages": 1 }
+}
+```
+
+> Shape is `data.logs[]` + `data.pagination` — NOT a flat `data[]` array.
+> All fields are **snake_case**: `user_email`, `entity_type`, `entity_id`, `old_value`, `new_value`, `ip_address`, `user_agent`, `created_at`.
+
+### `GET /audit-logs/:id`
+
+Single audit log entry (direct object, not wrapped in `logs`).
+
+---
+
+## Admin Logs
+
+### `GET /admin/logs`
+
+**Route:** `/api/v1/admin/logs` (NOT `/api/v1/logs`)
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN. **Query:** `level`, `module`, `limit`, `offset`
+
+---
+
+## Export
+
+### `POST /export/employees`
+
+**Body:** `{ "format": "csv", "filters": {} }`
+**Response `data`:** `{ "jobId": "...", "status": "PENDING" }`
+
+### `GET /export/:job_id/download`
+
+Download completed export.
+
+### `GET /export/list`
+
+All export jobs for the tenant.
+
+---
+
+## Complete Error Code Reference
+
+| Code                          | Status | Meaning                                                        |
+| ----------------------------- | ------ | -------------------------------------------------------------- |
+| `UNAUTHORIZED`                | 401    | Missing or invalid access token                                |
+| `INVALID_TOKEN`               | 401    | Token expired or malformed                                     |
+| `INVALID_CREDENTIALS`         | 401    | Wrong password or unknown email                                |
+| `TOKEN_REUSE`                 | 401    | Refresh token reused — session revoked                         |
+| `SESSION_EXPIRED`             | 401    | Refresh token expired                                          |
+| `FORBIDDEN`                   | 403    | Authenticated but wrong role                                   |
+| `CANNOT_LOCK_OUT_SUPER_ADMIN` | 403    | Cannot modify SUPER_ADMIN permissions                          |
+| `UNAUTHORIZED_ACTION`         | 403    | Trying to act on someone else's data                           |
+| `NOT_FOUND`                   | 404    | Resource doesn't exist                                         |
+| `LEAVE_REQUEST_NOT_FOUND`     | 404    | Leave request not found                                        |
+| `LEAVE_TYPE_NOT_FOUND`        | 404    | Leave type not found                                           |
+| `ROLE_NOT_FOUND`              | 404    | Unknown role key                                               |
+| `VALIDATION_ERROR`            | 422    | Schema validation failed — details is array of {field,message} |
+| `AMBIGUOUS_EMAIL`             | 400    | Email in multiple tenants — send X-Tenant-Key                  |
+| `MISSING_TENANT`              | 400    | Cannot determine tenant                                        |
+| `TENANT_INACTIVE`             | 403    | Tenant account deactivated                                     |
+| `NO_LEAVE_BALANCE`            | 400    | No leave balance for this type                                 |
+| `OVERLAPPING_LEAVE`           | 400    | Date range overlaps existing leave                             |
+| `INSUFFICIENT_BALANCE`        | 400    | Not enough leave days available                                |
+| `INVALID_PARENT`              | 400    | Parent department doesn't exist                                |
+| `DUPLICATE_EMPLOYEE_CODE`     | 409    | Employee code already taken                                    |
+| `DUPLICATE_WORK_EMAIL`        | 409    | Work email already taken                                       |
+| `EMPLOYEE_HAS_DEPENDENTS`     | 409    | Employee manages others or heads a dept                        |
+| `DUPLICATE_CODE`              | 409    | Department code already taken                                  |
+| `DEPARTMENT_CYCLE`            | 409    | Setting parent would create circular chain                     |
+| `DEPARTMENT_NOT_EMPTY`        | 409    | Dept has employees or sub-departments                          |
+| `LEAVE_ALREADY_DECIDED`       | 409    | Leave request is not PENDING                                   |
+
+---
+
+## List Envelope Summary
+
+| Endpoint                                 | Shape                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| `GET /employees`                         | `data: { data: [...], pagination: {} }` — double-nested           |
+| `GET /departments`                       | `data: [...]` — flat array of root nodes with nested `children[]` |
+| `GET /leave/requests`                    | `data: { requests: [...], pagination: {} }`                       |
+| `GET /leave/team/requests`               | `data: { requests: [...], pagination: {} }`                       |
+| `GET /attendance/records`                | `data: { records: [...], pagination: {} }`                        |
+| `GET /audit-logs`                        | `data: { logs: [...], pagination: {} }`                           |
+| `GET /holidays`                          | `data: { holidays: [...], total: N }`                             |
+| `GET /analytics/headcount-by-department` | `data: [...]` — flat array                                        |
+| `GET /auth/sessions`                     | `data: [...]` — flat array                                        |
+
+---
+
+## Not Implemented (Prisma models exist, no routes)
+
+| Feature                             | Status                                                        |
+| ----------------------------------- | ------------------------------------------------------------- |
+| Document upload                     | GET list works, no POST upload (no file storage)              |
+| Notifications                       | Prisma model exists, zero routes                              |
+| Resignations                        | Prisma model exists, zero routes                              |
+| Fine-grained permission enforcement | `authorize()` uses memberType enum, not the Permission tables |

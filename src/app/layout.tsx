@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import { QueryProvider, ThemeProvider, AuthProvider } from '@/providers';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+import { MSWProvider } from '@/mocks/MSWProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -30,14 +31,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-canvas text-fg">
-        <ThemeProvider>
-          <QueryProvider>
-            <TooltipProvider>
-              <AuthProvider>{children}</AuthProvider>
-            </TooltipProvider>
-          </QueryProvider>
-          <Toaster />
-        </ThemeProvider>
+        <MSWProvider>
+          <ThemeProvider>
+            <QueryProvider>
+              <TooltipProvider>
+                <AuthProvider>{children}</AuthProvider>
+              </TooltipProvider>
+            </QueryProvider>
+            <Toaster />
+          </ThemeProvider>
+        </MSWProvider>
       </body>
     </html>
   );
