@@ -58,57 +58,114 @@ The primary near-term goal is a **working demo** that can be shown to stakeholde
 
 ## 3. Backend reality — read carefully
 
-This frontend talks to a backend that is **partially built**. Status as of repo creation:
-
 ### How the frontend reaches the backend — BFF proxy
 
 The browser **never** calls the Render backend directly and **never** sees the
-tenant key or the real backend URL. All backend traffic flows through a
-server-side BFF (Backend-for-Frontend) layer inside this Next.js app:
+real backend URL. All backend traffic flows through a server-side BFF
+(Backend-for-Frontend) layer inside this Next.js app:
 
 ```
 browser  ──►  Next.js /api/*  (same origin)  ──►  Render backend
-                    │                                   ▲
-                    └─ BFF route handler attaches ───────┘
-                       x-tenant-key here, server-side
+                    │
+                    └─ BFF route handler hides the backend URL and
+                       forwards Authorization header (if present) +
+                       cookies unchanged. No tenant key is added —
+                       the JWT itself carries the tenant identity.
 ```
 
 - The browser-side Axios client (`src/lib/api-client.ts`) has `baseURL: "/api"`.
   Every request goes to our own Next.js origin.
 - The BFF route handler at `src/app/api/[...path]/route.ts` catches `/api/*`,
-  reads `API_BASE_URL` and `TENANT_KEY` from **server-only** env, attaches the
-  `x-tenant-key` header, forwards the request, and relays the response back.
-- `API_BASE_URL` and `TENANT_KEY` are server-only. They are **not** prefixed
-  `NEXT_PUBLIC_` and must never be — that would inline them into the browser
-  bundle and leak the tenant key. Server env is validated in `src/lib/env.server.ts`
-  (which imports `server-only`); public env stays in `src/lib/env.ts`.
-- The `Authorization` bearer token still lives client-side and is passed
-  through the BFF unchanged — that is correct and intended.
+  reads `API_BASE_URL` from **server-only** env, forwards the request with the
+  browser's cookies and any Authorization header, and relays the response back.
+- `API_BASE_URL` is server-only. It must never carry the `NEXT_PUBLIC_` prefix —
+  that would inline the backend URL into the browser bundle. Server env is
+  validated in `src/lib/env.server.ts` (which imports `server-only`); public env
+  stays in `src/lib/env.ts`.
+- Auth is **cookie-based** (see §10). The browser's httpOnly `accessToken` and
+  `refreshToken` cookies are forwarded by the BFF to the backend automatically.
+  There is no `x-tenant-key` — the JWT carries tenant identity.
 
-### What's REAL on the backend
+### What's LIVE on the backend
 
-Only the auth surface is implemented and deployed. These are the only endpoints that exist:
+All of the following are implemented, deployed, and return real data
+(verified against the live Render API on 2026-05-22). `docs/API_MAPPING.md`
+is the authoritative source for every response shape.
 
 ```
+# Auth
 POST   /api/v1/auth/login
-POST   /api/v1/auth/admin/login
 POST   /api/v1/auth/refresh
 POST   /api/v1/auth/logout
 POST   /api/v1/auth/logout-all
 GET    /api/v1/auth/me
 GET    /api/v1/auth/sessions
 DELETE /api/v1/auth/sessions/:id
+
+# Employees (read)
+GET    /api/v1/employees
+GET    /api/v1/employees/:id
+
+# Departments (read)
+GET    /api/v1/departments
+
+# Analytics (HR_ADMIN / SUPER_ADMIN)
+GET    /api/v1/analytics/summary
+GET    /api/v1/analytics/attendance?range=7d|30d|90d
+GET    /api/v1/analytics/headcount-by-department
+GET    /api/v1/analytics/recent-activity?limit=N
+GET    /api/v1/analytics/leave-summary?range=30d
+
+# Employee self-service
+GET    /api/v1/employee/dashboard
+GET    /api/v1/employee/team
+
+# Leave
+GET    /api/v1/leave/types
+GET    /api/v1/leave/balance
+GET    /api/v1/leave/requests
+POST   /api/v1/leave/requests
+
+# Attendance
+GET    /api/v1/attendance/today
+GET    /api/v1/attendance/records?month=YYYY-MM
+GET    /api/v1/attendance/summary
+POST   /api/v1/attendance/regularization
+
+# Holidays
+GET    /api/v1/holidays?year=YYYY
+POST   /api/v1/holidays
+
+# Manager
+GET    /api/v1/manager/dashboard
+GET    /api/v1/manager/team
+GET    /api/v1/manager/approvals
+
+# Audit logs
+GET    /api/v1/audit-logs
+
+# Settings
+GET    /api/v1/settings/tenant
 ```
 
-### What's NOT YET built on the backend
+### What still needs MSW
 
-Everything else. Employees, departments, attendance, leave, holidays, permissions, settings — none of these endpoints exist yet on the live API. Calling them will return 404.
+Use MSW for any endpoint **not listed above**. This includes:
 
-### How we deal with this
+- Employee mutations: `POST /employees`, `PATCH /employees/:id`, `DELETE /employees/:id`
+- Department mutations: `POST /departments`, `PATCH /departments/:id`, `DELETE /departments/:id`
+- Leave approval actions: `POST /leave/requests/:id/approve`, `/reject`, `/withdraw`
+- Settings update: `PATCH /settings/tenant`
+- Roles / permissions matrix management (no endpoints exist yet)
 
-**Use MSW (Mock Service Worker) for every non-auth API call.** The mock IS the contract — the frontend defines what it expects, and the backend dev implements to match. When a real endpoint ships, we delete the mock for that endpoint and the rest of the app keeps working.
+### MSW discipline (unchanged)
 
-This is non-negotiable. Do NOT:
+**Use MSW for every endpoint not listed above.** The mock IS the contract — the
+frontend defines what it expects, and the backend dev implements to match. When a
+real endpoint ships, delete the mock for that endpoint and the rest of the app
+keeps working.
+
+Do NOT:
 
 - Hardcode JSON inside components.
 - `import data from './employees.json'` at the call site.
@@ -136,38 +193,79 @@ backend directly.
 - The backend base URL is the **server-only** `API_BASE_URL` env var (no
   `NEXT_PUBLIC_` prefix). See §3 "BFF proxy".
 
-### Required headers on every request
+### Headers
 
 ```
-x-tenant-key:   attached server-side by the BFF (TENANT_KEY env). Never set on the client.
-Authorization:  Bearer <access token>      # client-side; passed through the BFF. Except /auth/login.
-Content-Type:   application/json
+Content-Type:  application/json                   # always
+Cookie:        accessToken=...; refreshToken=...  # set by server; browser sends automatically
 ```
 
-The browser-side Axios client only sets `Authorization` and `Content-Type`.
-`x-tenant-key` is added by the BFF route handler so the tenant key never
-reaches the browser.
+There is **no** `Authorization: Bearer` header — auth is cookie-based (§10).
+There is **no** `x-tenant-key` — the JWT carries tenant identity.
 
 ### Auth flow
 
-1. `POST /auth/login` with `{ email, password }`. Server returns `{ accessToken }` and sets a refresh token in an `HttpOnly Secure SameSite=Strict` cookie.
-2. Access token TTL: **15 minutes**. Refresh token TTL: **7 days**.
-3. Axios interceptor on 401 → calls `POST /auth/refresh` (cookie is sent automatically) → retries the original request once with the new access token.
-4. If refresh fails: clear state, redirect to `/login?next=<current path>`.
-5. `GET /auth/me` returns the current user + their permissions. Frontend calls this on mount and caches via React Query.
-6. Refresh tokens **rotate** on each use — old one is invalidated. Reuse of a revoked token revokes the whole session.
+1. `POST /auth/login` with `{ email, password }`. Server sets two httpOnly cookies:
+   `accessToken` (15-min TTL) and `refreshToken` (7-day TTL).
+   The response body includes `{ accessToken }` — **ignore in browser code**; it is
+   present for Postman/Swagger only.
+2. Browser sends both cookies automatically on every subsequent request
+   (`withCredentials: true` on the Axios instance).
+3. The Axios client does **not** attach an `Authorization` header. No token is
+   stored or managed client-side.
+4. On app boot, `AuthProvider` calls `GET /auth/me`. If 200 → user is signed in
+   (React Query cache populated). If 401 → not authenticated.
+5. `AuthGuard` (in `(dashboard)/layout.tsx`) redirects to `/login?next=<path>`
+   when not authenticated.
+6. Axios 401 interceptor: queue the original request → `POST /auth/refresh`
+   (refreshToken cookie sent automatically) → server rotates both cookies → drain
+   queue (all pending requests retry with the new cookie active) → if refresh fails,
+   redirect to `/login?next=<path>`.
+7. Refresh tokens **rotate** on each use. Reusing a revoked token revokes the whole
+   session.
 
-### Response envelope (success)
+### Login response shape
+
+`POST /auth/login` → `data` payload:
 
 ```json
 {
-  "success": true,
-  "data": { ... },
-  "meta": { "page": 1, "pageSize": 25, "total": 142 }
+  "accessToken": "<ignore in browser — cookie-based>",
+  "sessionId": "string",
+  "user": {
+    "id": "string",
+    "email": "string",
+    "memberType": "HR_ADMIN",
+    "employeeId": "string | null",
+    "employee": { "firstName": "...", "lastName": "...", "designation": "...", "..." } | null
+  },
+  "permissions": ["employees:read", "employees:write", "..."]
 }
 ```
 
-### Response envelope (error)
+> `employeeId` and `employee` are **null for SUPER_ADMIN** — they have no employee profile.
+
+### Response envelopes — INCONSISTENT per endpoint
+
+**`docs/API_MAPPING.md` is the authoritative source.** Consult each endpoint's
+exact entry before writing its service or hook. Never guess the unwrap path.
+Never write a generic unwrap utility.
+
+Key quirks (see the full Quirks Summary table in `API_MAPPING.md`):
+
+| Endpoint                    | List/data lives at                                    |
+| --------------------------- | ----------------------------------------------------- |
+| `GET /employees`            | `data.data[]` + `data.pagination` — **double-nested** |
+| `GET /departments`          | `data[]` — flat array directly                        |
+| `GET /leave/requests`       | `data.requests[]` + `data.pagination`                 |
+| `GET /attendance/records`   | `data.records[]` + `data.pagination`                  |
+| `GET /audit-logs`           | `data.logs[]` + `data.pagination`                     |
+| `GET /leave/balance`        | `data.balances[]`                                     |
+| `GET /holidays`             | `data.holidays[]` + `data.total`                      |
+| All analytics arrays        | `data[]` directly                                     |
+| All single-object responses | `data` object directly                                |
+
+Error envelope (this one IS consistent):
 
 ```json
 {
@@ -181,11 +279,18 @@ reaches the browser.
 }
 ```
 
-### Roles (from backend)
+### Roles (from backend) — all live
 
-`SUPER_ADMIN`, `HR_ADMIN`, `MANAGER`, `EMPLOYEE`. Future role: `AUDITOR`.
+`SUPER_ADMIN`, `HR_ADMIN`, `MANAGER`, `EMPLOYEE`, `AUDITOR`
 
-### Seed test users (against live backend)
+### Enums and date formats
+
+**EmploymentType:** `FULL_TIME | PART_TIME | CONTRACT | INTERNSHIP`
+(not `INTERN` — use `INTERNSHIP`)
+
+**Date writes:** All date inputs to POST/PATCH endpoints must be **ISO datetime
+strings**: `"2026-06-15T00:00:00.000Z"`. Plain date strings (`"2026-06-15"`)
+fail validation with `FST_ERR_VALIDATION`.
 
 ### Seed test users (against live backend)
 
@@ -211,7 +316,7 @@ src/
 │   │   ├── otp-verification/page.tsx
 │   │   └── layout.tsx                # AuthShell
 │   ├── (dashboard)/
-│   │   ├── layout.tsx                # AppShell + auth guard
+│   │   ├── layout.tsx                # AuthGuard + AppShell
 │   │   ├── dashboard/page.tsx
 │   │   ├── employees/
 │   │   │   ├── page.tsx
@@ -248,7 +353,7 @@ src/
 │   │   ├── ModalEngine/
 │   │   ├── DrawerEngine/
 │   │   └── ChartEngine/
-│   ├── guards/                       # PermissionWrapper, RoleGate
+│   ├── guards/                       # AuthGuard, PermissionWrapper, RoleGate
 │   └── layouts/                      # AppShell, AuthShell, PageHeader
 │
 ├── components/
@@ -258,11 +363,10 @@ src/
 │   └── forms/                        # FormField, FormSection, FormActions
 │
 ├── lib/
-│   ├── api-client.ts                 # Axios instance with auth interceptor
-│   ├── auth.ts                       # Token storage, refresh logic
-│   ├── permissions.ts                # can(user, action, resource)
+│   ├── api-client.ts                 # Axios instance with 401/refresh interceptor
+│   ├── permissions.ts                # can(user, permission) pure helper
 │   ├── query-client.ts               # TanStack Query config
-│   └── env.ts                        # Validated env (Zod)
+│   └── env.ts                        # Validated public env (Zod)
 │
 ├── providers/                        # ThemeProvider, QueryProvider, AuthProvider
 ├── hooks/                            # Cross-cutting: useDebounce, useMediaQuery
@@ -363,12 +467,26 @@ A `DynamicTable` accepts a column config and a data array. A `DynamicForm` accep
 
 ## 10. Auth & permissions
 
-- Access token lives in **memory only** (no localStorage). Refresh token lives in `HttpOnly` cookie set by the server.
-- On app boot, attempt `GET /auth/me` — if 200, user is signed in. If 401, redirect to `/login`.
-- The Axios instance has one interceptor:
-  - On request: attach `x-tenant-key` and `Authorization: Bearer <token>`.
-  - On 401: queue the request, call `/auth/refresh`, retry on success, redirect on fail.
-- Wrap permission-sensitive UI with `<PermissionWrapper permission="employees:write">`. This is a **UI affordance**, not a security boundary. All real checks happen server-side.
+**Auth is fully cookie-based.** Both `accessToken` and `refreshToken` are `httpOnly`
+cookies set by the server. The browser sends them automatically on every request via
+`withCredentials: true`. No token is stored or managed client-side.
+
+- The `accessToken` in the login response body is **Postman/Swagger only** — never
+  read or store it in browser code.
+- The Axios client does **not** attach an `Authorization` header. There is no
+  in-memory token store (`lib/auth.ts` does not exist).
+- On app boot, `AuthProvider` calls `GET /auth/me`. If 200 → user is signed in and
+  the React Query cache is populated. If 401 → not authenticated.
+- `AuthGuard` (in `src/shared/guards/AuthGuard.tsx`, used by `(dashboard)/layout.tsx`)
+  redirects unauthenticated users to `/login?next=<path>`.
+- The Axios 401 interceptor: queues in-flight requests → calls `POST /auth/refresh`
+  (cookie sent automatically) → server rotates both cookies → retries all queued
+  requests. If refresh fails: redirect to `/login?next=<path>`.
+- Wrap permission-sensitive UI with `<PermissionWrapper permission="employees:write">`.
+  This is a **UI affordance**, not a security boundary. All real enforcement is
+  server-side.
+- `can(user, permission)` in `lib/permissions.ts` is the non-JSX equivalent for
+  imperative checks.
 
 ---
 
@@ -436,7 +554,8 @@ A component that handles only the success path is **not done**.
 
 ## 14. What NOT to do
 
-- Don't fabricate API endpoints. Only the auth endpoints listed in §4 are real. Everything else MUST go through MSW.
+- Don't fabricate API endpoints. All endpoints in `docs/API_MAPPING.md` are real
+  (verified 2026-05-22). For any endpoint **not** listed there, use MSW.
 - Don't add a "while we wait for the backend, I'll just use localStorage to fake it" path. Use MSW.
 - Don't create new top-level folders without updating this file.
 - Don't import shadcn components directly into module components without first adding them to `components/ui/` via `npx shadcn add <name>`.
@@ -445,6 +564,7 @@ A component that handles only the success path is **not done**.
 - Don't add a `console.log` and leave it. Use `lib/logger.ts`.
 - Don't introduce a new state library, UI kit, or styling solution. See §2.
 - Don't claim work is complete unless: TypeScript passes, ESLint passes, all four component states are handled, and the screen renders correctly in light and dark mode.
+- Don't write a generic API response unwrap utility. Each service method unwraps its own endpoint's specific shape (see §4 Quirks Summary and `docs/API_MAPPING.md`).
 
 ---
 
@@ -465,15 +585,16 @@ A component that handles only the success path is **not done**.
 
 ## 16. Build order for the demo
 
-Follow this sequence. Do not skip ahead.
+> **`BUILD_PLAN.md` is the authoritative step-by-step execution plan and supersedes
+> this section.** Follow `BUILD_PLAN.md`. This section exists for context only.
 
 1. **Repo bootstrap.** Next.js 15 + TypeScript + Tailwind v4 + ESLint + Prettier + Husky + Vitest. Verify `pnpm dev` runs.
 2. **Tokens + base layout.** `tokens.css`, `AppShell` (sidebar + topbar), `AuthShell`. Just static layout, no data.
 3. **shadcn/ui setup.** Install primitives: button, input, label, dialog, dropdown-menu, tabs, table, select, popover, calendar, sheet, toast.
 4. **MSW setup.** Install, configure for browser (dev) and Node (tests). Verify a mock endpoint resolves.
-5. **API client + auth.** Axios instance, interceptor, token storage, refresh flow. Login page → real backend → AppShell.
-6. **Auth-gated route group.** `(dashboard)/layout.tsx` enforces auth via `useAuth()`. Add `PermissionWrapper`.
-7. **Employees module (canonical).** Build directly: `EmployeesPage`, `EmployeeTable` (TanStack Table), `EmployeeForm` (RHF + Zod), `EmployeeProfile`. MSW serves the data.
+5. **API client + auth.** Axios instance, interceptor, cookie-based flow. Login page → real backend → AppShell.
+6. **Auth-gated route group.** `(dashboard)/layout.tsx` enforces auth via `AuthGuard`. Add `PermissionWrapper`.
+7. **Employees module (canonical).** Build directly: `EmployeesPage`, `EmployeeTable` (TanStack Table), `EmployeeForm` (RHF + Zod), `EmployeeProfile`. Live GET endpoints + MSW for mutations.
 8. **Departments module.** Tree view. Refactor common bits with Employees into `DynamicTable`.
 9. **Attendance module.** Calendar grid + summary. Add `FilterEngine` while you're at it.
 10. **Leave module.** Approvals table. `DynamicTable` should now cover everything.
@@ -493,18 +614,21 @@ Follow this sequence. Do not skip ahead.
 # Server-only — NEVER prefixed NEXT_PUBLIC_, never sent to the browser.
 # Read only by the BFF proxy (src/app/api/[...path]/route.ts).
 API_BASE_URL=https://employee-management-system-2b9q.onrender.com/api/v1
-TENANT_KEY=<obtained from backend dev>
 
 # Public — exposed to the browser. No secrets here.
 NEXT_PUBLIC_USE_MOCKS=true
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-`API_BASE_URL` and `TENANT_KEY` are **server-only**. They must never carry the
-`NEXT_PUBLIC_` prefix — that would inline them into the browser bundle and leak
-the tenant key. See §3 "BFF proxy".
+`API_BASE_URL` is **server-only** — it must never carry the `NEXT_PUBLIC_` prefix,
+which would inline the backend URL into the browser bundle. See §3 "BFF proxy".
 
-When `NEXT_PUBLIC_USE_MOCKS=true`, MSW intercepts non-auth requests. When `false`, requests hit the real backend through the BFF (and most will 404 until those endpoints are built).
+There is **no** `TENANT_KEY` — the backend derives the tenant from the JWT, not a
+header. Do not add one.
+
+When `NEXT_PUBLIC_USE_MOCKS=true`, MSW intercepts requests to endpoints not yet on
+the live backend (see §3 "What still needs MSW"). When `false`, all requests hit
+the real backend through the BFF.
 
 Env is validated at boot with Zod, split into two files: server vars in
 `lib/env.server.ts` (imports `server-only`, so a client import is a build
