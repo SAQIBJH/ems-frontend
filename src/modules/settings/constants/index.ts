@@ -1,0 +1,46 @@
+export const TIMEZONES = [
+  { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST, UTC+5:30)' },
+  { value: 'Asia/Dubai', label: 'Asia/Dubai (GST, UTC+4)' },
+  { value: 'Asia/Singapore', label: 'Asia/Singapore (SGT, UTC+8)' },
+  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST, UTC+9)' },
+  { value: 'Asia/Shanghai', label: 'Asia/Shanghai (CST, UTC+8)' },
+  { value: 'Asia/Karachi', label: 'Asia/Karachi (PKT, UTC+5)' },
+  { value: 'Asia/Dhaka', label: 'Asia/Dhaka (BST, UTC+6)' },
+  { value: 'Asia/Bangkok', label: 'Asia/Bangkok (ICT, UTC+7)' },
+  { value: 'Europe/London', label: 'Europe/London (GMT/BST, UTC+0/+1)' },
+  { value: 'Europe/Paris', label: 'Europe/Paris (CET, UTC+1)' },
+  { value: 'Europe/Berlin', label: 'Europe/Berlin (CET, UTC+1)' },
+  { value: 'Europe/Moscow', label: 'Europe/Moscow (MSK, UTC+3)' },
+  { value: 'America/New_York', label: 'America/New York (EST, UTC-5)' },
+  { value: 'America/Chicago', label: 'America/Chicago (CST, UTC-6)' },
+  { value: 'America/Denver', label: 'America/Denver (MST, UTC-7)' },
+  { value: 'America/Los_Angeles', label: 'America/Los Angeles (PST, UTC-8)' },
+  { value: 'America/Toronto', label: 'America/Toronto (EST, UTC-5)' },
+  { value: 'America/Sao_Paulo', label: 'America/Sao Paulo (BRT, UTC-3)' },
+  { value: 'Africa/Nairobi', label: 'Africa/Nairobi (EAT, UTC+3)' },
+  { value: 'Africa/Lagos', label: 'Africa/Lagos (WAT, UTC+1)' },
+  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEDT, UTC+11)' },
+  { value: 'Pacific/Auckland', label: 'Pacific/Auckland (NZDT, UTC+13)' },
+  { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
+];
+
+export const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+export const EMAIL_TEMPLATE_LABELS: Record<string, string> = {
+  LEAVE_APPROVAL: 'Leave Approval',
+  LEAVE_REJECTION: 'Leave Rejection',
+  ATTENDANCE_ALERT: 'Attendance Alert',
+};
