@@ -35,7 +35,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 13 — Attendance module + screen
 - [x] Step 14 — Leave module + screen
 - [x] Step 15 — Holidays module + screen
-- [ ] Step 16 — Permissions matrix screen
+- [x] Step 16 — Permissions matrix screen
 - [ ] Step 17 — Settings screen
 - [ ] Step 18 — HR / Manager / Employee dashboards
 - [ ] Step 19 — Global polish: error boundaries, dark mode, a11y pass
