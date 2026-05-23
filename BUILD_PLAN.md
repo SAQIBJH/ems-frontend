@@ -33,7 +33,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 11 — Departments module + screen
 - [x] Step 12 — Extract DynamicTable + DynamicForm engines
 - [x] Step 13 — Attendance module + screen
-- [ ] Step 14 — Leave module + screen
+- [x] Step 14 — Leave module + screen
 - [ ] Step 15 — Holidays module + screen
 - [ ] Step 16 — Permissions matrix screen
 - [ ] Step 17 — Settings screen
