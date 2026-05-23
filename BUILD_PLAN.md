@@ -37,8 +37,8 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 15 — Holidays module + screen
 - [x] Step 16 — Permissions matrix screen
 - [x] Step 17 — Settings screen
-- [ ] Step 18 — HR / Manager / Employee dashboards
-- [ ] Step 19 — Global polish: error boundaries, dark mode, a11y pass
+- [x] Step 18 — HR / Manager / Employee dashboards
+- [x] Step 19 — Global polish: error boundaries, dark mode, a11y pass
 - [ ] Step 20 — Final verification + demo readiness
 - [ ] Step 21 — Security gate (DO NOT SKIP — B1 tenant test + B2 secrets are non-negotiable)
 

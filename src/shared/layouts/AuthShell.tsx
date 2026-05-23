@@ -48,8 +48,8 @@ export function AuthShell({ children }: AuthShellProps) {
               'Department org charts',
             ].map((feature) => (
               <li key={feature} className="flex items-center gap-3 text-white/80 text-sm">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-                  <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/20">
+                  <svg viewBox="0 0 12 12" fill="none" className="size-3">
                     <path
                       d="M2 6l2.5 2.5L10 3.5"
                       stroke="white"

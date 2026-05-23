@@ -74,7 +74,7 @@ export function EmployeeDashboard() {
     (user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : (user?.email ?? ''));
 
   return (
-    <div className="space-y-6 px-6 py-6">
+    <div className="space-y-6 p-6">
       {/* Welcome card */}
       <div className="rounded-lg border border-subtle bg-surface p-5">
         {isLoading ? (

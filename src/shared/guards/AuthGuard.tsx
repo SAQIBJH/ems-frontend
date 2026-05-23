@@ -12,19 +12,19 @@ import { useAuth } from '@/providers';
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
+  const { replace } = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [isLoading, isAuthenticated, router, pathname]);
+  }, [isLoading, isAuthenticated, replace, pathname]);
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-canvas">
-        <Loader2 className="h-5 w-5 animate-spin text-fg-muted" aria-label="Checking session…" />
+        <Loader2 className="size-5 animate-spin text-fg-muted" aria-label="Checking session…" />
       </div>
     );
   }

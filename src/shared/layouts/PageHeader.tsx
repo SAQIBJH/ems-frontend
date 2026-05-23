@@ -37,7 +37,7 @@ export function PageHeader({
               {breadcrumbs.map((crumb, i) => (
                 <span key={crumb.label} className="flex items-center gap-1">
                   {i > 0 && (
-                    <ChevronRight className="h-3 w-3 text-fg-disabled shrink-0" aria-hidden />
+                    <ChevronRight className="size-3 text-fg-disabled shrink-0" aria-hidden />
                   )}
                   {crumb.href ? (
                     <Link

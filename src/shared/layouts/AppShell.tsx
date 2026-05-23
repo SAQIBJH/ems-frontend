@@ -77,7 +77,7 @@ function NavItem({
     'transition-colors duration-[120ms]',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     isActive ? 'bg-brand-50 text-brand' : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
-    collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2',
+    collapsed ? 'justify-center size-10 mx-auto' : 'gap-3 px-3 py-2',
   );
 
   return (
@@ -89,7 +89,7 @@ function NavItem({
       aria-current={isActive ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
     >
-      <item.icon className="h-4 w-4 shrink-0" aria-hidden />
+      <item.icon className="size-4 shrink-0" aria-hidden />
       {!collapsed && <span>{item.label}</span>}
     </Link>
   );
@@ -150,10 +150,10 @@ function SidebarContent({
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4" aria-hidden />
+              <ChevronRight className="size-4" aria-hidden />
             ) : (
               <>
-                <ChevronLeft className="h-4 w-4" aria-hidden />
+                <ChevronLeft className="size-4" aria-hidden />
                 <span className="text-sm">Collapse</span>
               </>
             )}
@@ -169,7 +169,7 @@ function SidebarContent({
 function UserMenu() {
   const { user } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
-  const router = useRouter();
+  const { push } = useRouter();
   const isDark = resolvedTheme === 'dark';
 
   const initials = user
@@ -184,17 +184,17 @@ function UserMenu() {
     } catch {
       /* best effort */
     }
-    router.push('/login');
+    push('/login');
   }
 
   return (
     <DropdownMenu>
       {/* Base UI Trigger — style directly, no asChild needed */}
       <DropdownMenuTrigger
-        className="flex h-8 w-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring hover:ring-2 hover:ring-ring/30 transition-shadow"
+        className="flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring hover:ring-2 hover:ring-ring/30 transition-shadow"
         aria-label="User menu"
       >
-        <Avatar className="h-8 w-8 pointer-events-none">
+        <Avatar className="size-8 pointer-events-none">
           <AvatarImage src={undefined} alt={user?.employee?.firstName ?? user?.email} />
           <AvatarFallback className="text-xs bg-brand text-on-primary">{initials}</AvatarFallback>
         </Avatar>
@@ -216,10 +216,7 @@ function UserMenu() {
             <DropdownMenuSeparator />
           </>
         )}
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => router.push('/settings/profile')}
-        >
+        <DropdownMenuItem className="cursor-pointer" onClick={() => push('/settings/profile')}>
           <User className="mr-2 h-4 w-4" aria-hidden />
           Profile
         </DropdownMenuItem>
@@ -261,7 +258,7 @@ function Topbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
         onClick={onMobileMenuClick}
         aria-label="Open navigation"
       >
-        <Menu className="h-5 w-5" aria-hidden />
+        <Menu className="size-5" aria-hidden />
       </Button>
 
       {/* Spacer */}
@@ -270,7 +267,7 @@ function Topbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
       {/* Right actions */}
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" className="text-fg-muted" aria-label="Notifications">
-          <Bell className="h-5 w-5" aria-hidden />
+          <Bell className="size-5" aria-hidden />
         </Button>
         <UserMenu />
       </div>
@@ -285,38 +282,49 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
-      <aside
-        className={cn(
-          'hidden lg:flex flex-col shrink-0 h-screen border-r border-subtle bg-surface',
-          'transition-[width] duration-[180ms] ease-out overflow-hidden',
-          sidebarCollapsed ? 'w-16' : 'w-60',
-        )}
+    <>
+      {/* Skip link — visible on focus for keyboard/AT users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-subtle focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-fg focus:shadow-md"
       >
-        <SidebarContent collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
-      </aside>
+        Skip to main content
+      </a>
+      <div className="flex h-screen bg-canvas overflow-hidden">
+        {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
+        <aside
+          className={cn(
+            'hidden lg:flex flex-col shrink-0 h-screen border-r border-subtle bg-surface',
+            'transition-[width] duration-[180ms] ease-out overflow-hidden',
+            sidebarCollapsed ? 'w-16' : 'w-60',
+          )}
+        >
+          <SidebarContent collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+        </aside>
 
-      {/* ── Mobile sidebar Sheet ─────────────────────────────────────────── */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="p-0 w-60 bg-surface border-r border-subtle">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Navigation</SheetTitle>
-          </SheetHeader>
-          <SidebarContent
-            collapsed={false}
-            onToggle={() => setMobileOpen(false)}
-            onNavClick={() => setMobileOpen(false)}
-            showToggle={false}
-          />
-        </SheetContent>
-      </Sheet>
+        {/* ── Mobile sidebar Sheet ─────────────────────────────────────────── */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="p-0 w-60 bg-surface border-r border-subtle">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <SidebarContent
+              collapsed={false}
+              onToggle={() => setMobileOpen(false)}
+              onNavClick={() => setMobileOpen(false)}
+              showToggle={false}
+            />
+          </SheetContent>
+        </Sheet>
 
-      {/* ── Main area ────────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar onMobileMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        {/* ── Main area ────────────────────────────────────────────────────── */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <Topbar onMobileMenuClick={() => setMobileOpen(true)} />
+          <main id="main-content" className="flex-1 overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

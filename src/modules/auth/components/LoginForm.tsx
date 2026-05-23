@@ -20,7 +20,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ next }: LoginFormProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const { mutateAsync, isPending } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function LoginForm({ next }: LoginFormProps) {
       // Honor an explicit redirect (e.g. from the auth guard's ?next= param).
       // Otherwise fall back to the role-appropriate dashboard.
       if (next !== '/dashboard') {
-        router.push(next);
+        push(next);
       } else {
         const roleDefaults: Record<string, string> = {
           SUPER_ADMIN: '/dashboard',
@@ -45,7 +45,7 @@ export function LoginForm({ next }: LoginFormProps) {
           MANAGER: '/dashboard',
           EMPLOYEE: '/dashboard',
         };
-        router.push(roleDefaults[user.memberType] ?? '/dashboard');
+        push(roleDefaults[user.memberType] ?? '/dashboard');
       }
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;
@@ -150,9 +150,9 @@ export function LoginForm({ next }: LoginFormProps) {
               tabIndex={-1}
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4" aria-hidden />
+                <EyeOff className="size-4" aria-hidden />
               ) : (
-                <Eye className="h-4 w-4" aria-hidden />
+                <Eye className="size-4" aria-hidden />
               )}
             </button>
           </div>
@@ -167,7 +167,7 @@ export function LoginForm({ next }: LoginFormProps) {
         <Button type="submit" disabled={isPending} className="w-full">
           {isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
               Signing in…
             </>
           ) : (
