@@ -3,19 +3,13 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from '@tanstack/react-table';
+import { type ColumnDef } from '@tanstack/react-table';
 import { parseAsInteger, parseAsString, useQueryState } from 'nuqs';
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MoreHorizontalIcon,
-  PlusIcon,
-  SearchIcon,
-} from 'lucide-react';
+import { MoreHorizontalIcon, PlusIcon, SearchIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -34,19 +28,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { SkeletonTable } from '@/components/feedback/Skeleton';
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
+import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { useAuth } from '@/providers';
 
 import { useEmployees } from '../hooks/useEmployees';
@@ -134,16 +118,13 @@ function RowActions({
 export function EmployeeTable() {
   const router = useRouter();
 
-  // URL-persisted filter state (page, department, status survive navigation)
   const [departmentId, setDepartmentId] = useQueryState('dept', parseAsString.withDefault(''));
   const [statusFilter, setStatusFilter] = useQueryState('status', parseAsString.withDefault(''));
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
 
-  // Search is local + debounced — transient, not URL-persisted
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 300);
 
-  // Terminate flow
   const [terminateTarget, setTerminateTarget] = useState<Employee | null>(null);
 
   const { data: deptList } = useDepartments();
@@ -254,21 +235,6 @@ export function EmployeeTable() {
     [setTerminateTarget],
   );
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    data: employees,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: pagination?.pages ?? -1,
-    state: {
-      pagination: {
-        pageIndex: page - 1,
-        pageSize: PAGE_SIZE,
-      },
-    },
-  });
-
   const errorMessage = (() => {
     if (!isError) return '';
     const axiosErr = error as AxiosError<ApiError>;
@@ -322,108 +288,39 @@ export function EmployeeTable() {
         </Select>
       </div>
 
-      {/* Table area — four states */}
-      {isLoading ? (
-        <div className="rounded-lg border border-subtle bg-surface">
-          <SkeletonTable rows={8} cols={6} className="p-4" />
-        </div>
-      ) : isError ? (
-        <ErrorState message={errorMessage} onRetry={() => refetch()} />
-      ) : employees.length === 0 ? (
-        <EmptyState
-          title="No employees found"
-          description={
-            hasActiveFilters
-              ? 'No employees match your current filters. Try adjusting your search.'
-              : 'Add your first employee to get started.'
-          }
-          action={
-            !hasActiveFilters ? (
-              <PermissionWrapper permission="employees:write">
-                <Link href="/employees/new" className={cn(buttonVariants({ size: 'sm' }), 'gap-1')}>
-                  <PlusIcon className="size-4 shrink-0" aria-hidden />
-                  Add employee
-                </Link>
-              </PermissionWrapper>
-            ) : undefined
-          }
-        />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-lg border border-subtle">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="bg-surface-2 hover:bg-surface-2">
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        className="text-[11px] font-medium uppercase tracking-wide text-fg-muted"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="cursor-pointer hover:bg-surface-2/50"
-                    onClick={() => router.push(`/employees/${row.original.id}`)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      <DynamicTable
+        columns={columns}
+        data={employees}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={() => refetch()}
+        emptyTitle="No employees found"
+        emptyDescription={
+          hasActiveFilters
+            ? 'No employees match your current filters. Try adjusting your search.'
+            : 'Add your first employee to get started.'
+        }
+        emptyAction={
+          !hasActiveFilters ? (
+            <PermissionWrapper permission="employees:write">
+              <Link href="/employees/new" className={cn(buttonVariants({ size: 'sm' }), 'gap-1')}>
+                <PlusIcon className="size-4 shrink-0" aria-hidden />
+                Add employee
+              </Link>
+            </PermissionWrapper>
+          ) : undefined
+        }
+        onRowClick={(emp) => router.push(`/employees/${emp.id}`)}
+        pagination={
+          pagination
+            ? { page, pages: pagination.pages, total: pagination.total, pageSize: PAGE_SIZE }
+            : undefined
+        }
+        onPageChange={(p) => void setPage(p)}
+        rowLabel="employees"
+      />
 
-          {/* Pagination */}
-          {pagination && pagination.pages > 1 && (
-            <div className="flex items-center justify-between text-sm text-fg-muted">
-              <span>
-                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, pagination.total)} of{' '}
-                {pagination.total} employees
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-8"
-                  onClick={() => void setPage(page - 1)}
-                  disabled={page <= 1}
-                  aria-label="Previous page"
-                >
-                  <ChevronLeftIcon className="size-4" aria-hidden />
-                </Button>
-                <span className="min-w-[80px] text-center tabular-nums">
-                  Page {page} of {pagination.pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-8"
-                  onClick={() => void setPage(page + 1)}
-                  disabled={page >= pagination.pages}
-                  aria-label="Next page"
-                >
-                  <ChevronRightIcon className="size-4" aria-hidden />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Terminate confirmation dialog */}
       <ConfirmDialog
         open={!!terminateTarget}
         onOpenChange={(open) => {

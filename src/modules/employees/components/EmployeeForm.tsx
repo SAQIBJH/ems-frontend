@@ -1,19 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
-import { Loader2Icon } from 'lucide-react';
 
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -21,12 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageHeader } from '@/shared/layouts/PageHeader';
+import { DynamicForm } from '@/shared/engines/DynamicForm';
+import type { FormSectionConfig } from '@/shared/engines/DynamicForm';
 import type { ApiError } from '@/types/api';
-import { cn } from '@/lib/utils';
 
 import {
   employeeCreateSchema,
@@ -45,7 +39,6 @@ import { useCreateEmployee, useUpdateEmployee } from '../hooks/useEmployeeMutati
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
-/** ISO string from API → 'YYYY-MM-DD' for <input type="date"> */
 function toDateInput(iso: string | null | undefined): string {
   if (!iso) return '';
   try {
@@ -55,7 +48,6 @@ function toDateInput(iso: string | null | undefined): string {
   }
 }
 
-/** Trim empty strings to undefined before calling the API. */
 function buildPayload(values: EmployeeCreateFormValues): EmployeeCreateInput {
   return {
     firstName: values.firstName,
@@ -76,26 +68,6 @@ function buildPayload(values: EmployeeCreateFormValues): EmployeeCreateInput {
   };
 }
 
-/* ── Tiny form-field helpers ──────────────────────────────────────────────── */
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return (
-    <p role="alert" className="text-xs font-medium text-destructive">
-      {message}
-    </p>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-fg">{title}</h3>
-      <Separator />
-    </div>
-  );
-}
-
 /* ── Inner form ───────────────────────────────────────────────────────────── */
 
 function EmployeeFormInner({
@@ -111,14 +83,7 @@ function EmployeeFormInner({
   const { data: deptList } = useDepartments();
   const flatDepts = flattenDepartmentTree(deptList ?? []);
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    setError,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<EmployeeCreateFormValues>({
+  const form = useForm<EmployeeCreateFormValues>({
     resolver: zodResolver(employeeCreateSchema),
     defaultValues: {
       firstName: '',
@@ -139,7 +104,7 @@ function EmployeeFormInner({
     },
   });
 
-  /* Populate form fields when editing */
+  const { reset } = form;
   useEffect(() => {
     if (mode === 'edit' && employee) {
       reset({
@@ -183,18 +148,18 @@ function EmployeeFormInner({
 
       if (status === 422 && Array.isArray(apiError?.details)) {
         apiError.details.forEach(({ field, message }: { field: string; message: string }) => {
-          setError(field as keyof EmployeeCreateFormValues, { message });
+          form.setError(field as keyof EmployeeCreateFormValues, { message });
         });
         return;
       }
 
       if (status === 409) {
         if (apiError?.code === 'DUPLICATE_EMPLOYEE_CODE') {
-          setError('employeeCode', { message: 'This employee code is already taken.' });
+          form.setError('employeeCode', { message: 'This employee code is already taken.' });
           return;
         }
         if (apiError?.code === 'DUPLICATE_WORK_EMAIL') {
-          setError('workEmail', { message: 'This email is already in use.' });
+          form.setError('workEmail', { message: 'This email is already in use.' });
           return;
         }
       }
@@ -203,303 +168,129 @@ function EmployeeFormInner({
     }
   }
 
-  const isPending = isSubmitting || createMutation.isPending || updateMutation.isPending;
+  const isPending =
+    form.formState.isSubmitting || createMutation.isPending || updateMutation.isPending;
   const cancelHref = mode === 'edit' && employee ? `/employees/${employee.id}` : '/employees';
 
+  const sections: FormSectionConfig<EmployeeCreateFormValues>[] = [
+    {
+      title: 'Employee information',
+      fields: [
+        {
+          name: 'firstName',
+          type: 'text',
+          label: 'First name',
+          placeholder: 'Jane',
+          required: true,
+        },
+        { name: 'lastName', type: 'text', label: 'Last name', placeholder: 'Doe', required: true },
+        {
+          name: 'workEmail',
+          type: 'email',
+          label: 'Work email',
+          placeholder: 'jane.doe@company.com',
+          required: true,
+        },
+        {
+          name: 'employeeCode',
+          type: 'text',
+          label: 'Employee code',
+          placeholder: 'E0042',
+          required: true,
+        },
+        {
+          name: 'designation',
+          type: 'text',
+          label: 'Designation',
+          placeholder: 'Software Engineer',
+          required: true,
+        },
+        {
+          name: 'departmentId',
+          label: 'Department',
+          required: true,
+          render: ({ field, error }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="df-departmentId" className="w-full" aria-invalid={!!error}>
+                <SelectValue placeholder="Select department" />
+              </SelectTrigger>
+              <SelectContent>
+                {flatDepts.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.depth > 0 ? `${'—'.repeat(d.depth)} ` : ''}
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ),
+        },
+        {
+          name: 'employmentType',
+          type: 'select',
+          label: 'Employment type',
+          required: true,
+          options: (Object.entries(EMPLOYMENT_TYPE_LABELS) as [EmploymentType, string][]).map(
+            ([value, label]) => ({ value, label }),
+          ),
+        },
+        { name: 'joinedOn', type: 'date', label: 'Joined on', required: true },
+      ],
+    },
+    {
+      title: 'Additional details',
+      fields: [
+        { name: 'phone', type: 'tel', label: 'Phone', placeholder: '+91 98765 43210' },
+        {
+          name: 'personalEmail',
+          type: 'email',
+          label: 'Personal email',
+          placeholder: 'jane@gmail.com',
+        },
+        { name: 'location', type: 'text', label: 'Location', placeholder: 'Mumbai' },
+        {
+          name: 'gender',
+          type: 'select',
+          label: 'Gender',
+          options: [
+            { value: '', label: 'Not specified' },
+            { value: 'MALE', label: 'Male' },
+            { value: 'FEMALE', label: 'Female' },
+            { value: 'OTHER', label: 'Other' },
+          ],
+        },
+        { name: 'dateOfBirth', type: 'date', label: 'Date of birth' },
+        {
+          name: 'managerId',
+          type: 'text',
+          label: 'Manager ID',
+          placeholder: 'Employee ID of their manager',
+        },
+        {
+          name: 'address',
+          type: 'textarea',
+          label: 'Address',
+          placeholder: 'Street, city, state',
+          rows: 3,
+          colSpan: 2,
+        },
+      ],
+    },
+  ];
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <div className="space-y-8 px-6 py-6">
-        {/* ── Section 1: Required fields ──────────────────────────────── */}
-        <div className="space-y-4">
-          <SectionHeader title="Employee information" />
-          <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="firstName">
-                First name{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Input
-                id="firstName"
-                placeholder="Jane"
-                aria-invalid={!!errors.firstName}
-                {...register('firstName')}
-              />
-              <FieldError message={errors.firstName?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="lastName">
-                Last name{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Input
-                id="lastName"
-                placeholder="Doe"
-                aria-invalid={!!errors.lastName}
-                {...register('lastName')}
-              />
-              <FieldError message={errors.lastName?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="workEmail">
-                Work email{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Input
-                id="workEmail"
-                type="email"
-                placeholder="jane.doe@company.com"
-                aria-invalid={!!errors.workEmail}
-                {...register('workEmail')}
-              />
-              <FieldError message={errors.workEmail?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="employeeCode">
-                Employee code{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Input
-                id="employeeCode"
-                placeholder="E0042"
-                aria-invalid={!!errors.employeeCode}
-                {...register('employeeCode')}
-              />
-              <FieldError message={errors.employeeCode?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="designation">
-                Designation{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Input
-                id="designation"
-                placeholder="Software Engineer"
-                aria-invalid={!!errors.designation}
-                {...register('designation')}
-              />
-              <FieldError message={errors.designation?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dept-trigger">
-                Department{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Controller
-                control={control}
-                name="departmentId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id="dept-trigger"
-                      className="w-full"
-                      aria-invalid={!!errors.departmentId}
-                    >
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {flatDepts.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.depth > 0 ? `${'—'.repeat(d.depth)} ` : ''}
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FieldError message={errors.departmentId?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="emptype-trigger">
-                Employment type{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Controller
-                control={control}
-                name="employmentType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id="emptype-trigger"
-                      className="w-full"
-                      aria-invalid={!!errors.employmentType}
-                    >
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.entries(EMPLOYMENT_TYPE_LABELS) as [EmploymentType, string][]).map(
-                        ([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FieldError message={errors.employmentType?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="joinedOn">
-                Joined on{' '}
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
-              </Label>
-              <Input
-                id="joinedOn"
-                type="date"
-                aria-invalid={!!errors.joinedOn}
-                {...register('joinedOn')}
-              />
-              <FieldError message={errors.joinedOn?.message} />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Section 2: Optional fields ──────────────────────────────── */}
-        <div className="space-y-4">
-          <SectionHeader title="Additional details" />
-          <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+91 98765 43210"
-                aria-invalid={!!errors.phone}
-                {...register('phone')}
-              />
-              <FieldError message={errors.phone?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="personalEmail">Personal email</Label>
-              <Input
-                id="personalEmail"
-                type="email"
-                placeholder="jane@gmail.com"
-                aria-invalid={!!errors.personalEmail}
-                {...register('personalEmail')}
-              />
-              <FieldError message={errors.personalEmail?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="Mumbai"
-                aria-invalid={!!errors.location}
-                {...register('location')}
-              />
-              <FieldError message={errors.location?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="gender-trigger">Gender</Label>
-              <Controller
-                control={control}
-                name="gender"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id="gender-trigger"
-                      className="w-full"
-                      aria-invalid={!!errors.gender}
-                    >
-                      <SelectValue placeholder="Not specified" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Not specified</SelectItem>
-                      <SelectItem value="MALE">Male</SelectItem>
-                      <SelectItem value="FEMALE">Female</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FieldError message={errors.gender?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dateOfBirth">Date of birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                aria-invalid={!!errors.dateOfBirth}
-                {...register('dateOfBirth')}
-              />
-              <FieldError message={errors.dateOfBirth?.message} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="managerId">Manager ID</Label>
-              <Input
-                id="managerId"
-                placeholder="Employee ID of their manager"
-                aria-invalid={!!errors.managerId}
-                {...register('managerId')}
-              />
-              <FieldError message={errors.managerId?.message} />
-            </div>
-
-            <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="address">Address</Label>
-              <Textarea
-                id="address"
-                placeholder="Street, city, state"
-                rows={3}
-                aria-invalid={!!errors.address}
-                {...register('address')}
-              />
-              <FieldError message={errors.address?.message} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-subtle bg-canvas/95 px-6 py-4 backdrop-blur-sm">
-        <Link
-          href={cancelHref}
-          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-          aria-disabled={isPending}
-        >
-          Cancel
-        </Link>
-        <Button type="submit" size="sm" disabled={isPending} aria-busy={isPending}>
-          {isPending && <Loader2Icon className="size-3.5 animate-spin" aria-hidden />}
-          {mode === 'create' ? 'Create employee' : 'Save changes'}
-        </Button>
-      </div>
-    </form>
+    <DynamicForm
+      form={form}
+      sections={sections}
+      onSubmit={onSubmit}
+      submitLabel={mode === 'create' ? 'Create employee' : 'Save changes'}
+      cancelHref={cancelHref}
+      isPending={isPending}
+    />
   );
 }
 
-/* ── Edit wrapper — loads employee data, handles loading / error ──────────── */
+/* ── Edit wrapper ─────────────────────────────────────────────────────────── */
 
 function EditForm({ employeeId }: { employeeId: string }) {
   const { data: employee, isLoading, isError, error, refetch } = useEmployee(employeeId);
