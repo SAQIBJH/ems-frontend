@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { format, addMonths, subMonths } from 'date-fns';
+import { useState } from 'react';
+import { addMonths, subMonths } from 'date-fns';
 import { FileEditIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -12,35 +12,11 @@ import {
   AttendanceSummaryCards,
   CheckInOutCard,
   RegularizationDialog,
-  useAttendanceRecords,
 } from '@/modules/attendance';
-import { buildDateMap } from '@/modules/attendance/utils/attendance.utils';
 
 export default function AttendancePage() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [regularizationOpen, setRegularizationOpen] = useState(false);
-
-  // Load records for current month to derive today's record
-  const monthParam = format(currentDate, 'yyyy-MM');
-  const { data: monthData, isLoading: isMonthLoading } = useAttendanceRecords({
-    month: monthParam,
-    limit: 31,
-  });
-
-  const todayRecord = useMemo(() => {
-    const records = monthData?.records;
-    if (!records) return null;
-    const map = buildDateMap(records);
-    return map.get(format(new Date(), 'yyyy-MM-dd')) ?? null;
-  }, [monthData]);
-
-  function handlePrev() {
-    setCurrentDate((d) => subMonths(d, 1));
-  }
-
-  function handleNext() {
-    setCurrentDate((d) => addMonths(d, 1));
-  }
 
   return (
     <div className="space-y-6">
@@ -60,13 +36,15 @@ export default function AttendancePage() {
         }
       />
 
-      {/* Summary stats */}
       <AttendanceSummaryCards />
 
-      {/* Today + Calendar */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
-        <CheckInOutCard todayRecord={todayRecord} isLoading={isMonthLoading} />
-        <AttendanceCalendar currentDate={currentDate} onPrev={handlePrev} onNext={handleNext} />
+        <CheckInOutCard />
+        <AttendanceCalendar
+          currentDate={currentDate}
+          onPrev={() => setCurrentDate((d) => subMonths(d, 1))}
+          onNext={() => setCurrentDate((d) => addMonths(d, 1))}
+        />
       </div>
 
       <RegularizationDialog open={regularizationOpen} onOpenChange={setRegularizationOpen} />

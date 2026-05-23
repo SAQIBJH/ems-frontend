@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { LogInIcon, LogOutIcon, ClockIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,17 +17,21 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+import { useAttendanceRecords } from '../hooks/useAttendance';
 import { useCheckIn, useCheckOut } from '../hooks/useAttendanceMutations';
 import { STATUS_CONFIG, WORK_MODE_LABELS } from '../constants';
-import { formatDuration } from '../utils/attendance.utils';
-import type { AttendanceRecord, WorkMode } from '../types/attendance.types';
+import { buildDateMap, formatDuration } from '../utils/attendance.utils';
+import type { WorkMode } from '../types/attendance.types';
 
-interface CheckInOutCardProps {
-  todayRecord: AttendanceRecord | null;
-  isLoading: boolean;
-}
+export function CheckInOutCard() {
+  const todayMonth = format(new Date(), 'yyyy-MM');
+  const { data, isLoading } = useAttendanceRecords({ month: todayMonth, limit: 31 });
 
-export function CheckInOutCard({ todayRecord, isLoading }: CheckInOutCardProps) {
+  const todayRecord = useMemo(
+    () => buildDateMap(data?.records ?? []).get(format(new Date(), 'yyyy-MM-dd')) ?? null,
+    [data?.records],
+  );
+
   const [workMode, setWorkMode] = useState<WorkMode>('OFFICE');
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
