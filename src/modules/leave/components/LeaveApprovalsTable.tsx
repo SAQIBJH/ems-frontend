@@ -148,14 +148,12 @@ export function LeaveApprovalsTable() {
         id: 'employee',
         header: 'Employee',
         cell: ({ row }) => {
-          const emp = row.original.employee;
+          const emp = row.original.employeeName;
           if (emp) {
             return (
               <div>
-                <p className="text-sm font-medium text-fg">
-                  {emp.firstName} {emp.lastName}
-                </p>
-                <p className="text-xs text-fg-muted">{emp.employeeCode}</p>
+                <p className="text-sm font-medium text-fg">{emp}</p>
+                <p className="text-xs text-fg-muted">{row.original.employeeCode}</p>
               </div>
             );
           }

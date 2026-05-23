@@ -35,7 +35,8 @@ export interface LeaveRequest {
   submittedAt: string;
   decidedAt: string | null;
   approverComment: string | null;
-  /** Present on team/requests responses — not in documented shape but returned in practice. */
+  employeeCode: string | null;
+  employeeName: string | null;
   employee?: {
     id: string;
     firstName: string;
