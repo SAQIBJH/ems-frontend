@@ -1,5 +1,6 @@
 // Components
 export { EmployeeTable } from './components/EmployeeTable';
+export { EmployeeProfile } from './components/EmployeeProfile';
 
 // Constants
 export { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS, KNOWN_DEPARTMENTS } from './constants';
