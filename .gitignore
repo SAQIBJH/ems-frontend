@@ -47,3 +47,7 @@ next-env.d.ts
 coverage/
 playwright-report/
 test-results/
+
+# Claude Code — local settings contain machine-specific permission rules, not secrets,
+# but must not be committed (gitignored per security gate B2).
+.claude/settings.local.json
