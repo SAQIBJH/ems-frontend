@@ -1,4 +1,5 @@
 import { PageHeader } from '@/shared/layouts/PageHeader';
+import { DashboardRouter } from '@/modules/dashboard';
 
 export default function DashboardPage() {
   return (
@@ -8,11 +9,7 @@ export default function DashboardPage() {
         description="Welcome back. Here's what's happening."
         breadcrumbs={[{ label: 'Dashboard' }]}
       />
-      <div className="px-6 py-6">
-        <div className="rounded-xl border border-subtle bg-surface p-8 text-center">
-          <p className="text-sm text-fg-muted">Dashboard content coming in Step 18.</p>
-        </div>
-      </div>
+      <DashboardRouter />
     </>
   );
 }
