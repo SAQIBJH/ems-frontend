@@ -183,11 +183,14 @@ function UserMenu() {
     try {
       await apiClient.post('/auth/logout');
     } catch {
-      /* best effort — cookie is cleared server-side even on network error */
+      /* best effort — server clears the httpOnly cookie even on network errors */
     }
-    // Remove cached auth state so AuthGuard doesn't re-authenticate the user
-    queryClient.removeQueries({ queryKey: ['auth'] });
-    push('/login');
+    // Wipe the in-memory query cache, then hard-navigate so the page reloads
+    // from scratch. A client-side push() keeps AuthProvider mounted and it
+    // would immediately refetch /auth/me, re-authenticating if the cookie is
+    // still alive. window.location destroys the entire JS heap and query cache.
+    queryClient.clear();
+    window.location.href = '/login';
   }
 
   return (

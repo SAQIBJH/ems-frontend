@@ -5,15 +5,14 @@ import { serverEnv } from '@/lib/env.server';
  * BFF (Backend-for-Frontend) proxy.
  *
  * The browser only ever calls our own origin at `/api/*`. This handler catches
- * those calls and forwards them to the real backend, attaching the secret
- * `x-tenant-key` header server-side. The tenant key and the backend URL never
- * reach the browser.
+ * those calls and forwards them to the real backend. The backend URL never
+ * reaches the browser.
  *
- *   browser  ──►  Next.js /api/*  ──►  ${API_BASE_URL}/* (tenant key added here)
+ *   browser  ──►  Next.js /api/*  ──►  ${API_BASE_URL}/*
  *
- * The incoming `Authorization` bearer token (which legitimately lives
- * client-side) and the cookie header (for the HttpOnly refresh-token flow) are
- * passed through unchanged.
+ * Auth is entirely cookie-based. The browser's httpOnly accessToken and
+ * refreshToken cookies are forwarded unchanged. There is no x-tenant-key —
+ * the JWT itself carries the tenant identity.
  */
 
 // This route depends on per-request headers/body — never statically cached.
@@ -34,7 +33,6 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
 
   // Build the outbound header set explicitly — only forward what's needed.
   const headers = new Headers();
-  headers.set('x-tenant-key', serverEnv.TENANT_KEY);
   headers.set('accept', 'application/json');
 
   const auth = request.headers.get('authorization');
