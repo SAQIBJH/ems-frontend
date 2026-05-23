@@ -22,6 +22,12 @@ export const STATUS_CONFIG: Record<
     bgClass: 'bg-danger/10',
     borderClass: 'border-danger/30',
   },
+  REJECTED: {
+    label: 'Rejected',
+    textClass: 'text-danger',
+    bgClass: 'bg-danger/10',
+    borderClass: 'border-danger/30',
+  },
   WITHDRAWN: {
     label: 'Withdrawn',
     textClass: 'text-fg-muted',

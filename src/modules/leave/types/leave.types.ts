@@ -1,4 +1,4 @@
-export type LeaveStatus = 'PENDING' | 'APPROVED' | 'DENIED' | 'WITHDRAWN';
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'DENIED' | 'REJECTED' | 'WITHDRAWN';
 
 /** GET /leave/types → data[] */
 export interface LeaveType {

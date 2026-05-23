@@ -7,7 +7,12 @@ interface LeaveStatusBadgeProps {
 }
 
 export function LeaveStatusBadge({ status }: LeaveStatusBadgeProps) {
-  const cfg = STATUS_CONFIG[status];
+  const cfg = STATUS_CONFIG[status] ?? {
+    label: status,
+    bgClass: 'bg-surface-2',
+    textClass: 'text-fg-muted',
+    borderClass: 'border-subtle',
+  };
   return (
     <span
       className={cn(
