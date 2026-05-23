@@ -31,8 +31,8 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 9 — Employee profile screen
 - [x] Step 10 — Employee create/edit form
 - [x] Step 11 — Departments module + screen
-- [ ] Step 12 — Extract DynamicTable + DynamicForm engines
-- [ ] Step 13 — Attendance module + screen
+- [x] Step 12 — Extract DynamicTable + DynamicForm engines
+- [x] Step 13 — Attendance module + screen
 - [ ] Step 14 — Leave module + screen
 - [ ] Step 15 — Holidays module + screen
 - [ ] Step 16 — Permissions matrix screen
