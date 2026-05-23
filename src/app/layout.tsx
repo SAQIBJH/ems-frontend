@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { QueryProvider, ThemeProvider, AuthProvider } from '@/providers';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -31,16 +32,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-canvas text-fg">
-        <MSWProvider>
-          <ThemeProvider>
-            <QueryProvider>
-              <TooltipProvider>
-                <AuthProvider>{children}</AuthProvider>
-              </TooltipProvider>
-            </QueryProvider>
-            <Toaster />
-          </ThemeProvider>
-        </MSWProvider>
+        <NuqsAdapter>
+          <MSWProvider>
+            <ThemeProvider>
+              <QueryProvider>
+                <TooltipProvider>
+                  <AuthProvider>{children}</AuthProvider>
+                </TooltipProvider>
+              </QueryProvider>
+              <Toaster />
+            </ThemeProvider>
+          </MSWProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );

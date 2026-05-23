@@ -25,9 +25,9 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 3 — Login screen (real backend auth)
 - [x] Step 4 — Auth guard + route protection
 - [x] Step 5 — MSW infrastructure + first mock
-- [ ] Step 6 — Feedback components (Skeleton, EmptyState, ErrorState)
-- [ ] Step 7 — Employees module skeleton
-- [ ] Step 8 — Employees list screen
+- [x] Step 6 — Feedback components (Skeleton, EmptyState, ErrorState)
+- [x] Step 7 — Employees module skeleton
+- [x] Step 8 — Employees list screen
 - [ ] Step 9 — Employee profile screen
 - [ ] Step 10 — Employee create/edit form
 - [ ] Step 11 — Departments module + screen
