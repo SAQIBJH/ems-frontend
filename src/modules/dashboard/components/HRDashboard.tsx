@@ -157,10 +157,10 @@ function LeaveSummaryPanel() {
 function RecentActivityFeed() {
   const { data, isLoading, isError, refetch } = useRecentActivity(8);
 
-  const formatAction = (action: string, entityType: string) => {
-    const a = action.toLowerCase();
-    const e = entityType.replace(/_/g, ' ').toLowerCase();
-    return `${a} ${e}`;
+  const formatAction = (action: string, entityType: string | undefined) => {
+    const a = (action ?? '').toLowerCase();
+    const e = (entityType ?? '').replace(/_/g, ' ').toLowerCase();
+    return `${a} ${e}`.trim();
   };
 
   return (

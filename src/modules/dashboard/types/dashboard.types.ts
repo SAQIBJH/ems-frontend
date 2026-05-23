@@ -42,7 +42,7 @@ export interface LeaveSummaryAnalytics {
 export interface RecentActivityItem {
   id: string;
   action: string;
-  entity_type: string;
+  entity_type: string | undefined;
   entity_id: string;
   user_email: string;
   created_at: string;
