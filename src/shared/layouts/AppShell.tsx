@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Users,
@@ -27,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -168,9 +170,8 @@ function SidebarContent({
 
 function UserMenu() {
   const { user } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
   const { push } = useRouter();
-  const isDark = resolvedTheme === 'dark';
+  const queryClient = useQueryClient();
 
   const initials = user
     ? user.employee
@@ -182,17 +183,18 @@ function UserMenu() {
     try {
       await apiClient.post('/auth/logout');
     } catch {
-      /* best effort */
+      /* best effort — cookie is cleared server-side even on network error */
     }
+    // Remove cached auth state so AuthGuard doesn't re-authenticate the user
+    queryClient.removeQueries({ queryKey: ['auth'] });
     push('/login');
   }
 
   return (
     <DropdownMenu>
-      {/* Base UI Trigger — style directly, no asChild needed */}
       <DropdownMenuTrigger
         className="flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring hover:ring-2 hover:ring-ring/30 transition-shadow"
-        aria-label="User menu"
+        aria-label="Open user menu"
       >
         <Avatar className="size-8 pointer-events-none">
           <AvatarImage src={undefined} alt={user?.employee?.firstName ?? user?.email} />
@@ -202,7 +204,7 @@ function UserMenu() {
 
       <DropdownMenuContent align="end" className="w-56">
         {user && (
-          <>
+          <DropdownMenuGroup>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-fg">
@@ -213,35 +215,42 @@ function UserMenu() {
                 <span className="text-xs text-fg-muted truncate">{user.email}</span>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-          </>
+          </DropdownMenuGroup>
         )}
-        <DropdownMenuItem className="cursor-pointer" onClick={() => push('/settings/profile')}>
-          <User className="mr-2 h-4 w-4" aria-hidden />
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          className="cursor-pointer"
-        >
-          {isDark ? (
-            <Sun className="mr-2 h-4 w-4" aria-hidden />
-          ) : (
-            <Moon className="mr-2 h-4 w-4" aria-hidden />
-          )}
-          {isDark ? 'Light mode' : 'Dark mode'}
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleLogout}
-          className="cursor-pointer"
-          data-variant="destructive"
-        >
-          <LogOut className="mr-2 h-4 w-4" aria-hidden />
-          Sign out
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem className="cursor-pointer" onClick={() => push('/settings')}>
+            <User className="mr-2 h-4 w-4" aria-hidden />
+            Profile &amp; settings
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem variant="destructive" className="cursor-pointer" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" aria-hidden />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/* ── ThemeToggle ─────────────────────────────────────────────────────────── */
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="text-fg-muted"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? <Sun className="size-5" aria-hidden /> : <Moon className="size-5" aria-hidden />}
+    </Button>
   );
 }
 
@@ -266,6 +275,7 @@ function Topbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
 
       {/* Right actions */}
       <div className="flex items-center gap-1">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="text-fg-muted" aria-label="Notifications">
           <Bell className="size-5" aria-hidden />
         </Button>
