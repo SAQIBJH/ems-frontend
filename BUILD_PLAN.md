@@ -34,7 +34,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 12 — Extract DynamicTable + DynamicForm engines
 - [x] Step 13 — Attendance module + screen
 - [x] Step 14 — Leave module + screen
-- [ ] Step 15 — Holidays module + screen
+- [x] Step 15 — Holidays module + screen
 - [ ] Step 16 — Permissions matrix screen
 - [ ] Step 17 — Settings screen
 - [ ] Step 18 — HR / Manager / Employee dashboards
