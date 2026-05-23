@@ -53,7 +53,8 @@ import { useEmployees } from '../hooks/useEmployees';
 import { useDeleteEmployee } from '../hooks/useEmployeeMutations';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { Employee, EmploymentStatus, EmploymentType } from '../types/employee.types';
-import { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS, KNOWN_DEPARTMENTS } from '../constants';
+import { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS } from '../constants';
+import { useDepartments, flattenDepartmentTree } from '@/modules/departments';
 import type { ApiError } from '@/types/api';
 
 const PAGE_SIZE = 20;
@@ -144,6 +145,9 @@ export function EmployeeTable() {
 
   // Terminate flow
   const [terminateTarget, setTerminateTarget] = useState<Employee | null>(null);
+
+  const { data: deptList } = useDepartments();
+  const flatDepts = useMemo(() => flattenDepartmentTree(deptList ?? []), [deptList]);
 
   const { data, isLoading, isError, error, refetch } = useEmployees({
     page,
@@ -297,8 +301,9 @@ export function EmployeeTable() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">All departments</SelectItem>
-            {KNOWN_DEPARTMENTS.map((dept) => (
+            {flatDepts.map((dept) => (
               <SelectItem key={dept.id} value={dept.id}>
+                {dept.depth > 0 ? `${'—'.repeat(dept.depth)} ` : ''}
                 {dept.name}
               </SelectItem>
             ))}

@@ -28,9 +28,9 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 6 — Feedback components (Skeleton, EmptyState, ErrorState)
 - [x] Step 7 — Employees module skeleton
 - [x] Step 8 — Employees list screen
-- [ ] Step 9 — Employee profile screen
-- [ ] Step 10 — Employee create/edit form
-- [ ] Step 11 — Departments module + screen
+- [x] Step 9 — Employee profile screen
+- [x] Step 10 — Employee create/edit form
+- [x] Step 11 — Departments module + screen
 - [ ] Step 12 — Extract DynamicTable + DynamicForm engines
 - [ ] Step 13 — Attendance module + screen
 - [ ] Step 14 — Leave module + screen

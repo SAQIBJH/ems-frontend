@@ -1,0 +1,40 @@
+'use client';
+
+import { useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
+import { queryClient } from '@/lib/query-client';
+import type { ApiError } from '@/types/api';
+import { departmentsApi } from '../services/departments.api';
+import type {
+  Department,
+  DepartmentCreateInput,
+  DepartmentDeleteResult,
+  DepartmentUpdateInput,
+} from '../types/department.types';
+
+export function useCreateDepartment() {
+  return useMutation<Department, AxiosError<ApiError>, DepartmentCreateInput>({
+    mutationFn: departmentsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    },
+  });
+}
+
+export function useUpdateDepartment() {
+  return useMutation<Department, AxiosError<ApiError>, { id: string } & DepartmentUpdateInput>({
+    mutationFn: departmentsApi.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    },
+  });
+}
+
+export function useDeleteDepartment() {
+  return useMutation<DepartmentDeleteResult, AxiosError<ApiError>, string>({
+    mutationFn: departmentsApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    },
+  });
+}

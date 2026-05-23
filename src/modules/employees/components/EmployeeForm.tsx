@@ -32,7 +32,8 @@ import {
   employeeCreateSchema,
   type EmployeeCreateFormValues,
 } from '../validations/employee.schema';
-import { EMPLOYMENT_TYPE_LABELS, KNOWN_DEPARTMENTS } from '../constants';
+import { EMPLOYMENT_TYPE_LABELS } from '../constants';
+import { useDepartments, flattenDepartmentTree } from '@/modules/departments';
 import type {
   EmployeeCreateInput,
   EmployeeDetail,
@@ -107,6 +108,8 @@ function EmployeeFormInner({
   const router = useRouter();
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
+  const { data: deptList } = useDepartments();
+  const flatDepts = flattenDepartmentTree(deptList ?? []);
 
   const {
     register,
@@ -311,8 +314,9 @@ function EmployeeFormInner({
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {KNOWN_DEPARTMENTS.map((d) => (
+                      {flatDepts.map((d) => (
                         <SelectItem key={d.id} value={d.id}>
+                          {d.depth > 0 ? `${'—'.repeat(d.depth)} ` : ''}
                           {d.name}
                         </SelectItem>
                       ))}
