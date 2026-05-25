@@ -40,7 +40,11 @@ export function SettingsScreen() {
 
   return (
     <div className="flex flex-col min-h-0">
-      <PageHeader title="Settings" description="Manage your organisation's configuration." />
+      <PageHeader
+        title="Settings"
+        description="Manage your organisation's configuration."
+        breadcrumbs={[{ label: 'Settings' }]}
+      />
 
       <div className="flex flex-1 min-h-0">
         {/* Left nav */}

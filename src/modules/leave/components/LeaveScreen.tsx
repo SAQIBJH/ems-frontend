@@ -33,6 +33,7 @@ export function LeaveScreen() {
       <PageHeader
         title="Leave"
         description="Manage leave requests, approvals, and your available balance."
+        breadcrumbs={[{ label: 'Leave' }]}
       />
 
       <div className="p-6 space-y-6">

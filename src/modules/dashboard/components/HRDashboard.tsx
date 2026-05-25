@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import {
   UsersIcon,
@@ -8,12 +9,17 @@ import {
   CalendarXIcon,
   ClipboardListIcon,
   ActivityIcon,
+  PlusIcon,
 } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart } from '@/shared/engines/ChartEngine/BarChart';
 import { HorizontalBarChart } from '@/shared/engines/ChartEngine/HorizontalBarChart';
+import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
+import { useAuth } from '@/providers';
+import { cn } from '@/lib/utils';
 import {
   useAnalyticsSummary,
   useAttendanceAnalytics,
@@ -212,6 +218,7 @@ function RecentActivityFeed() {
 }
 
 export function HRDashboard() {
+  const { user } = useAuth();
   const {
     data: summary,
     isLoading: summaryLoading,
@@ -219,8 +226,28 @@ export function HRDashboard() {
     refetch: refetchSummary,
   } = useAnalyticsSummary();
 
+  const firstName = user?.employee?.firstName ?? user?.email?.split('@')[0] ?? 'there';
+
   return (
     <div className="space-y-6 p-6">
+      {/* Greeting header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-fg">
+            Welcome back, {firstName}
+          </h1>
+          <p className="mt-0.5 text-sm text-fg-muted">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+        </div>
+        <PermissionWrapper permission="employees:write">
+          <Link
+            href="/employees/new"
+            className={cn(buttonVariants({ size: 'default' }), 'gap-1.5 shrink-0')}
+          >
+            <PlusIcon className="size-4 shrink-0" aria-hidden />
+            Add Employee
+          </Link>
+        </PermissionWrapper>
+      </div>
       {/* Stats row */}
       {summaryError ? (
         <ErrorState message="Failed to load summary" onRetry={() => refetchSummary()} />

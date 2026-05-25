@@ -83,6 +83,12 @@ export function ManagerDashboard() {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Heading */}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">My Team</h1>
+        <p className="mt-0.5 text-sm text-fg-muted">Manage your team&apos;s day-to-day.</p>
+      </div>
+
       {summaryError ? (
         <ErrorState message="Failed to load dashboard" onRetry={() => refetchSummary()} />
       ) : (

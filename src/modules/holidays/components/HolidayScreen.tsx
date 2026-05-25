@@ -66,6 +66,7 @@ export function HolidayScreen() {
       <PageHeader
         title="Holidays"
         description="Public and optional holidays for the year."
+        breadcrumbs={[{ label: 'Holidays' }]}
         actions={
           canManage ? (
             <Button size="default" onClick={openAdd}>

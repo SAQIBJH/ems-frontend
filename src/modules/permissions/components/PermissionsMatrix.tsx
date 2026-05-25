@@ -278,6 +278,7 @@ export function PermissionsMatrix() {
       <PageHeader
         title="Permissions"
         description="Manage what each role can access across the system."
+        breadcrumbs={[{ label: 'Permissions' }]}
         actions={
           <div className="flex items-center gap-2">
             {isDirty && (

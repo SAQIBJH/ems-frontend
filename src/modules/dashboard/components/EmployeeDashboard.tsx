@@ -67,32 +67,30 @@ function EmployeeTeamPanel() {
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
-  const { data, isLoading, isError, refetch } = useEmployeeDashboard();
+  const { data, isLoading } = useEmployeeDashboard();
 
   const displayName =
     data?.employeeName ??
     (user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : (user?.email ?? ''));
 
+  const firstName = user?.employee?.firstName ?? displayName.split(' ')[0];
+
   return (
     <div className="space-y-6 p-6">
-      {/* Welcome card */}
-      <div className="rounded-lg border border-subtle bg-surface p-5">
+      {/* Greeting */}
+      <div>
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="h-4 w-56" />
           </div>
-        ) : isError ? (
-          <ErrorState message="Failed to load dashboard" onRetry={() => refetch()} />
         ) : (
-          <div>
-            <h2 className="text-lg font-semibold text-fg">
-              Welcome back, {displayName.split(' ')[0]}
-            </h2>
+          <>
+            <h1 className="text-2xl font-semibold tracking-tight text-fg">Hi, {firstName}</h1>
             <p className="mt-0.5 text-sm text-fg-muted">
-              {data?.designation} · {data?.department}
+              {data?.designation ? `${data.designation} · ${data.department}` : 'Welcome back.'}
             </p>
-          </div>
+          </>
         )}
       </div>
 

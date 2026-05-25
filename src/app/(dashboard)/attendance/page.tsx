@@ -23,6 +23,7 @@ export default function AttendancePage() {
       <PageHeader
         title="Attendance"
         description="Track your daily check-in, check-out, and monthly summary."
+        breadcrumbs={[{ label: 'Attendance' }]}
         actions={
           <Button
             variant="outline"

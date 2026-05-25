@@ -67,7 +67,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 - [x] Step 26 — Topbar: global search input (with MSW handler)
 - [x] Step 27 — Topbar: notification bell + popover (with MSW handler)
-- [ ] Step 28 — PageHeader: breadcrumbs + personalized greeting on dashboards
+- [x] Step 28 — PageHeader: breadcrumbs + personalized greeting on dashboards
 
 #### Auth flows that are missing entirely
 
