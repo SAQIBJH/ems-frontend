@@ -34,9 +34,15 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
   async function onSubmit(values: LoginInput) {
     setGeneralError(null);
     try {
-      const { user } = await mutateAsync(values);
-      // Honor an explicit redirect (e.g. from the auth guard's ?next= param).
-      // Otherwise fall back to the role-appropriate dashboard.
+      const result = await mutateAsync(values);
+
+      // MFA branch: server hasn't issued cookies yet — go to OTP screen.
+      if ('mfaRequired' in result) {
+        push(`/otp-verification?challengeId=${encodeURIComponent(result.challengeId)}`);
+        return;
+      }
+
+      // Normal login: cookies already set by server. Honor the ?next= param.
       if (next !== '/dashboard') {
         push(next);
       } else {
@@ -46,7 +52,7 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
           MANAGER: '/dashboard',
           EMPLOYEE: '/dashboard',
         };
-        push(roleDefaults[user.memberType] ?? '/dashboard');
+        push(roleDefaults[result.user.memberType] ?? '/dashboard');
       }
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;

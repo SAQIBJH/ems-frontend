@@ -1,11 +1,34 @@
 import { apiClient } from '@/lib/api-client';
 import type { User } from '@/types/user';
 import type { LoginInput } from '../validations/login.schema';
-import type { LoginResponse, Session } from '../types/auth.types';
+import type {
+  LoginResponse,
+  MfaRequiredResponse,
+  OtpInitiateResponse,
+  Session,
+} from '../types/auth.types';
 
 export const authApi = {
-  login: async (input: LoginInput): Promise<LoginResponse> => {
-    const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/login', input);
+  login: async (input: LoginInput): Promise<LoginResponse | MfaRequiredResponse> => {
+    const { data } = await apiClient.post<{ data: LoginResponse | MfaRequiredResponse }>(
+      '/auth/login',
+      input,
+    );
+    return data.data;
+  },
+
+  otpInitiate: async (challengeId: string): Promise<OtpInitiateResponse> => {
+    const { data } = await apiClient.post<{ data: OtpInitiateResponse }>('/auth/otp/initiate', {
+      challengeId,
+    });
+    return data.data;
+  },
+
+  verifyOtp: async (challengeId: string, otp: string): Promise<LoginResponse> => {
+    const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/verify-otp', {
+      challengeId,
+      otp,
+    });
     return data.data;
   },
 
@@ -36,5 +59,16 @@ export const authApi = {
 
   revokeSession: async (sessionId: string): Promise<void> => {
     await apiClient.delete(`/auth/sessions/${sessionId}`);
+  },
+
+  forgotPassword: async (email: string): Promise<{ message: string }> => {
+    const { data } = await apiClient.post<{ data: { message: string } }>('/auth/forgot-password', {
+      email,
+    });
+    return data.data;
+  },
+
+  resetPassword: async (token: string, password: string): Promise<void> => {
+    await apiClient.post('/auth/reset-password', { token, password });
   },
 };

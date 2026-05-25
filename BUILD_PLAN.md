@@ -71,8 +71,8 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Auth flows that are missing entirely
 
-- [ ] Step 29 — Forgot password + Reset password screens (MSW)
-- [ ] Step 30 — OTP verification screen (MSW)
+- [x] Step 29 — Forgot password + Reset password screens (MSW)
+- [x] Step 30 — OTP verification screen (MSW)
 
 #### Dashboard wireframe parity
 

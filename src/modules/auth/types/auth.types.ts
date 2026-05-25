@@ -47,6 +47,21 @@ export interface LoginResponse {
   permissions: string[];
 }
 
+/** Alternate login response when MFA is required (no cookies issued yet). */
+export interface MfaRequiredResponse {
+  mfaRequired: true;
+  challengeId: string;
+  deliveryMethod: 'EMAIL' | 'SMS' | 'TOTP';
+}
+
+/** Response from POST /auth/otp/initiate */
+export interface OtpInitiateResponse {
+  challengeId: string;
+  deliveryMethod: 'EMAIL' | 'SMS' | 'TOTP';
+  expiresAt: string;
+  resendAvailableAt: string;
+}
+
 export interface Session {
   id: string;
   userAgent: string;
