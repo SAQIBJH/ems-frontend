@@ -107,7 +107,12 @@ export function NewLeaveRequestDialog({ open, onOpenChange }: NewLeaveRequestDia
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select leave type" />
+                        <SelectValue placeholder="Select leave type">
+                          {(v) => {
+                            const lt = leaveTypes.find((t) => t.id === v);
+                            return lt ? `${lt.name}${lt.isPaid ? '' : ' (Unpaid)'}` : v;
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

@@ -263,7 +263,11 @@ export function EmployeeTable() {
 
         <Select value={departmentId || '_all'} onValueChange={handleDeptChange}>
           <SelectTrigger className="w-[180px]" aria-label="Filter by department">
-            <SelectValue placeholder="All departments" />
+            <SelectValue placeholder="All departments">
+              {(v) =>
+                v === '_all' ? 'All departments' : (flatDepts.find((d) => d.id === v)?.name ?? v)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">All departments</SelectItem>
@@ -278,7 +282,9 @@ export function EmployeeTable() {
 
         <Select value={statusFilter || '_all'} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-[140px]" aria-label="Filter by status">
-            <SelectValue placeholder="All statuses" />
+            <SelectValue placeholder="All statuses">
+              {(v) => (v === '_all' ? 'All statuses' : v === 'ACTIVE' ? 'Active' : 'Terminated')}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">All statuses</SelectItem>

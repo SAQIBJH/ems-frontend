@@ -124,7 +124,9 @@ export function CompanyProfilePanel() {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={(val) => field.onChange(val ?? '')}>
                   <SelectTrigger id="timezone">
-                    <SelectValue placeholder="Select timezone" />
+                    <SelectValue placeholder="Select timezone">
+                      {(v) => TIMEZONES.find((tz) => tz.value === v)?.label ?? v}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
                     {TIMEZONES.map((tz) => (

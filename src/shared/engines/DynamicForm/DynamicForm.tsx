@@ -83,7 +83,9 @@ function AutoField<TValues extends FieldValues>({
           render={({ field }) => (
             <Select value={field.value ?? ''} onValueChange={field.onChange}>
               <SelectTrigger id={fieldId} className="w-full" aria-invalid={!!error}>
-                <SelectValue placeholder={placeholder} />
+                <SelectValue placeholder={placeholder}>
+                  {(v) => (options ?? []).find((o) => o.value === v)?.label ?? v}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {(options ?? []).map((opt) => (

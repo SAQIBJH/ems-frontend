@@ -212,7 +212,9 @@ function EmployeeFormInner({
           render: ({ field, error }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id="df-departmentId" className="w-full" aria-invalid={!!error}>
-                <SelectValue placeholder="Select department" />
+                <SelectValue placeholder="Select department">
+                  {(v) => flatDepts.find((d) => d.id === v)?.name ?? v}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {flatDepts.map((d) => (

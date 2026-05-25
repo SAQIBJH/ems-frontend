@@ -153,7 +153,9 @@ export function LeaveRequestsTable() {
           }}
         >
           <SelectTrigger className="w-[160px]" aria-label="Filter by status">
-            <SelectValue />
+            <SelectValue>
+              {(v) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((opt) => (

@@ -1,0 +1,635 @@
+EMS -- Phase 1
+
+Wireframes & Screen Specification
+
+Employee Management System · Phase 1 (Pre-Payroll)
+Document type: low-fidelity wireframes with annotations
+
+Contents                  06 Dashboard -- Employee                                                                             11 Attendance -- Records
+                          07 Employees -- List                                                                                 12 Leave -- Requests & Approvals
+01 Login                  08 Employees -- Profile                                                                              13 Holiday Calendar
+02 Forgot Password        09 Employees -- Create / Edit                                                                        14 Permissions Matrix
+03 OTP Verification       10 Departments                                                                                       15 Settings
+04 Dashboard -- HR Admin
+05 Dashboard -- Manager
+
+Wireframes are intentionally low-fidelity. Pixel-accurate visual design happens in Figma once the engine library is in place.
+EMS -- Phase 1 Wireframes                                                                                                                                        1 / 16
+
+01 Login                                                                Annotations
+
+Module: Auth · Visible to: Public                                       Module
+                                                                         · Auth
+    [Logo] EMS
+                                                                        Render
+                                   Sign in to your workspace             · Static / RSC. No data required.
+                                                                         · Form is a Client Component (React Hook Form + Zod).
+                                   Use your work email to continue
+                                                                        Components used
+                                   Email                                 · AuthShell layout
+                                     you@company.com                     · DynamicForm (single-section variant) OR direct form
+                                                                         · Primary button, text input, link
+                                   Password
+                                     ········                           Behavior
+                                                                         · Submits to POST /api/v1/auth/login
+                                                      Forgot password?   · On 200: store access token in memory, refresh token in httpOnly cookie
+                                                                         · Redirect to /dashboard or to ?next= param if present
+                                            Sign in                      · On 401: inline error 'Invalid credentials' under the form
+
+                                   Sign in with SSO (phase 2)           Validation
+                                                                         · Email format, password min 8 chars (server enforces real rules)
+
+                                                                        Edge cases
+                                                                         · Rate limit hit (429): show banner with retry-after
+                                                                         · Account disabled: distinct message
+                                                                         · MFA required: redirect to /otp-verification
+
+                                                                        A11y
+                                                                         · Labels associated to inputs
+                                                                         · Error messages tied to inputs via aria-describedby
+                                                                         · Submit button shows loading state during request
+EMS -- Phase 1 Wireframes                                                                                                                                                                 2 / 16
+
+02 Forgot Password                                                                               Annotations
+
+Module: Auth · Visible to: Public                                                                Render
+                                                                                                  · Static. Form is a Client Component.
+    [Logo] EMS                                                                                   Behavior
+                                                                                                  · POST /api/v1/auth/forgot-password { email }
+                                   Forgot your password?                                          · Always returns 202 (do not leak whether email exists)
+                                                                                                  · Show success screen: 'If an account exists, we have sent a link.'
+                                                     We will send a reset link to your email.     · Server enqueues an email job via BullMQ
+                                                     Email                                       Anti-abuse
+                                                                                                  · Rate limit: 3 requests / hour / IP
+                                                       you@company.com                            · Captcha after 2nd attempt in a session
+                                                                                                 Email content
+                                                                      Send reset link             · Tokenized link valid 30 minutes, single-use
+                                                                                Back to sign in   · Token stored hashed in DB
+                                                                                                 Reset flow (next screen, not pictured)
+                                                                                                  · GET /reset-password?token=... validates token
+                                                                                                  · User sets new password (min 12 chars, complexity rules)
+                                                                                                  · All existing sessions revoked on success
+EMS -- Phase 1 Wireframes                                                                                                                                                                        3 / 16
+
+03 OTP Verification                                                                                     Annotations
+
+Module: Auth · Visible to: Public (post-login)                                                          When this screen appears
+                                                                                                         · Only if MFA is enforced for the user (Phase 2-ready hook)
+    [Logo] EMS                                                                                           · On suspicious login (new device / new country)
+                                                                                                        Component
+                              Verify it's you                                                            · Custom OTP input (6 cells, auto-advance, paste-aware)
+                                                                                                        Behavior
+                                             Enter the 6-digit code sent to your email.                  · POST /api/v1/auth/verify-otp { code, challengeId }
+                                                                                                         · Issues access + refresh tokens on success
+                                                                   Verify and continue                   · Lockout after 5 failed attempts; user must restart login
+                                                                   Didn't get the code? Resend in 0:45  Resend
+                                                                                                         · Throttled: 60s cooldown, max 3 resends per challenge
+                                                                                                        Edge cases
+                                                                                                         · Code expired (10 min TTL): clear inputs, show inline message
+                                                                                                         · Tab away and return: timer continues, inputs preserved if same challenge
+EMS -- Phase 1 Wireframes                                              Search...  s                                            Aman K.                                                                                           4 / 16
+
+04 Dashboard -- HR Admin                                                                                                                Annotations
+
+Module: Dashboard · Visible to: HR Admin, Super Admin                                                                                   Render
+   [Logo] EMS Dashboard                                                                                                                  · RSC for initial paint; stats fetched on the server
+                                                                                                                                         · Streaming Suspense boundary per card so slow queries don't block fast
+Dashboard    Home                                                                 Add Employee                                           · ones
+Employees                                                                                                                                · Charts and table hydrate as Client Components
+Departments  Welcome back, Aman
+Attendance                                                                                                                              Components
+Leave        Total Employees    Active Today                           On Leave   Open Requests                                          · StatsCard × 4
+Holidays                                                                                                                                 · ChartEngine (line/bar)
+Permissions  1,240              1,087                                  84         23                                                     · ChartEngine (donut)
+Settings                                                                                                                                 · ActivityTimeline / DynamicTable in compact mode
+              12 vs last month   3.1%                                  2          5 urgent
+                                                                                                                                        Data sources
+             Attendance -- last 30 days                                Headcount by Department                                           · GET /api/v1/analytics/summary
+                                                                                                                                         · GET /api/v1/analytics/attendance?range=30d
+                                                                                                                  Engineering            · GET /api/v1/analytics/headcount-by-department
+                                                                                                                  Sales                  · GET /api/v1/audit-logs?limit=10
+                                                                                                                  Ops
+                                                                                                                  HR                    Permissions
+                                                                                                                                         · analytics:read on summary endpoints
+                                                                                                                                         · Super Admin sees a tenant switcher in the topbar
+
+                                                                                                                                        Performance
+                                                                                                                                         · Summary endpoint cached 60s in Redis
+                                                                                                                                         · Each card has its own Suspense fallback (skeleton)
+
+                                                                                                                                        Empty / error
+                                                                                                                                         · Each card independently shows empty / error state
+                                                                                                                                         · Page does not fail wholesale if one widget errors
+
+             Recent Activity                           Action                     Resource When
+                                                       created                    Employee #E32m04a1go
+             Who                                       approved leave             LR-1187 10m ago
+                  Priya S.                             updated                    Department: 1S7amlesago
+                  Priya S.                             uploaded doc               Aadhaar.pdf 24m ago
+                  Priya S.                             deleted                    Role: Intern 31m ago
+                  Priya S.
+                  Priya S.
+
+User Menu
+EMS -- Phase 1 Wireframes                                  Search...                s                Aman K.                                                                                           5 / 16
+
+05 Dashboard -- Manager                                                                                       Annotations
+
+Module: Dashboard · Visible to: Manager                                                                       Role scope
+   [Logo] EMS Dashboard                                                                                        · Manager sees only their direct reports (recursive option in Phase 2)
+                                                                                                               · Permissions: team:read, leave:approve (their team only)
+Dashboard    Home                                                     Bulk approve  View team                 Approval actions
+Employees                                                                                                      · Approve / Deny mutate via PATCH /api/v1/leave-requests/:id
+Departments  My Team                                                                                           · Optimistic update with rollback on error
+Attendance                                                                                                     · Bulk approve opens a ModalEngine with multi-select
+Leave        Team size                      Present today  Pending approvals        Avg. attendance           Attendance grid
+Holidays                                                                                                       · Server returns aggregated cells; client just renders
+Permissions  14                             11             5                        94%                        · P = Present, A = Absent, L = Leave, W = WFH, H = Half day
+Settings                                                                                                      Notifications
+                                            1              3 leave, 2 reg.          this month                 · Real-time updates via SSE on /events stream
+                                                                                                               · New request  toast + counter increment without refresh
+             Pending Approvals                             Team Attendance -- This Week                       Empty states
+                    Priya S.                                                                                   · 'No pending approvals' with illustration when queue is empty
+                                            Deny  Approve                                                      · Empty team grid with a CTA to define team in Settings
+                     Annual leave · 3 days
+
+             Rahul M.                       Deny Approve   P. Sharma                M T WT F
+             Sick leave · 1 day             Deny Approve   R. Mehta                  PPLPA
+                                                           A. Das                    PLPAP
+             Anita D.                                      V. Patil                  LPAPP
+             WFH · 5 days                                  S. Iyer                   PAPPL
+                                                                                     APPLP
+             Vikram P.                      Deny Approve
+             Comp off · 1 day
+
+User Menu
+EMS -- Phase 1 Wireframes                                              Search...             s              Aman K.                                                                                           6 / 16
+
+06 Dashboard -- Employee                                                                                             Annotations
+
+Module: Dashboard · Visible to: Employee (any user)                                                                  Scope
+   [Logo] EMS Dashboard                                                                                               · Visible to every authenticated user as their landing screen
+                                                                                                                      · Different content from HR/Manager -- RoleSwitch decides which
+Dashboard    Home                                                                            Request leave            · dashboard renders
+Employees
+Departments  Hi Priya                                Leave balance                Upcoming holidays                  Components
+Attendance                                                                                                            · AttendanceClockCard
+Leave        Today's attendance                      6                 4          12 25 Jun  Eid                      · LeaveBalanceCard
+Holidays                                                                                     Independence Day         · HolidayListCard
+Permissions  09:14 AM                                Casual            Sick       15 Aug     Gandhi Jayanti           · EmployeeDocumentList
+Settings                                                                           Earned                             · TeamMiniList
+             Checked in · WFH                                                     02 Oct
+                                                                                                                     Data
+                      Check out                              View history                                             · GET /api/v1/attendance/today
+                                                                                                                      · GET /api/v1/leave/balance/me
+             My Documents                                     Active              My Team                             · GET /api/v1/holidays/upcoming?limit=3
+                Offer Letter.pdf                             Verified                                                 · GET /api/v1/employees/me/documents
+                Aadhaar.pdf                                  Verified                   Aman K. -- Manager            · GET /api/v1/employees/me/team
+                PAN Card.pdf                                 Pending                     Engineering
+                BankAcc.pdf                                                                                          Behavior
+                                                                                        Rahul M.                      · Check-in/out mutate /api/v1/attendance/check-in (with geo if enabled)
+                                                                                         Engineering                  · Request leave button opens drawer with the leave form
+
+                                                                                        Anita D.                     Reduced motion
+                                                                                         Engineering                  · No animation on the clock display when prefers-reduced-motion is set
+
+                                                                                        Vikram P.
+                                                                                         Engineering
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                                                                                                                  7 / 16
+
+07 Employees -- List                                                   Search...                   s            Aman K.         Annotations
+
+Module: Employees · Visible to: HR Admin, Manager (filtered to team)                 Export                                     Engine
+   [Logo] EMS Employees                                                                                                          · DynamicTable<Employee> with columns array
+                                                                      Department s                                               · Columns: checkbox, avatar-text, text, text, text, badge, date, actions
+Dashboard    Home / Employees                                                                Add Employee                        · Virtualization auto-on (>100 rows)
+Employees                                                              Department
+Departments  Employees                                                 Engineering           StaStuasvesview                  Filters
+Attendance                                                             Sales
+Leave        Search by name, code, email...                            Ops                                                      · FilterEngine bound to URL params via nuqs
+Holidays                                                               HR
+Permissions  1,240 employees                                           Engineering                                Employm·eSnat vsed views per useJro(iFnieltedrEsngine.savedViews)
+Settings           Employee                                            Engineering
+                          Priya Sharma                                 Sales                                                    Bulk actions
+                                                                       Ops
+                            priya@...                                  HR                                                       · Selected rows enable: Bulk export, Bulk deactivate (HR only)
+                          Rahul Mehta                                  Engineering
+                            rahul@...                                                        Columns s Density s                · Confirmation via ModalEngine
+                          Anita Das
+                            anita@...                                                                                           Row click
+                          Vikram Patil
+                            vikram@...       Code                                            Role                 Status        ·  NavigaJteosinteod/employees/:id  s(profile)
+                          Suresh Iyer        E2040                                           Sr Engineer                Active              01 Jan 2024
+                            suresh@...       E2041
+                          Neha Gupta         E2042                                                                              Permissions
+                            neha@...         E2043
+                          Arjun Kapoor       E2044                                           AM                   Active · Add Em0p2loJyaene2b0u2t4ton gatedsby employees:write
+                            arjun@...        E2045
+                          Divya Rao          E2046                                                                              · Manager sees only their team (server filters by reports_to)
+                            divya@...        E2047
+                          Kabir Singh        E2048                                           Lead                 On Leave · Export 0g3atJeadnb2y0e2m4ployees:esxport
+                            kabir@...        E2049                                           HRBP
+                          Meera Jain                                                                                         Performance
+                            meera@...
+                                                                                                                   Active · Server 0p4agJiannat2io0n24(offset). Csursor option for very large tenants
+
+                                                                                                                               · Column visibility persisted per user in localStorage
+
+                                                                                             Engineer             Inactive · Search0d5eJbaonun2c0e2d4 300ms s
+
+                                                                                                                                Empty / error
+
+                                                                                             Sr Engineer          Active · EmptyS0t6atJea:n'N2o02e4mployeessyet -- Add your first one'
+                                                                                             AM
+                                                                                                                                · ErrorState with retry on fetch failure
+
+                                                                                                                  Active           07 Jan 2024                      s
+
+                                                                                             Lead                 On Leave         08 Jan 2024                      s
+
+                                                                                             HRBP                 Active           09 Jan 2024                      s
+
+                                                                                             Engineer             Inactive         01 Jan 2024                      s
+
+             Showing 1­10 of 1,240                                                           < 1 2 3 ... 124 >
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                                                                                                                     8 / 16
+
+08 Employees -- Profile                                                                                              Annotations
+
+Module: Employees · Visible to: HR Admin, Manager (own team), Employee (self)                                        Render
+                                                                                                                      · Header + read-only sections: RSC
+[Logo] EMS Employees                                          Search...                    s                Aman K.   · Tabs: Client component, switches without route change (query param
+                                                                                                                      · ?tab=)
+Dashboard    Employees / Priya Sharma                                          Deactivate  Edit                       · Each tab can lazy-load via next/dynamic
+Employees
+Departments  Priya Sharma                                                                                            Components
+Attendance                                                                                                            · Header card with avatar + chips
+Leave                 Priya Sharma                           Joined            Reports to                             · Tabs (shadcn)
+Holidays                                                                       Aman Kumar                             · Key-value pair grid (reusable as KeyValueGrid)
+Permissions           Senior Engineer · Engineering · E12204M1ar 2022                                                 · Documents preview list (EmployeeDocumentList)
+Settings                                                                                                              · ActivityTimeline
+                           Active                 Full-time
+                                                                                                                     Permissions
+             Overview Job              Documents  Attendance         Leave     Activity                               · Self-view: always allowed
+                                                                                                                      · Manager: read team, write limited (designation, location only)
+             Personal                                                          Documents   View all                   · HR Admin: full read/write except sensitive financial (Phase 2)
+                                                                                                                      · Edit button hidden if user lacks employees:write
+             Date of birth             Gender                                  Offer Letter.pdf Verified
+             14 Aug 1992               Female                                                                        Data
+                                       Personal email                          Aadhaar.pdf Verified                   · GET /api/v1/employees/:id
+             Phone                     priya.s@gmail.com                                                              · GET /api/v1/employees/:id/documents?limit=3
+             +91 98xxxxxx21            Emergency contact                       PAN.pdf     Verified                   · GET /api/v1/audit-logs?entity=employee&id=:id&limit=4
+                                       +91 98xxxxxx70
+             Address                                                                                                 Edit flow
+             Sector 18, Noida, UP      Department                                                                     · Edit button  /employees/:id/edit (separate page) OR inline
+                                       Engineering                                                                    · DrawerEngine
+             Job                       Location                                                                       · Phase 1: separate page for simplicity
+                                       Delhi
+             Designation               Pay currency                                                                  Deactivate
+             Senior Engineer           INR                                                                            · Triggers ConfirmDialog ('Type employee code to confirm')
+             Employment                                                                                               · Soft delete sets deleted_at; revokes sessions
+             Full-time
+             Manager                                                           Recent activity
+             Aman Kumar
+                                                                                    Approved leave LR-1187
+                                                                                     2d ago
+                                                                                    Uploaded Aadhaar.pdf
+                                                                                     1w ago
+                                                                                    Role changed  Senior
+                                                                                     3m ago
+                                                                                    Joined Engineering
+                                                                                     2y ago
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                  9 / 16
+
+09 Employees -- Create / Edit                             Search...              s                Aman K.  Annotations
+
+Module: Employees · Visible to: HR Admin, Super Admin                    Cancel                            Engine
+   [Logo] EMS Employees                                                                                     · DynamicForm driven by employeeCreateSchema (Zod)
+                                                              3. Documents                                  · Sections array: Identity, Job, Documents, Access
+Dashboard    Employees / Add     2. Job                                             Save
+Employees                                              Last name *                                         Schema sharing
+Departments  Add Employee                                Sharma                  4. Access                  · Schema lives in packages/types/src/schemas/employee.schema.ts
+Attendance                                                                                                  · Imported by both frontend and backend -- single source of truth
+Leave               1. Personal                        Personal email
+Holidays                                                 priya.s@gmail.com                                 Behavior
+Permissions   Identity                                                                                      · Validates on blur and on submit
+Settings                                               Date of birth                                        · Server errors (422) mapped back to field errors via form.setError
+              First name *                               14 / 08 / 1992                                     · Auto-save draft to localStorage every 30s (keyed by user + form id)
+                Priya                                                                                       · Optional 'Generate code' button calls /api/v1/employees/next-code
+
+             Work email *                                                                                  Async fields
+               priya@acme.com                                                                               · Department dropdown: lazy fetch via /api/v1/departments?fields=id,name
+                                                                                                            · Manager dropdown: searchable, server-side filter
+             Phone
+               +91 98xxxxxxxx                                                                              Documents step
+                                                                                                            · FileUploader with virus-scan status
+                                                                                                            · Pre-signed S3 upload from client, server records metadata
+
+                                                                                                           Access step
+                                                                                                            · Select role from tenant roles
+                                                                                                            · Toggle: 'Send invite email' (default on)
+
+                                                                                                           Phase 2 hooks
+                                                                                                            · Salary fields slot in here in Job section, behind payroll:write permission
+
+             Job                                       Designation *
+                                                         Senior Engineer
+             Employee code *
+               Auto / E20XX
+
+             Department *                              Reports tSo ave draft     Save & continue
+               Engineering s                             Aman Kumar s
+
+User Menu    Joined on *
+               12 / 03 / 2022
+                                                       Employment type *
+                                                         Full-time s
+EMS -- Phase 1 Wireframes                                                                                         10 / 16
+
+10 Departments                                           Search...                             s         Aman K.  Annotations
+
+Module: Departments · Visible to: HR Admin, Super Admin                                                           Data model
+   [Logo] EMS Departments                                                                                          · Nested via parent_id self-reference
+                                                                                                                   · Server returns flat list with parent_id; client builds tree (memoized)
+Dashboard    Home / Departments                                                        Add department              · Depth limit enforced (e.g. 5) to keep UI sane
+Employees
+Departments  Departments                                 Engineering                                              Engine
+Attendance                                                                                                         · Custom DepartmentTree component (not a generic engine -- tree is
+Leave        Org tree                                    Parent: Acme Corp · Head: Aman Kumar                      · dept-specific)
+Holidays       Search departments...                     Headcount    Sub-depts                Managers            · Right side uses KeyValueGrid + DynamicTable (compact)
+Permissions
+Settings        s Acme Corp (root)    1,240              412          3                        12                 Behavior
+                     s Engineering    412                                                                          · Click node  loads detail (URL: /departments/:id)
+                          Frontend    98                 Employees in this department                              · Add department: opens DrawerEngine (form: name, parent, head)
+                          Backend     144                                                                          · Drag-to-reparent: Phase 2
+                          DevOps      32                 Aman K. -- Manager      Lead
+                     s Sales          210                                                                         Validation
+                     s Operations     180                Priya S.                Sr. Eng                           · Cannot create cycles (server check)
+                     s HR             24                                                                           · Cannot delete dept with active employees (offers 'reassign' flow)
+                          Recruiting  12
+                          People Ops  12                                                                          Performance
+                     s Finance        44                                                                           · Tree is fetched once and cached aggressively (5 min)
+                                                                                                                   · Headcounts are aggregated server-side
+
+                                                         Rahul M.                Eng
+
+                                                         Anita D.                Eng
+
+                                                         Vikram P.               Eng
+
+                                                         Neha G.                 Intern
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                                                                                                                 11 / 16
+
+11 Attendance -- Records
+
+Module: Attendance · Visible to: HR Admin, Manager (team), Employee (self)
+
+[Logo] EMS Attendance                                                       Search...                    s                   Aman K.  Annotations
+
+Dashboard    Home / Attendance                                                         Export      Regularize                         Two views
+Employees                                                                                                                              · Calendar (this) + Table (toggle in toolbar)
+Departments  Attendance                                                                                                                · Switch is a tab control; URL: ?view=calendar|table
+Attendance
+Leave                June 2025 s                                                                                                      Data
+Holidays
+Permissions                                                                                                                           · GET /api/v1/attendance?employeeId=&month=YYYY-MM
+Settings
+                                                                                                                                      · Returns daily records aggregated server-side
+
+                                         Department: All s                             Employee s               Present                  Absent    Leave                 WFH
+                                                                                                                                      Scope
+
+                                                                                                                                      · Employee: sees only own records
+
+                                                                                                                                      · Manager: dropdown to any team member
+
+             Priya Sharma -- June 2025                                                 Month summary                                  · HR Admin: dropdown to any employee in tenant
+
+             Mon       Tue   Wed   Thu   Fri      Sat                       Sun        Present              18                        Regularize flow
+                                                                                                                                       · Opens DrawerEngine with date picker + reason + supporting doc
+                                                                                                                                       · Manager receives notification + appears in their approval queue
+
+                                                                                       WFH                  3                         Cell click
+                                                                                                                                       · Day cell click opens day-detail Drawer: clock-in/out, hours, location,
+                                   1P    2P    3                            4                                                          · notes
+
+                                                                                       Leave                2
+
+                                                                                       Absent               1                         Export
+                                                                                                                                       · CSV / XLSX export of month for selected scope (BullMQ job, emailed
+             5 WFH 6 P       7P    8L    9P    10                           11                                                         · when ready)
+
+                                                                                       Holidays             1
+
+                                                                                       Avg. hours / day     8h 42m                    Edge cases
+                                                                                       Late check-ins       2                          · Future dates greyed out and not interactive
+                                                                                                                                       · Holidays show holiday name in tooltip and a small icon
+
+             12 P      13 L  14 P  15 L  16 P  17                           18
+
+             19 P      20 P  21WFH 22WFH 23 P  24                           25         Regularization requests
+                                                                                          12 Jun · MisPseenddpinugnch-out
+             26 P      27 P  28 L  29WFH 30 P
+                                                                                          08 Jun · FoArgpoptrtoovechdeck in
+
+                                                                                          03 Jun · HalPf ednadyinclgaim
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                                                                                                             12 / 16
+
+12 Leave -- Requests & Approvals                          Search...                   s          Aman K.      Annotations
+
+Module: Leave · Visible to: All (different tabs by role)    Team Calendar                                     Tabs
+   [Logo] EMS Leave                                        Bulk approve                                        · My Requests: employee's own history
+                                                          D24atJeusn ­ 26 Jun                                  · Approvals: manager queue (their team only)
+Dashboard    Home / Leave                                 20 Jun                  Request leave                · Team Calendar: month view of who is on leave when
+Employees                                                 23 Jun ­ 27 Jun                                      · Balances: per-leave-type balance for self or selected employee
+Departments  Leave                                        21 Jun
+Attendance                          Approvals (5)         01 Jul ­ 05 Jul             Balances                Engine
+Leave           My Requests (4)          TypeAnnual                                                            · DynamicTable<LeaveRequest> with selection mode multi
+Holidays                                                                                                       · Row action buttons render via type: 'actions' columns + permission gate
+Permissions  5 pending approvals
+Settings           EmpPloryiyeaeS.                                                Bulk deny                   Behavior
+
+                                                                                                              · Approve / Deny: PATCH /api/v1/leave-requests/:id { status, comment? }
+
+                                                                                                              · Bulk action opens ModalEngine to collect optional shared comment
+
+                                                                               3Days     FRaemasiloynwedding  ·  Optimistic  UI;S2odunbamegroirtoter,drow  revertsAacntiDdonteosnayst  shows reason
+
+                                                                                                              Conflicts                                                                      Approve
+
+             Rahul M.               Sick                                       1         Fever                · Server detects overlapping team leave and warns approver
+
+                                                                                                              · Warning chip3ahpapgeoars next to date whDenenteyam coveArapgpe r<otvhreeshold
+
+                                                                                                              Notifications
+
+             Anita D.               WFH                                        5         Maintenance at home · Requester ge1tsd iang-aopp + email on decDisieonny                      Approve
+
+                                                                                                              · Approval pulls live via SSE; counter in tab updates without refresh
+
+             Vikram P.              Comp off                                   1         Worked weekend       Audit          4h ago                        Deny                        Approve
+
+                                                                                                              · Every state transition writes to audit_logs with actor and reason
+
+             Suresh I.              Annual                                     5         Personal trip                       6h ago                        Deny                        Approve
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                             13 / 16
+
+13 Holiday Calendar                                           Search...               s                      Aman K.  Annotations
+
+Module: Holidays · Visible to: All (read), HR Admin (manage)                                                          Views
+   [Logo] EMS Holidays                                                                                                 · Year overview (this) is default
+                                                                                                                       · Click a month  expanded month view with names/details
+Dashboard    Home / Holidays                                             Import .ics  Add holiday                      · Toggle list view for plain-text export
+Employees
+Departments  Holiday Calendar -- 2025                                                                                 Data
+Attendance                                                                                                             · GET /api/v1/holidays?year=2025
+Leave        Jan                    Feb                       Mar                     Apr                              · Cached aggressively (1h) -- holidays rarely change
+Holidays
+Permissions   1234567                1234567                   1234567                 1234567                        Multi-location
+Settings      8 9 10 11 12 13 14     8 9 10 11 12 13 14        8 9 10 11 12 13 14      8 9 10 11 12 13 14              · Tenant can define location-scoped holidays
+              15 16 17 18 19 20 21   15 16 17 18 19 20 21      15 16 17 18 19 20 21    15 16 17 18 19 20 21            · Employee sees holidays for their assigned location only
+              22 23 24 25 26 27 28   22 23 24 25 26 27 28      22 23 24 25 26 27 28    22 23 24 25 26 27 28            · HR Admin sees union with location filter
+              29 30                  29 30                     29 30                   29 30
+                                                                                                                      Add holiday
+             May                    Jun                       Jul                     Aug                              · DrawerEngine form: name, date, locations[], optional/mandatory
+                                                                                                                       · Import: parse .ics file via BullMQ job, preview before commit
+              1234567                1234567                   1234567                 1234567
+              8 9 10 11 12 13 14     8 9 10 11 12 13 14        8 9 10 11 12 13 14      8 9 10 11 12 13 14             Conflicts
+              15 16 17 18 19 20 21   15 16 17 18 19 20 21      15 16 17 18 19 20 21    15 16 17 18 19 20 21            · If a holiday overlaps an approved leave, the leave automatically converts
+              22 23 24 25 26 27 28   22 23 24 25 26 27 28      22 23 24 25 26 27 28    22 23 24 25 26 27 28            · to a half day or full WFH per tenant rule (Phase 1 keeps it manual: just
+              29 30                  29 30                     29 30                   29 30                           · flag it)
+
+             Sep                    Oct                       Nov                     Dec
+
+              1234567                1234567                   1234567                 1234567
+              8 9 10 11 12 13 14     8 9 10 11 12 13 14        8 9 10 11 12 13 14      8 9 10 11 12 13 14
+              15 16 17 18 19 20 21   15 16 17 18 19 20 21      15 16 17 18 19 20 21    15 16 17 18 19 20 21
+              22 23 24 25 26 27 28   22 23 24 25 26 27 28      22 23 24 25 26 27 28    22 23 24 25 26 27 28
+              29 30                  29 30                     29 30                   29 30
+
+User Menu
+EMS -- Phase 1 Wireframes                                                                                                                                                   14 / 16
+
+14 Permissions Matrix                            Search...              s                     Aman K.  Annotations
+
+Module: Permissions · Visible to: Super Admin                                                          Scope
+   [Logo] EMS Permissions                                                                               · Super Admin only. Other roles do not see this menu item.
+
+Dashboard      Home / Permissions                           Add role    Save changes                   Model
+Employees                                                                                               · roles (per tenant) × permissions (global catalog) joined by
+Departments    Roles & Permissions             Super Admin HR Admin Manager Employee Auditor            · role_permissions
+Attendance                                                                                              · user_roles assigns roles to users
+Leave           Employees                                                                               · Built into CASL ability on login or fetched via /auth/me
+Holidays           Read
+Permissions                                                                                            Behavior
+Settings             employees:read                                                                     · Toggle checkboxes mark the form dirty
+                                                                                                        · Save Changes button enabled only when dirty
+    User Menu      Create / edit                                                                        · Confirm dialog warns: 'X users will lose / gain access'
+                                                                                                        · On save: bulk PATCH /api/v1/roles/:id/permissions
+                     employees:write
+                                                                                                       Safety
+                   Delete                                                                               · Super Admin role cannot have permissions:manage unchecked
+                                                                                                        · Last Super Admin user cannot be downgraded (server enforced)
+                     employees:delete
+                                                                                                       Custom roles
+                   Export                                                                               · HR Admin can create new roles in their tenant (e.g. 'Recruiter')
+                                                                                                        · Permission catalog is read-only (defined by the product)
+                     employees:export
+                                                                                                       Audit
+                Departments                                                                             · Every permission change writes to audit_logs with diff and actor
+                   Read
+                                                                           
+                     departments:read
+                                                            
+                   Create / edit
+                                                                           
+                     departments:write
+                                                                      
+                Attendance
+                   Read                                     
+
+                     attendance:read           
+
+                   Edit / regularize                                       
+
+                     attendance:write
+
+                Leave
+                   Read
+
+                     leave:read
+
+                   Request
+
+                     leave:request
+
+                   Approve / deny
+
+                     leave:approve
+
+                Permissions
+                   Manage roles & permissions
+
+                     permissions:manage
+
+                Audit
+                   Read audit logs
+
+                     audit:read
+EMS -- Phase 1 Wireframes                                                                                                                                                                15 / 16
+
+15 Settings                                                           Search...                     s     Aman K.  Annotations
+
+Module: Settings · Visible to: HR Admin, Super Admin (more sections)
+   [Logo] EMS Settings
+
+                                                                                                                   Pattern
+
+Dashboard                                                                                                          · Two-column: left nav (groups + items), right detail panel
+Employees
+Departments    Home / Settings                                                                                     · Each item is a sub-route: /settings/workspace/company,
+Attendance
+Leave          Settings                                                                                            · /settings/security/auth, ...
+Holidays
+Permissions    WORKSPACE                Company profile                                                            Permission gating
+Settings          Company profile                                                                                   · Each section item is wrapped in PermissionWrapper
+                  Branding              Public-facing information about your workspace.                             · Items the user cannot access are hidden entirely (not greyed out)
+    User Menu     Locale & timezone
+                  Working hours                                                                                    Audit
+                                                                                                                    · Every save writes an audit entry with diff (old vs new values)
+               PEOPLE
+                  Leave types           Logo               Upload                                                  Dirty tracking
+                  Holiday calendar                                                                                  · Save / Discard appear only when form is dirty
+                  Attendance rules                 PNG or SVG, max 1 MB                                             · Browser warns on unload if dirty
+
+               SECURITY                                                                                            Locale switching
+                  Authentication                                                                                    · Saving timezone triggers cache invalidation for date-displaying queries
+                  Sessions & devices
+                  Audit log             Legal name                               Display name                      Future hooks
+                                          Acme Corporation Pvt Ltd                 Acme                             · Payroll settings (pay schedule, tax provider, statutory components) plug
+               NOTIFICATIONS                                                                                        · into 'People' group in Phase 2
+                  Email templates                                                                                   · SSO settings appear under 'Security' when Phase 2 ships
+                  In-app preferences
+                                        Country                                  Default currency
+               INTEGRATIONS               India s                                  INR s s
+                  Email (SES / Resend)
+                  Storage (S3)          Timezone                                 Fiscal year start
+                  Webhooks                Asia/Kolkata (UTC+05:30) s               01 April s
+
+               BILLING                  Primary contact email                    Support phone
+                  Plan                    hr@acme.com                              +91 11 4xxxxxxx
+                  Invoices
+                                                                                  Discard           Save
+

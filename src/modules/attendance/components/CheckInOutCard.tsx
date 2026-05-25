@@ -127,7 +127,9 @@ export function CheckInOutCard() {
         <div className="flex items-center gap-2">
           <Select value={workMode} onValueChange={(v) => setWorkMode(v as WorkMode)}>
             <SelectTrigger className="h-8 w-36 text-xs">
-              <SelectValue />
+              <SelectValue>
+                {(v) => WORK_MODE_LABELS[v as keyof typeof WORK_MODE_LABELS] ?? v}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {Object.entries(WORK_MODE_LABELS).map(([value, label]) => (

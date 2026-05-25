@@ -177,11 +177,27 @@ GET    /api/v1/export
 
 ### What still needs MSW
 
-The backend is nearly complete. MSW is now only required for:
+Backend coverage is partial. **`docs/BACKEND_API_REQUESTS.md`** is the
+authoritative list of endpoints the frontend needs that don't yet exist on
+the backend — it includes the **exact response shape** each MSW handler must
+return, so that when the real endpoint ships the frontend swaps the mock for
+live with no other change.
 
-- **Document upload:** `POST /employees/:id/documents` (file upload — not yet implemented)
-- **Notifications:** any `/notifications` endpoints
-- **Resignations:** any `/resignations` endpoints
+Categories currently mocked (see `BACKEND_API_REQUESTS.md` for the full per-endpoint spec):
+
+- **Auth extras** — forgot password, reset password, OTP initiate, MFA login branch
+- **Notifications** — list, mark-read, mark-all-read, poll/stream
+- **Global search** — `/search`
+- **Document upload** — pre-signed S3 upload + confirm + delete
+- **Employees convenience** — `next-code`, bulk deactivate, bulk export
+- **Departments** — reassign-and-delete, list-employees
+- **Leave** — bulk approve/reject, team calendar, coverage warning
+- **Holidays** — `.ics` import (upload + preview + commit)
+- **Settings** — branding, leave-types CRUD, attendance rules, auth settings, notification preferences
+- **Custom roles** — create / delete / assign
+- **Analytics** — summary deltas, weekly team grid, manager-dashboard `approvalBreakdown`, employee-dashboard `todayAttendance` + `leaveBalanceSummary`
+- **Activity feed** — `entity_label` + `entity_url` augmentation
+- **Resignations** — Prisma model exists, no routes
 
 ### MSW discipline (unchanged)
 
@@ -715,3 +731,62 @@ pnpm shadcn add <name>    # add a shadcn primitive
 ## 20. Visual reference
 
 The product should feel like Linear, Vercel dashboard, or Stripe dashboard. Confident, dense, calm. Not Bootstrap admin templates. Not gradient-heavy SaaS landing pages. Enterprise tooling, not consumer.
+
+---
+
+## 21. Wireframe parity is non-negotiable
+
+After the Phase 1 demo, stakeholder feedback was that the UI **must match
+`docs/WIREFRAMES.pdf`** at the layout and control level. This supersedes
+generic taste calls.
+
+**Rules when building or modifying any screen:**
+
+1. **Open the wireframe page for the screen before you write code.** Identify
+   every:
+   - Heading, including personalized greeting copy ("Welcome back, Aman", "Hi Priya")
+   - Header-bar action button (label, icon, position)
+   - Card / section in the order shown
+   - Chart type (line vs bar vs donut — chart shape is **part of the spec**, not a free choice)
+   - Interactive control on a row (inline Approve/Deny buttons, Verified pill, etc.)
+2. **If something is in the wireframe and not yet built, build it. Do not
+   silently omit it.** If it cannot be built (e.g. no API), build the
+   shell with a loading or mocked state and call out the gap.
+3. **If you have a "better" visual idea that diverges from the wireframe,
+   ask first.** Do not deviate silently.
+4. **Build order within a screen:** match wireframe top-to-bottom, left-to-right.
+   That includes the order in which cards appear in a dashboard grid.
+5. **Field-level diff:** when picking up any wireframe-parity step in
+   `BUILD_PLAN.md`, the step lists the exact controls and copy expected.
+   Treat that list as the acceptance criteria.
+
+**What's still flexible (taste):**
+
+- Visual identity (color, typography, density, spacing, motion) follows §20.
+- Component-level micro-interactions (focus rings, hover states, transitions).
+- Anything not pictured in the wireframe.
+
+---
+
+## 22. Adding new backend endpoints (frontend-first)
+
+The backend ships behind the frontend in many cases. To stay unblocked
+without painting ourselves into a corner:
+
+1. **Define the endpoint in `docs/BACKEND_API_REQUESTS.md` first.** Include:
+   method, path, role, request body, success response shape, error codes,
+   why we need it (which screen).
+2. **Implement the MSW handler in `src/mocks/handlers/<domain>.ts` to return
+   exactly that shape.** No deviations.
+3. **Define the TypeScript types in `modules/<x>/types/*.ts` to mirror the
+   shape.** When the backend ships, types stay; we only flip the MSW
+   intercept off.
+4. **Service methods unwrap the documented shape** — same discipline as §4.
+5. **When the backend confirms the endpoint is live**, delete the MSW
+   handler for that path and remove the row from `BACKEND_API_REQUESTS.md`
+   (or move to a "shipped" archive section). The endpoint then belongs in
+   `API_MAPPING.md` going forward.
+
+This is how `CLAUDE.md §3` already handles the live-vs-mocked split — this
+section just formalizes the workflow for net-new endpoints driven from the
+frontend side.

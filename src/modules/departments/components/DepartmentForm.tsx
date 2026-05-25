@@ -195,7 +195,13 @@ export function DepartmentForm({
                   onValueChange={(v) => field.onChange(v === '_none' ? '' : v)}
                 >
                   <SelectTrigger id="dept-parent-trigger" className="w-full">
-                    <SelectValue placeholder="None (root department)" />
+                    <SelectValue placeholder="None (root department)">
+                      {(v) =>
+                        v === '_none' || v === ''
+                          ? 'None (root department)'
+                          : (flatDepts.find((d) => d.id === v)?.name ?? v)
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">None (root department)</SelectItem>
