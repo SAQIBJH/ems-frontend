@@ -4,6 +4,13 @@ export interface AnalyticsSummary {
   activeToday: number;
   onLeaveToday: number;
   openRequests: number;
+  /** Optional deltas block — live as of 2026-05-25 */
+  deltas?: {
+    totalEmployees?: { delta?: number; deltaLabel?: string };
+    activeToday?: { deltaPercent?: number };
+    onLeaveToday?: { delta?: number };
+    openRequests?: { urgent?: number };
+  };
 }
 
 /** One point in GET /analytics/attendance series */
@@ -38,14 +45,22 @@ export interface LeaveSummaryAnalytics {
   withdrawn: number;
 }
 
-/** One entry in GET /analytics/recent-activity */
+/** One entry in GET /analytics/recent-activity (live camelCase shape + optional entity fields) */
 export interface RecentActivityItem {
   id: string;
+  actorName: string;
+  actorEmail: string | null;
   action: string;
-  entity_type: string | undefined;
-  entity_id: string;
-  user_email: string;
-  created_at: string;
+  actionLabel: string;
+  description: string;
+  entityType: string;
+  entityId: string;
+  createdAt: string;
+  timestamp: string;
+  displayTime: string;
+  /** Extended fields — live as of 2026-05-25 */
+  entity_label?: string;
+  entity_url?: string | null;
 }
 
 /** GET /manager/dashboard */

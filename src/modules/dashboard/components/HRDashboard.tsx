@@ -8,15 +8,16 @@ import {
   CalendarCheckIcon,
   CalendarXIcon,
   ClipboardListIcon,
-  ActivityIcon,
   PlusIcon,
+  ExternalLinkIcon,
 } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart } from '@/shared/engines/ChartEngine/BarChart';
-import { HorizontalBarChart } from '@/shared/engines/ChartEngine/HorizontalBarChart';
+import { AreaChart } from '@/shared/engines/ChartEngine/AreaChart';
+import { DonutChart } from '@/shared/engines/ChartEngine/DonutChart';
+import type { DonutSlice } from '@/shared/engines/ChartEngine/DonutChart';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
 import { useAuth } from '@/providers';
 import { cn } from '@/lib/utils';
@@ -24,15 +25,25 @@ import {
   useAnalyticsSummary,
   useAttendanceAnalytics,
   useHeadcountByDepartment,
-  useLeaveSummaryAnalytics,
   useRecentActivity,
 } from '../hooks/useDashboard';
-import type { AttendanceRange } from '../types/dashboard.types';
+import type { AttendanceRange, RecentActivityItem } from '../types/dashboard.types';
 
 const RANGE_OPTIONS: { label: string; value: AttendanceRange }[] = [
   { label: '7d', value: '7d' },
   { label: '30d', value: '30d' },
   { label: '90d', value: '90d' },
+];
+
+const DEPT_COLORS = [
+  'hsl(222 80% 52%)',
+  'hsl(152 60% 40%)',
+  'hsl(38 92% 50%)',
+  'hsl(280 60% 55%)',
+  'hsl(0 75% 55%)',
+  'hsl(190 80% 42%)',
+  'hsl(340 70% 50%)',
+  'hsl(60 80% 42%)',
 ];
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -63,15 +74,17 @@ function AttendanceTrendChart() {
     })) ?? [];
 
   return (
-    <SectionCard title="Attendance Trend">
+    <SectionCard title="Attendance — Last 30 Days">
       <div className="mb-4 flex items-center gap-1">
         {RANGE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
+            type="button"
             onClick={() => setRange(opt.value)}
-            className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-              range === opt.value ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-2'
-            }`}
+            className={cn(
+              'rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
+              range === opt.value ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-2',
+            )}
           >
             {opt.label}
           </button>
@@ -86,7 +99,7 @@ function AttendanceTrendChart() {
           No attendance data for this period.
         </div>
       ) : (
-        <BarChart
+        <AreaChart
           data={chartData}
           xAxisKey="date"
           height={240}
@@ -105,10 +118,11 @@ function AttendanceTrendChart() {
 function HeadcountChart() {
   const { data, isLoading, isError, refetch } = useHeadcountByDepartment();
 
-  const chartData =
-    data?.map((d) => ({
-      name: d.departmentName.length > 12 ? d.departmentName.slice(0, 12) + '…' : d.departmentName,
+  const chartData: DonutSlice[] =
+    data?.map((d, i) => ({
+      name: d.departmentName.length > 14 ? d.departmentName.slice(0, 14) + '…' : d.departmentName,
       value: d.employeeCount,
+      color: DEPT_COLORS[i % DEPT_COLORS.length],
     })) ?? [];
 
   return (
@@ -122,52 +136,72 @@ function HeadcountChart() {
           No department data available.
         </div>
       ) : (
-        <HorizontalBarChart data={chartData} height={Math.max(chartData.length * 36, 160)} />
+        <DonutChart data={chartData} height={220} />
       )}
     </SectionCard>
   );
 }
 
-function LeaveSummaryPanel() {
-  const { data, isLoading, isError, refetch } = useLeaveSummaryAnalytics();
+function actorInitials(name: string): string {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+function formatRelativeTime(iso: string): string {
+  try {
+    return format(parseISO(iso), 'MMM d, h:mm a');
+  } catch {
+    return iso;
+  }
+}
+
+function ActivityRow({ item }: { item: RecentActivityItem }) {
+  const initials = actorInitials(item.actorName);
+  const resource = item.entity_label ?? item.entityType;
+  const resourceUrl = item.entity_url;
 
   return (
-    <SectionCard title="Leave Summary (30d)">
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-md" />
-          ))}
+    <tr className="border-b border-subtle last:border-0">
+      {/* Who */}
+      <td className="py-2.5 pr-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[11px] font-semibold text-brand">
+            {initials}
+          </span>
+          <span className="text-sm text-fg truncate max-w-[120px]">{item.actorName}</span>
         </div>
-      ) : isError ? (
-        <ErrorState message="Failed to load leave summary" onRetry={() => refetch()} />
-      ) : data ? (
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Pending', value: data.pending, color: 'text-warning' },
-            { label: 'Approved', value: data.approved, color: 'text-success' },
-            { label: 'Rejected', value: data.rejected, color: 'text-danger' },
-            { label: 'Withdrawn', value: data.withdrawn, color: 'text-fg-muted' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-md border border-subtle bg-surface-2 p-3">
-              <p className="text-xs text-fg-muted">{label}</p>
-              <p className={`text-2xl font-semibold ${color}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </SectionCard>
+      </td>
+      {/* Action */}
+      <td className="py-2.5 pr-3">
+        <span className="text-sm text-fg-muted">{item.actionLabel}</span>
+      </td>
+      {/* Resource */}
+      <td className="py-2.5 pr-3">
+        {resourceUrl ? (
+          <Link
+            href={resourceUrl}
+            className="inline-flex items-center gap-1 text-sm text-brand hover:underline"
+          >
+            {resource}
+            <ExternalLinkIcon className="size-3" aria-hidden />
+          </Link>
+        ) : (
+          <span className="text-sm text-fg-muted">{resource}</span>
+        )}
+      </td>
+      {/* When */}
+      <td className="py-2.5 whitespace-nowrap text-xs text-fg-subtle">
+        {formatRelativeTime(item.createdAt)}
+      </td>
+    </tr>
   );
 }
 
-function RecentActivityFeed() {
+function RecentActivityTable() {
   const { data, isLoading, isError, refetch } = useRecentActivity(8);
-
-  const formatAction = (action: string, entityType: string | undefined) => {
-    const a = (action ?? '').toLowerCase();
-    const e = (entityType ?? '').replace(/_/g, ' ').toLowerCase();
-    return `${a} ${e}`.trim();
-  };
 
   return (
     <SectionCard title="Recent Activity">
@@ -188,30 +222,23 @@ function RecentActivityFeed() {
       ) : !data || data.length === 0 ? (
         <div className="py-6 text-center text-sm text-fg-muted">No recent activity.</div>
       ) : (
-        <ul className="space-y-3">
-          {data.map((item) => (
-            <li key={item.id} className="flex items-start gap-3">
-              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-50">
-                <ActivityIcon className="size-3.5 text-brand" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-fg">
-                  <span className="font-medium">{item.user_email}</span>{' '}
-                  {formatAction(item.action, item.entity_type)}
-                </p>
-                <p className="mt-0.5 text-xs text-fg-muted">
-                  {(() => {
-                    try {
-                      return format(parseISO(item.created_at), 'MMM d, h:mm a');
-                    } catch {
-                      return item.created_at;
-                    }
-                  })()}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-subtle">
+                <th className="pb-2 pr-3 text-xs font-medium text-fg-muted">Who</th>
+                <th className="pb-2 pr-3 text-xs font-medium text-fg-muted">Action</th>
+                <th className="pb-2 pr-3 text-xs font-medium text-fg-muted">Resource</th>
+                <th className="pb-2 text-xs font-medium text-fg-muted">When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((item) => (
+                <ActivityRow key={item.id} item={item} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </SectionCard>
   );
@@ -227,6 +254,24 @@ export function HRDashboard() {
   } = useAnalyticsSummary();
 
   const firstName = user?.employee?.firstName ?? user?.email?.split('@')[0] ?? 'there';
+  const deltas = summary?.deltas;
+
+  const employeeDeltaText = deltas?.totalEmployees
+    ? `${deltas.totalEmployees.delta !== undefined ? `+${deltas.totalEmployees.delta}` : ''} ${deltas.totalEmployees.deltaLabel ?? ''}`.trim()
+    : undefined;
+
+  const activeTodayText =
+    deltas?.activeToday?.deltaPercent !== undefined
+      ? `${deltas.activeToday.deltaPercent > 0 ? '+' : ''}${deltas.activeToday.deltaPercent}%`
+      : undefined;
+
+  const onLeaveDeltaText =
+    deltas?.onLeaveToday?.delta !== undefined
+      ? `${deltas.onLeaveToday.delta > 0 ? '+' : ''}${deltas.onLeaveToday.delta} vs last period`
+      : undefined;
+
+  const urgentCount = deltas?.openRequests?.urgent;
+  const urgentText = urgentCount !== undefined ? `${urgentCount} urgent` : undefined;
 
   return (
     <div className="space-y-6 p-6">
@@ -248,6 +293,7 @@ export function HRDashboard() {
           </Link>
         </PermissionWrapper>
       </div>
+
       {/* Stats row */}
       {summaryError ? (
         <ErrorState message="Failed to load summary" onRetry={() => refetchSummary()} />
@@ -259,18 +305,21 @@ export function HRDashboard() {
             icon={<UsersIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
             href="/employees"
+            subLine={employeeDeltaText ? { text: employeeDeltaText, tone: 'positive' } : undefined}
           />
           <StatsCard
             label="Active Today"
             value={summary?.activeToday ?? 0}
             icon={<CalendarCheckIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            subLine={activeTodayText ? { text: activeTodayText, tone: 'positive' } : undefined}
           />
           <StatsCard
             label="On Leave Today"
             value={summary?.onLeaveToday ?? 0}
             icon={<CalendarXIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            subLine={onLeaveDeltaText ? { text: onLeaveDeltaText, tone: 'neutral' } : undefined}
           />
           <StatsCard
             label="Open Requests"
@@ -278,6 +327,7 @@ export function HRDashboard() {
             icon={<ClipboardListIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
             href="/leave"
+            subLine={urgentText ? { text: urgentText, tone: 'warning' } : undefined}
           />
         </div>
       )}
@@ -287,14 +337,11 @@ export function HRDashboard() {
         <div className="xl:col-span-2">
           <AttendanceTrendChart />
         </div>
-        <LeaveSummaryPanel />
+        <HeadcountChart />
       </div>
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <HeadcountChart />
-        <RecentActivityFeed />
-      </div>
+      {/* Recent Activity */}
+      <RecentActivityTable />
     </div>
   );
 }

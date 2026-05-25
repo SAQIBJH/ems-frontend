@@ -10,16 +10,37 @@ interface Delta {
   period: string;
 }
 
+interface SubLine {
+  text: string;
+  tone?: 'positive' | 'negative' | 'warning' | 'neutral';
+}
+
 interface StatsCardProps {
   label: string;
   value: string | number;
   delta?: Delta;
+  /** Simple text sub-line with semantic tone colour */
+  subLine?: SubLine;
   icon?: ReactNode;
   loading?: boolean;
   href?: string;
 }
 
-function StatsCardInner({ label, value, delta, icon, loading }: Omit<StatsCardProps, 'href'>) {
+const SUB_LINE_TONE: Record<NonNullable<SubLine['tone']>, string> = {
+  positive: 'text-success',
+  negative: 'text-danger',
+  warning: 'text-warning',
+  neutral: 'text-fg-muted',
+};
+
+function StatsCardInner({
+  label,
+  value,
+  delta,
+  subLine,
+  icon,
+  loading,
+}: Omit<StatsCardProps, 'href'>) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -44,7 +65,12 @@ function StatsCardInner({ label, value, delta, icon, loading }: Omit<StatsCardPr
         )}
       </div>
       <p className="text-2xl font-semibold tracking-tight text-fg">{value}</p>
-      {delta && (
+      {subLine && (
+        <p className={cn('text-xs font-medium', SUB_LINE_TONE[subLine.tone ?? 'neutral'])}>
+          {subLine.text}
+        </p>
+      )}
+      {!subLine && delta && (
         <div className="flex items-center gap-1.5">
           {delta.direction === 'up' ? (
             <TrendingUpIcon className="size-3.5 text-success" aria-hidden />
@@ -67,14 +93,21 @@ function StatsCardInner({ label, value, delta, icon, loading }: Omit<StatsCardPr
   );
 }
 
-export function StatsCard({ label, value, delta, icon, loading, href }: StatsCardProps) {
+export function StatsCard({ label, value, delta, subLine, icon, loading, href }: StatsCardProps) {
   const classes = cn(
     'rounded-lg border border-subtle bg-surface p-4 transition-colors duration-[120ms]',
     href && 'cursor-pointer hover:bg-surface-2 hover:border-default-border',
   );
 
   const inner = (
-    <StatsCardInner label={label} value={value} delta={delta} icon={icon} loading={loading} />
+    <StatsCardInner
+      label={label}
+      value={value}
+      delta={delta}
+      subLine={subLine}
+      icon={icon}
+      loading={loading}
+    />
   );
 
   if (href) {
