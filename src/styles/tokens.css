@@ -77,6 +77,12 @@
   --text-tertiary: hsl(220 9% 58%);
   --text-disabled: hsl(220 8% 40%);
 
+  /* Brand tints — must be overridden here because globals.css maps
+   * --accent: var(--brand-50). Without this, accent hover bg stays near-white
+   * in dark mode, making dropdown text invisible (white-on-white). */
+  --brand-50: hsl(222 20% 16%);
+  --brand-100: hsl(222 18% 20%);
+
   /* Brand (brighter in dark) */
   --brand-500: hsl(222 85% 62%);
   --brand-600: hsl(222 80% 55%);
