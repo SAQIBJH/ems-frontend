@@ -262,7 +262,7 @@ function ThemeToggle() {
 
 function Topbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
   return (
-    <header className="h-16 shrink-0 flex items-center gap-3 border-b border-subtle bg-surface/80 backdrop-blur-sm px-4 z-10">
+    <header className="h-16 shrink-0 flex items-center gap-3 border-b border-subtle bg-surface/80 backdrop-blur-sm px-4 z-40">
       {/* Mobile hamburger */}
       <Button
         variant="ghost"
