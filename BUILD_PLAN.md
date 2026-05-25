@@ -65,14 +65,14 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Layout shell parity
 
-- [x] Step 26 — Topbar: global search input (with MSW handler)
-- [x] Step 27 — Topbar: notification bell + popover (with MSW handler)
+- [x] Step 26 — Topbar: global search input (MSW → LIVE 2026-05-25)
+- [x] Step 27 — Topbar: notification bell + popover (MSW → LIVE 2026-05-25; PATCH not POST)
 - [x] Step 28 — PageHeader: breadcrumbs + personalized greeting on dashboards
 
 #### Auth flows that are missing entirely
 
-- [x] Step 29 — Forgot password + Reset password screens (MSW)
-- [x] Step 30 — OTP verification screen (MSW)
+- [x] Step 29 — Forgot password + Reset password screens (MSW → LIVE 2026-05-25)
+- [x] Step 30 — OTP verification screen (otp/initiate still MSW; verify-otp LIVE)
 
 #### Dashboard wireframe parity
 

@@ -89,7 +89,7 @@ browser  ──►  Next.js /api/*  (same origin)  ──►  Render backend
 ### What's LIVE on the backend
 
 All of the following are implemented, deployed, and return real data
-(verified against the live Render API on 2026-05-22). `docs/API_MAPPING.md`
+(verified against the live Render API on 2026-05-25). `docs/API_MAPPING.md`
 is the authoritative source for every response shape.
 
 ```
@@ -101,6 +101,9 @@ POST   /api/v1/auth/logout-all
 GET    /api/v1/auth/me
 GET    /api/v1/auth/sessions
 DELETE /api/v1/auth/sessions/:id
+POST   /api/v1/auth/forgot-password
+POST   /api/v1/auth/reset-password
+POST   /api/v1/auth/verify-otp       # verify-otp field is "code", NOT "otp"
 
 # Employees (read + write)
 GET    /api/v1/employees
@@ -173,6 +176,15 @@ PATCH  /api/v1/email-templates/:id
 # Reports & export
 GET    /api/v1/reports
 GET    /api/v1/export
+
+# Notifications (live as of 2026-05-25)
+GET    /api/v1/notifications
+GET    /api/v1/notifications/unread-count
+PATCH  /api/v1/notifications/:id/read   # POST is a backend alias; prefer PATCH
+PATCH  /api/v1/notifications/read-all   # POST is a backend alias; prefer PATCH
+
+# Search (live as of 2026-05-25)
+GET    /api/v1/search?q=&type=&page=&limit=
 ```
 
 ### What still needs MSW
@@ -185,9 +197,8 @@ live with no other change.
 
 Categories currently mocked (see `BACKEND_API_REQUESTS.md` for the full per-endpoint spec):
 
-- **Auth extras** — forgot password, reset password, OTP initiate, MFA login branch
-- **Notifications** — list, mark-read, mark-all-read, poll/stream
-- **Global search** — `/search`
+- **Auth extras** — OTP initiate (`POST /auth/otp/initiate`) only; forgot-password,
+  reset-password, verify-otp are all live as of 2026-05-25
 - **Document upload** — pre-signed S3 upload + confirm + delete
 - **Employees convenience** — `next-code`, bulk deactivate, bulk export
 - **Departments** — reassign-and-delete, list-employees
