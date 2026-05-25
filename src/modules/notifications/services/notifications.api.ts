@@ -2,7 +2,12 @@ import { apiClient } from '@/lib/api-client';
 import type { NotificationsResponse } from '../types/notification.types';
 
 export const notificationsApi = {
-  list: async (params?: { unreadOnly?: boolean; page?: number; limit?: number }) => {
+  list: async (params?: {
+    unreadOnly?: boolean;
+    page?: number;
+    limit?: number;
+    since?: string;
+  }) => {
     const { data } = await apiClient.get<{ success: boolean; data: NotificationsResponse }>(
       '/notifications',
       { params },
@@ -10,8 +15,16 @@ export const notificationsApi = {
     return data.data;
   },
 
+  unreadCount: async (): Promise<number> => {
+    const { data } = await apiClient.get<{ success: boolean; data: { count: number } }>(
+      '/notifications/unread-count',
+    );
+    return data.data.count;
+  },
+
   markRead: async (id: string) => {
-    const { data } = await apiClient.post<{
+    // Primary method is PATCH; POST is a backend alias — use PATCH (API_MAPPING.md)
+    const { data } = await apiClient.patch<{
       success: boolean;
       data: { id: string; isRead: boolean };
     }>(`/notifications/${id}/read`);
@@ -19,7 +32,8 @@ export const notificationsApi = {
   },
 
   markAllRead: async () => {
-    const { data } = await apiClient.post<{ success: boolean; data: { markedRead: number } }>(
+    // Primary method is PATCH; POST is a backend alias — use PATCH (API_MAPPING.md)
+    const { data } = await apiClient.patch<{ success: boolean; data: { markedRead: number } }>(
       '/notifications/read-all',
     );
     return data.data;

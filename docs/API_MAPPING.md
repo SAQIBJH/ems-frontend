@@ -1,8 +1,9 @@
 # EMS API — Actual Response Mapping
 
-> **Last verified: 2026-05-22 (local inject tests against live DB)**
+> **Last verified: 2026-05-24**
 > Base URL: `https://employee-management-system-2b9q.onrender.com/api/v1`
 > Local: `http://localhost:3000/api/v1`
+> Email: Resend HTTP API (port 443, not SMTP — OTP delivery live and tested)
 
 ---
 
@@ -47,15 +48,17 @@
 
 ## Date Format — Definitive Answer
 
-**Depends on the field — not uniform across all endpoints:**
+**Use `"YYYY-MM-DD"` everywhere. It works on all endpoints.**
 
-| Field                                   | Validator           | Accepts YYYY-MM-DD | Accepts full ISO |
-| --------------------------------------- | ------------------- | ------------------ | ---------------- |
-| `joinedOn`, `dateOfBirth` (employees)   | `z.coerce.date()`   | ✅                 | ✅               |
-| `startDate`, `endDate` (leave requests) | `z.coerce.date()`   | ✅                 | ✅               |
-| `holidayDate` (holidays)                | `z.string().date()` | ✅                 | ❌ fails 422     |
+| Field                                                      | Accepts YYYY-MM-DD | Accepts full ISO |
+| ---------------------------------------------------------- | ------------------ | ---------------- |
+| `joinedOn`, `dateOfBirth` (employees)                      | ✅                 | ✅               |
+| `startDate`, `endDate` (leave requests)                    | ✅                 | ✅               |
+| `attendanceDate` (regularization)                          | ✅                 | ✅               |
+| `fromDate`, `toDate`, `from_date`, `to_date` (all filters) | ✅                 | ✅               |
+| `holidayDate` (holidays)                                   | ✅                 | ❌ fails 422     |
 
-**Rule:** Use `"YYYY-MM-DD"` everywhere — it works for all fields. Full ISO (`"2026-10-20T00:00:00.000Z"`) fails on `holidayDate`.
+Full ISO (`"2026-10-20T00:00:00.000Z"`) fails on `holidayDate` only — use YYYY-MM-DD there.
 
 The server stores and returns all dates as full ISO strings (`"2024-01-15T00:00:00.000Z"`).
 
@@ -76,12 +79,16 @@ After login, two httpOnly cookies are set automatically:
 
 ## Seeded Test Credentials
 
-| Role        | Email                  | Password       | Notes                                           |
-| ----------- | ---------------------- | -------------- | ----------------------------------------------- |
-| SUPER_ADMIN | `superadmin@acme.test` | `Password123!` | No employee record — dashboard calls won't work |
-| HR_ADMIN    | `hr@acme.test`         | `Password123!` | Full HR access                                  |
-| MANAGER     | `aman@acme.test`       | `Password123!` | Sees own team                                   |
-| EMPLOYEE    | `priya@acme.test`      | `Password123!` | Sees own data only                              |
+| Role        | Email                          | Password       | Notes                                                            |
+| ----------- | ------------------------------ | -------------- | ---------------------------------------------------------------- |
+| SUPER_ADMIN | `superadmin@acme.test`         | `Password123!` | No employee record — dashboard/attendance/leave calls won't work |
+| HR_ADMIN    | `mohammadsaeedafri9@gmail.com` | `Password123!` | Full HR access + employee record                                 |
+| MANAGER     | `aman@acme.test`               | `Password123!` | Sees own team (~19 reports)                                      |
+| EMPLOYEE    | `priya@acme.test`              | `Password123!` | Sees own data only                                               |
+| EMPLOYEE    | `dev1@acme.test`               | `Password123!` | Engineering employee                                             |
+
+> MFA is **disabled for all users** — `POST /auth/login` returns `accessToken` directly.  
+> OTP is only used in the **forgot-password flow** (`/auth/forgot-password` → email OTP → `/auth/verify-otp` → `/auth/reset-password`).
 
 ---
 
@@ -104,12 +111,12 @@ After login, two httpOnly cookies are set automatically:
 
 ### `POST /auth/login`
 
-No headers required. Tenant auto-resolved from email.
+Include `x-tenant-key: acme-corp-001` header. Returns token directly — no OTP step.
 
 **Body:**
 
 ```json
-{ "email": "hr@acme.test", "password": "Password123!" }
+{ "email": "superadmin@acme.test", "password": "Password123!" }
 ```
 
 **Response `data`:**
@@ -119,23 +126,24 @@ No headers required. Tenant auto-resolved from email.
   "accessToken": "eyJ...",
   "sessionId": "fbd3b38de534129c109d90f7",
   "user": {
-    "id": "cmpfypbqs000sunacwj0lfpx3",
-    "email": "hr@acme.test",
-    "memberType": "HR_ADMIN",
-    "employeeId": "cmpfypsvr001iunacpwa3m6cf",
-    "employee": { "...full employee object..." }
+    "id": "...",
+    "email": "superadmin@acme.test",
+    "memberType": "SUPER_ADMIN",
+    "employeeId": null,
+    "employee": null
   },
   "permissions": ["employees:read", "employees:write", "leave:approve", "..."]
 }
 ```
 
-> SUPER_ADMIN: `user.employee` is `null`, `employeeId` absent from JWT. Employee-specific endpoints (dashboard, attendance check-in, leave) will fail.
+> SUPER_ADMIN: `user.employee` is `null`, `employeeId` is `null`. Do not call employee-specific endpoints (dashboard, check-in, leave requests) for this role — returns `400 NO_EMPLOYEE_RECORD`.  
+> All other roles: `employeeId` is populated and employee endpoints work normally.
 
 **Error codes:**
 | Code | Status | When |
 |------|--------|------|
 | `INVALID_CREDENTIALS` | 401 | Wrong password / unknown email |
-| `AMBIGUOUS_EMAIL` | 400 | Email exists in multiple tenants — send `X-Tenant-Key` |
+| `AMBIGUOUS_EMAIL` | 400 | Email exists in multiple tenants — add `X-Tenant-Key` header |
 | `VALIDATION_ERROR` | 422 | Missing email or password |
 
 ---
@@ -208,7 +216,8 @@ Rate limited: 5/15 min.
 
 ### `POST /auth/verify-otp`
 
-**Body:** `{ "challengeId": "...", "otp": "123456" }`
+Only used in MFA flow (not needed for standard login — MFA is disabled).  
+**Body:** `{ "challengeId": "...", "code": "123456" }` ← field is `code`, NOT `otp`  
 **Response `data`:** same shape as login
 
 ---
@@ -250,7 +259,7 @@ Rate limited: 5/15 min.
       "user": { "email": "aman@acme.test", "memberType": "MANAGER", "status": "ACTIVE" }
     }
   ],
-  "pagination": { "page": 1, "limit": 20, "total": 67, "pages": 4 }
+  "pagination": { "page": 1, "limit": 20, "total": 79, "pages": 4 }
 }
 ```
 
@@ -311,7 +320,7 @@ Rate limited: 5/15 min.
   "firstName": "Jane",
   "lastName": "Doe",
   "workEmail": "jane.doe@acme.test",
-  "employeeCode": "E0010",
+  "employeeCode": "EMP-0082",
   "employmentType": "FULL_TIME",
   "joinedOn": "2024-01-15",
   "designation": "Software Engineer",
@@ -324,7 +333,8 @@ Rate limited: 5/15 min.
 }
 ```
 
-> Dates: `"2024-01-15"` and `"2024-01-15T00:00:00.000Z"` both accepted.
+> `employeeCode` is **optional** — if omitted, auto-generated as `EMP-0001`, `EMP-0082`, etc.  
+> Format for new codes is `EMP-XXXX` (4-digit padded). Dates: `"2024-01-15"` also accepted.
 
 **Response:** 201, `data` = full employee object
 
@@ -547,7 +557,8 @@ Returns array of root departments. Each has a `children` array (populated if sub
 {
   "requests": [
     {
-      "id": "...",
+      "id": "cmpicb6vn000710lt...",
+      "referenceNo": "LVR-0019",
       "leaveTypeId": "...",
       "leaveTypeName": "Annual Leave",
       "startDate": "2026-06-15T00:00:00.000Z",
@@ -564,7 +575,9 @@ Returns array of root departments. Each has a `children` array (populated if sub
 }
 ```
 
-**Statuses:** `PENDING`, `APPROVED`, `DENIED`, `WITHDRAWN`
+> `referenceNo` is the human-friendly display ID (e.g. `LVR-0019`). Use `id` (CUID) for all API operations (approve, reject, etc.).
+
+**Statuses:** `PENDING`, `APPROVED`, `DENIED`, `WITHDRAWN`, `CANCELLED`
 
 ---
 
@@ -646,6 +659,31 @@ Returns array of root departments. Each has a `children` array (populated if sub
 
 ---
 
+### `POST /attendance/check-in` — Response `data`
+
+```json
+{
+  "id": "cmpi0p855000p...",
+  "referenceNo": "ATT-0068",
+  "checkInAt": "2026-05-23T07:18:56.632Z",
+  "geofenceValid": true,
+  "message": "Checked in successfully"
+}
+```
+
+### `POST /attendance/check-out` — Response `data`
+
+```json
+{
+  "id": "...",
+  "referenceNo": "ATT-0068",
+  "checkInAt": "2026-05-23T07:18:56.632Z",
+  "checkOutAt": "2026-05-23T17:30:00.000Z",
+  "durationMinutes": 611,
+  "message": "Checked out successfully"
+}
+```
+
 ### `GET /attendance/records`
 
 **Query params:** `page`, `limit`, `month` (YYYY-MM), `fromDate`, `toDate`
@@ -657,6 +695,7 @@ Returns array of root departments. Each has a `children` array (populated if sub
   "records": [
     {
       "id": "...",
+      "referenceNo": "ATT-0068",
       "attendanceDate": "2026-05-21T00:00:00.000Z",
       "checkInAt": "2026-05-21T09:12:13.605Z",
       "checkOutAt": "2026-05-21T18:30:00.000Z",
@@ -666,15 +705,36 @@ Returns array of root departments. Each has a `children` array (populated if sub
       "notes": null
     }
   ],
-  "pagination": { "page": 1, "limit": 10, "total": 23, "pages": 3 }
+  "pagination": { "page": 1, "limit": 10, "total": 523, "pages": 53 }
 }
 ```
+
+> `referenceNo` is the human-friendly display ID (e.g. `ATT-0068`). Use `id` (CUID) for API operations.
+
+---
+
+### `POST /attendance/regularization` — Response `data`
+
+```json
+{
+  "id": "...",
+  "referenceNo": "REG-0001",
+  "attendanceDate": "...",
+  "status": "PENDING",
+  "reason": "...",
+  "createdAt": "..."
+}
+```
+
+### `GET /attendance/regularization` and `GET /attendance/team/regularization`
+
+Each record includes `referenceNo: "REG-XXXX"` alongside `id`.
 
 ---
 
 ### `GET /attendance/team/records`
 
-**Required roles:** MANAGER, HR_ADMIN. **Query:** `month` (YYYY-MM), `departmentId`. Same shape.
+**Required roles:** MANAGER, HR_ADMIN. **Query:** `month` (YYYY-MM), `departmentId`. Same shape (includes `referenceNo`).
 
 ---
 
@@ -701,7 +761,13 @@ Returns array of root departments. Each has a `children` array (populated if sub
 
 ### `POST /attendance/regularization`
 
-**Body:** `{ "attendanceDate": "2026-05-20", "reason": "Forgot to check in while in office" }`
+**Body:**
+
+```json
+{ "attendanceDate": "2026-05-20", "reason": "Forgot to check in while in office" }
+```
+
+> `type` field is NOT accepted (no column in DB). Only `attendanceDate` and `reason` are required.
 
 ### `GET /attendance/regularization`
 
@@ -718,6 +784,221 @@ Own regularization requests.
 ### `PATCH /attendance/regularization/:id/deny`
 
 **Required roles:** MANAGER, HR_ADMIN.
+
+---
+
+## Employee Documents
+
+### `POST /employees/:id/documents`
+
+Upload a document. **Content-Type:** `multipart/form-data`
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN, or own employee record.  
+**Requires:** `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` env vars on Render.
+
+**Form fields:**
+| Field | Type | Required |
+|-------|------|----------|
+| `file` | File | Yes |
+| `documentType` | string | Yes (e.g. `ID_PROOF`, `OFFER_LETTER`, `CONTRACT`) |
+
+**Response `data`:**
+
+```json
+{
+  "id": "...",
+  "documentType": "ID_PROOF",
+  "fileName": "passport.pdf",
+  "fileUrl": "https://res.cloudinary.com/...",
+  "verificationStatus": "PENDING",
+  "createdAt": "..."
+}
+```
+
+**Error codes:** `STORAGE_NOT_CONFIGURED` (503) if Cloudinary env vars not set.
+
+---
+
+### `GET /employees/:id/documents`
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN, or own employee record.  
+**Response `data`:** `{ "documents": [...] }`
+
+---
+
+### `DELETE /employees/:id/documents/:docId`
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN only. Deletes from DB + Cloudinary.
+
+---
+
+## Notifications
+
+All notification endpoints require `Authorization: Bearer <token>` and `x-tenant-key` header (or JWT with tenantId).
+
+---
+
+### Notification Object Shape
+
+Every notification object has these fields:
+
+```json
+{
+  "id": "cmpicb6vn000710ltqbzcrpa0",
+  "type": "leave_requested",
+  "title": "New Leave Request",
+  "message": "Priya Sharma requested 1 day(s) of Annual Leave starting 2026-05-25",
+  "metadataJson": {
+    "leaveRequestId": "...",
+    "employeeId": "...",
+    "referenceNo": "LVR-0012"
+  },
+  "readAt": null,
+  "expiresAt": "2026-05-25T08:30:00.000Z",
+  "createdAt": "2026-05-24T20:30:00.000Z"
+}
+```
+
+- `readAt` — `null` means unread; ISO string when marked read
+- `expiresAt` — 12 hours after creation; expired notifications are auto-excluded from all responses
+- `metadataJson` — optional context for deep-linking (may be null)
+
+---
+
+### Notification Types & Visibility
+
+| Type                       | Title                     | Who receives it                                            |
+| -------------------------- | ------------------------- | ---------------------------------------------------------- |
+| `leave_requested`          | "New Leave Request"       | Employee's manager + all HR_ADMINs + all SUPER_ADMINs      |
+| `leave_approved`           | "Leave Request Approved"  | Employee who submitted the request                         |
+| `leave_denied`             | "Leave Request Denied"    | Employee who submitted the request                         |
+| `leave_withdrawn`          | "Leave Request Withdrawn" | Employee's manager + all HR_ADMINs + all SUPER_ADMINs      |
+| `attendance_checkin`       | "Employee Checked In"     | The employee themselves + their manager + all SUPER_ADMINs |
+| `attendance_checkout`      | "Employee Checked Out"    | The employee themselves + their manager + all SUPER_ADMINs |
+| `regularization_requested` | "Regularization Request"  | Employee's manager + all HR_ADMINs + all SUPER_ADMINs      |
+| `regularization_approved`  | "Regularization Approved" | Employee who submitted the request                         |
+| `regularization_denied`    | "Regularization Denied"   | Employee who submitted the request                         |
+
+> **Privacy guarantee**: Employees only see their own notifications. Notifications about employee A are never visible to employee B.
+
+---
+
+### `GET /notifications`
+
+**Query params:** `page` (default 1), `limit` (default 20), `unreadOnly` (`true`/`false`, default false)
+
+**Response `data`:**
+
+```json
+{
+  "notifications": [
+    {
+      "id": "...",
+      "type": "leave_requested",
+      "title": "New Leave Request",
+      "message": "Priya Sharma requested 1 day(s) of Annual Leave starting 2026-05-25",
+      "metadataJson": { "leaveRequestId": "...", "referenceNo": "LVR-0012" },
+      "readAt": null,
+      "expiresAt": "2026-05-25T08:30:00.000Z",
+      "createdAt": "2026-05-24T20:30:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 5, "pages": 1 }
+}
+```
+
+> Expired notifications (TTL 12 hours) are automatically excluded. Only the calling user's notifications are returned.
+
+---
+
+### `GET /notifications/unread-count`
+
+Use this for the bell icon badge. Poll every 30–60 seconds if not using SSE.
+
+**Response `data`:** `{ "count": 3 }`
+
+---
+
+### `PATCH /notifications/:id/read`
+
+Mark a single notification as read.
+
+**Response `data`:** the updated notification object (with `readAt` set to current timestamp).
+
+**Error:** `NOT_FOUND` (404) if the notification ID doesn't belong to the current user.
+
+---
+
+### `PATCH /notifications/read-all`
+
+Mark all of the current user's unread notifications as read at once.
+
+**Response `data`:** `{ "success": true }`
+
+---
+
+### `GET /notifications/stream` — Real-Time SSE
+
+Server-Sent Events stream. The browser's `EventSource` API cannot send `Authorization` headers, so the token is passed as a query parameter instead:
+
+```
+GET /api/v1/notifications/stream?token=<accessToken>
+```
+
+**No request body. No `x-tenant-key` needed** (tenant is resolved from the JWT in `token`).
+
+**Connection behavior:**
+
+- Server sends a 25-second heartbeat comment (`: heartbeat`) to keep the connection alive through proxies/Render
+- Client should handle `onerror` and reconnect automatically (EventSource does this natively)
+- Connection is in-memory — after a server restart, client must reconnect
+
+**Events emitted:**
+
+| Event name         | Sent to                                       | Payload                                                  |
+| ------------------ | --------------------------------------------- | -------------------------------------------------------- |
+| `notification`     | The specific user the notification belongs to | `{ id, type, title, message, createdAt, metadata }`      |
+| `analytics_update` | All connected HR_ADMIN and SUPER_ADMIN users  | `{ tenantId, ts }` — tells frontend to refetch analytics |
+
+**Full frontend implementation:**
+
+```js
+// Connect to SSE stream
+const es = new EventSource(`/api/v1/notifications/stream?token=${accessToken}`);
+
+// Handle new notification — update bell icon
+es.addEventListener('notification', (e) => {
+  const notification = JSON.parse(e.data);
+  // notification has: { id, type, title, message, createdAt, metadata }
+  showBellNotification(notification);
+  incrementUnreadCount();
+});
+
+// Handle analytics update — HR admin / Super admin dashboard refresh
+es.addEventListener('analytics_update', () => {
+  refetchDashboardData(); // re-call /analytics/summary, /analytics/attendance, etc.
+});
+
+// Auto-reconnect on disconnect (EventSource handles this natively)
+es.onerror = () => {
+  console.log('SSE disconnected, will auto-reconnect');
+};
+
+// Cleanup
+function disconnect() {
+  es.close();
+}
+```
+
+**When is `analytics_update` fired?**
+
+- Any leave request created, approved, rejected, or withdrawn
+- Any attendance check-in or check-out
+- Any regularization request created, approved, or denied
+
+> HR_ADMIN and SUPER_ADMIN users should listen for `analytics_update` and call all analytics endpoints again when received — this is what makes the Super Admin dashboard live without manual refresh.
+
+---
 
 ---
 
@@ -746,17 +1027,78 @@ All require HR_ADMIN or SUPER_ADMIN.
 
 ### `GET /analytics/headcount-by-department`
 
-Array of: `{ "departmentId": "...", "departmentName": "Engineering", "employeeCount": 10, "activeCount": 8 }`
+**Top-level departments only** (sub-departments are excluded from this chart; their employees roll up into the parent). Sorted by `employeeCount` descending.
+
+```json
+{
+  "data": [
+    {
+      "departmentId": "...",
+      "departmentName": "Engineering",
+      "employeeCount": 12,
+      "activeCount": 10
+    },
+    { "departmentId": "...", "departmentName": "Sales", "employeeCount": 9, "activeCount": 9 }
+  ],
+  "meta": { "cached": false, "generatedAt": "2026-05-24T07:00:00.000Z" }
+}
+```
 
 ### `GET /analytics/leave-summary`
 
 ```json
-{ "pending": 0, "approved": 0, "rejected": 0, "withdrawn": 1 }
+{
+  "data": { "pending": 0, "approved": 4, "rejected": 1, "withdrawn": 1 },
+  "meta": { "cached": false, "generatedAt": "..." }
+}
 ```
 
 ### `GET /analytics/recent-activity`
 
-Array of recent activity events.
+Query params: `?limit=10` (max 50).
+
+Each activity item has:
+
+| Field         | Type         | Description                                                                    |
+| ------------- | ------------ | ------------------------------------------------------------------------------ |
+| `id`          | string       | Audit log ID                                                                   |
+| `actorName`   | string       | Full name of the person who performed the action (e.g. `"Priya Sharma"`)       |
+| `actorEmail`  | string\|null | Email of the actor (null for system events)                                    |
+| `action`      | string       | Raw action code (e.g. `LOGIN`, `LEAVE_REQUEST_CREATED`)                        |
+| `actionLabel` | string       | Human-readable verb phrase (e.g. `"logged in"`, `"submitted a leave request"`) |
+| `description` | string       | Full readable sentence: `"Priya Sharma submitted a leave request"`             |
+| `entityType`  | string       | e.g. `User`, `LeaveRequest`, `AttendanceRecord`                                |
+| `entityId`    | string       | ID of the affected entity                                                      |
+| `createdAt`   | ISO string   | UTC timestamp                                                                  |
+| `timestamp`   | ISO string   | Same as `createdAt` (alias for UI convenience)                                 |
+| `displayTime` | string       | IST-formatted time: `"24/05/2026 10:30:00 am IST"`                             |
+
+**Example response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "...",
+      "actorName": "Priya Sharma",
+      "actorEmail": "priya@acme.test",
+      "action": "LEAVE_REQUEST_CREATED",
+      "actionLabel": "submitted a leave request",
+      "description": "Priya Sharma submitted a leave request",
+      "entityType": "LeaveRequest",
+      "entityId": "...",
+      "createdAt": "2026-05-24T07:30:00.000Z",
+      "timestamp": "2026-05-24T07:30:00.000Z",
+      "displayTime": "24/05/2026 01:00:00 pm IST"
+    }
+  ],
+  "meta": { "cached": false, "generatedAt": "..." }
+}
+```
+
+**Known action codes:**
+`LOGIN`, `LOGOUT`, `MFA_LOGIN_INITIATED`, `CREATE`, `UPDATE`, `DELETE`, `APPROVE`, `REJECT`, `DENY`, `WITHDRAW`, `LEAVE_REQUEST_CREATED`, `LEAVE_REQUEST_APPROVED`, `LEAVE_REQUEST_REJECTED`, `LEAVE_REQUEST_WITHDRAWN`, `ATTENDANCE_CHECK_IN`, `ATTENDANCE_CHECK_OUT`, `REGULARIZATION_APPROVED`, `REGULARIZATION_DENIED`, `REGULARIZATION_REQUEST_CREATED`
 
 ---
 
@@ -1049,16 +1391,48 @@ Single audit log entry (direct object, not wrapped in `logs`).
 
 ### `POST /export/employees`
 
-**Body:** `{ "format": "csv", "filters": {} }`
-**Response `data`:** `{ "jobId": "...", "status": "PENDING" }`
+**Body:** `{ "format": "csv" }` (format: csv | excel | json)
+
+**Response `data`:**
+
+```json
+{ "job_id": "uuid", "status": "PROCESSING", "estimated_completion_time": 2 }
+```
+
+### `POST /export/attendance`
+
+**Body:** `{ "format": "csv", "from_date": "2026-05-01", "to_date": "2026-05-31" }`
+
+### `POST /export/leave`
+
+**Body:** `{ "format": "csv", "from_date": "2026-05-01", "to_date": "2026-05-31" }`
 
 ### `GET /export/:job_id/download`
 
-Download completed export.
+Download completed export using `job_id` from the POST response.
 
 ### `GET /export/list`
 
-All export jobs for the tenant.
+**Response `data`:**
+
+```json
+{
+  "exports": [
+    {
+      "job_id": "uuid",
+      "export_type": "EMPLOYEES",
+      "format": "csv",
+      "status": "SUCCESS",
+      "file_url": null,
+      "created_at": "2026-05-23T...",
+      "completed_at": "2026-05-23T..."
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 6, "pages": 1 }
+}
+```
+
+> All export fields are **snake_case**: `job_id`, `export_type`, `file_url`, `created_at`, `completed_at`.
 
 ---
 
@@ -1093,6 +1467,17 @@ All export jobs for the tenant.
 | `DEPARTMENT_CYCLE`            | 409    | Setting parent would create circular chain                     |
 | `DEPARTMENT_NOT_EMPTY`        | 409    | Dept has employees or sub-departments                          |
 | `LEAVE_ALREADY_DECIDED`       | 409    | Leave request is not PENDING                                   |
+| `ALREADY_CHECKED_IN`          | 400    | Already checked in today                                       |
+| `ALREADY_CHECKED_OUT`         | 400    | Already checked out today                                      |
+| `NO_CHECK_IN`                 | 400    | Checkout attempted without a check-in                          |
+| `INVALID_REQUEST_STATUS`      | 400    | Regularization not PENDING                                     |
+| `REGULARIZATION_NOT_FOUND`    | 404    | Regularization request not found                               |
+| `NO_EMPLOYEE_RECORD`          | 400    | User has no linked employee profile                            |
+| `OTP_INVALID`                 | 400    | OTP code is wrong                                              |
+| `OTP_EXPIRED`                 | 400    | OTP has expired                                                |
+| `OTP_LOCKED`                  | 429    | Too many OTP attempts                                          |
+| `OTP_RESEND_COOLDOWN`         | 429    | Resend requested too soon                                      |
+| `STORAGE_NOT_CONFIGURED`      | 503    | Cloudinary env vars missing — upload disabled                  |
 
 ---
 
@@ -1109,14 +1494,773 @@ All export jobs for the tenant.
 | `GET /holidays`                          | `data: { holidays: [...], total: N }`                             |
 | `GET /analytics/headcount-by-department` | `data: [...]` — flat array                                        |
 | `GET /auth/sessions`                     | `data: [...]` — flat array                                        |
+| `GET /notifications`                     | `data: { notifications: [...], pagination: {} }`                  |
 
 ---
 
 ## Not Implemented (Prisma models exist, no routes)
 
-| Feature                             | Status                                                        |
-| ----------------------------------- | ------------------------------------------------------------- |
-| Document upload                     | GET list works, no POST upload (no file storage)              |
-| Notifications                       | Prisma model exists, zero routes                              |
-| Resignations                        | Prisma model exists, zero routes                              |
-| Fine-grained permission enforcement | `authorize()` uses memberType enum, not the Permission tables |
+| Feature                             | Status                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| Document upload                     | ✅ Implemented — POST/GET/DELETE `/employees/:id/documents`. Requires Cloudinary env vars. |
+| Notifications                       | ✅ Implemented — GET/PATCH + SSE stream at `/notifications/stream`                         |
+| Resignations                        | Prisma model exists, zero routes                                                           |
+| Fine-grained permission enforcement | `authorize()` uses memberType enum, not the Permission tables                              |
+
+## Human-Friendly Reference Numbers
+
+All major entities now include a `referenceNo` display field in API responses:
+
+| Entity            | Format         | Example    | Use in API calls     |
+| ----------------- | -------------- | ---------- | -------------------- |
+| Leave Request     | `LVR-XXXX`     | `LVR-0025` | No — use `id` (CUID) |
+| Attendance Record | `ATT-XXXX`     | `ATT-0068` | No — use `id` (CUID) |
+| Regularization    | `REG-XXXX`     | `REG-0001` | No — use `id` (CUID) |
+| Employee          | `employeeCode` | `EMP-0080` | No — use `id` (CUID) |
+
+> `referenceNo` is display-only (for UI, tickets, support). All API operations (approve, reject, download, etc.) use the `id` field (CUID).
+
+---
+
+## New Endpoints (Added 2026-05-24 — Wireframe Gap Fill)
+
+### `GET /holidays/upcoming`
+
+Widget data for the employee dashboard.
+
+**Query:** `?limit=3` (default 3, max 10)
+
+**Response `data`:**
+
+```json
+{
+  "holidays": [
+    {
+      "id": "...",
+      "name": "Eid al-Adha",
+      "holidayDate": "2026-06-06T00:00:00.000Z",
+      "isOptional": false,
+      "location": null
+    }
+  ],
+  "total": 3
+}
+```
+
+---
+
+### `GET /employees/next-code`
+
+Used by the Create Employee form to pre-fill the employee code field.
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN
+
+**Response `data`:** `{ "nextCode": "EMP-0081" }`
+
+---
+
+### `GET /departments/:id`
+
+Department detail panel — headcount, sub-departments, managers, employee list.
+
+**Response `data`:**
+
+```json
+{
+  "id": "...",
+  "name": "Engineering",
+  "departmentCode": "ENG",
+  "depth": 0,
+  "parentId": null,
+  "parent": null,
+  "headEmployee": { "id": "...", "firstName": "Aman", "lastName": "Sharma" },
+  "subDepartments": [{ "id": "...", "name": "Backend", "departmentCode": "BACK" }],
+  "totalHeadcount": 22,
+  "subDeptCount": 3,
+  "managerCount": 4,
+  "employees": [
+    {
+      "id": "...",
+      "firstName": "Priya",
+      "lastName": "Sharma",
+      "employeeCode": "E0002",
+      "designation": "Software Engineer",
+      "employmentStatus": "ACTIVE"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /leave/types` — extended with CRUD
+
+| Method | Path               | Roles                 | Notes                                 |
+| ------ | ------------------ | --------------------- | ------------------------------------- |
+| GET    | `/leave/types`     | all authenticated     | List active leave types               |
+| POST   | `/leave/types`     | HR_ADMIN, SUPER_ADMIN | Create new leave type                 |
+| PATCH  | `/leave/types/:id` | HR_ADMIN, SUPER_ADMIN | Update fields                         |
+| DELETE | `/leave/types/:id` | HR_ADMIN, SUPER_ADMIN | Soft-deactivate (sets isActive=false) |
+
+**POST body:**
+
+```json
+{
+  "name": "Bereavement Leave",
+  "code": "BRVMT",
+  "annualAllowance": 5,
+  "isPaid": true,
+  "carryForwardAllowed": false
+}
+```
+
+Required: `name`, `code`. Code must be unique per tenant. Once deactivated, code is freed for re-use.
+
+**Error codes:** `DUPLICATE_LEAVE_TYPE_CODE` (409)
+
+---
+
+### `GET /leave/team/requests` — now supports `?employeeId=`
+
+Add `?employeeId=<id>` to filter leave requests to a single employee (used on employee profile Leave tab).
+Other filters still apply: `status`, `fromDate`, `toDate`, `page`, `limit`.
+
+---
+
+### `GET /leave/team/calendar`
+
+Team calendar view — who is on leave in a given month.
+
+**Required roles:** MANAGER, HR_ADMIN  
+**Query:** `?month=2026-05` (YYYY-MM, defaults to current month)
+
+**Response `data`:**
+
+```json
+{
+  "month": "2026-05",
+  "employees": [
+    {
+      "id": "...",
+      "name": "Priya Sharma",
+      "employeeCode": "E0002",
+      "leaves": [
+        {
+          "id": "...",
+          "startDate": "2026-05-27T18:30:00.000Z",
+          "endDate": "2026-05-29T18:30:00.000Z",
+          "totalDays": 3,
+          "status": "PENDING",
+          "leaveType": "Annual Leave",
+          "leaveTypeCode": "ANNUAL"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+### `GET /leave/balance/me`
+
+Alias for `GET /leave/balance` — used by the employee dashboard widget. Same response shape.
+
+---
+
+### `POST /leave/requests/bulk-approve`
+
+**Required roles:** MANAGER, HR_ADMIN
+
+**Body:**
+
+```json
+{ "ids": ["id1", "id2"], "comment": "Approved in bulk" }
+```
+
+**Response `data`:**
+
+```json
+{
+  "results": [
+    { "id": "id1", "status": "approved", "referenceNo": "LVR-0044" },
+    { "id": "id2", "status": "failed", "error": "Cannot approve leave with status APPROVED" }
+  ],
+  "processed": 2
+}
+```
+
+Each request is processed independently — some can succeed and some fail. Check `status` per item.
+
+---
+
+### `POST /leave/requests/bulk-deny`
+
+Same shape as bulk-approve. `comment` is used as the rejection reason (required in spirit — defaults to "Bulk denied" if omitted).
+
+---
+
+### `GET /attendance/team/records` — now supports `?employeeId=`
+
+Add `?employeeId=<id>` to filter to a single employee (used on employee profile Attendance tab).
+
+---
+
+### `GET /audit-logs` — now supports `?entity=` and `?entityId=`
+
+Filter audit logs by entity type and/or entity ID.
+
+| Param      | Example                     | Notes                            |
+| ---------- | --------------------------- | -------------------------------- |
+| `entity`   | `Employee`                  | Matches `entityType` field in DB |
+| `entityId` | `cmpfypq1h001eunacja7guack` | Filter to specific record        |
+
+---
+
+### `GET /settings/tenant` — now includes Tenant identity fields
+
+Response now returns both company identity fields (from `Tenant` model) and operational config (from `TenantConfig`):
+
+```json
+{
+  "legalName": "Acme Corporation Pvt Ltd",
+  "displayName": "Acme",
+  "country": "India",
+  "defaultCurrency": "INR",
+  "primaryContactEmail": "hr@acme.test",
+  "supportPhone": "+91 11 40000000",
+  "logoUrl": null,
+  "company_name": "Acme Corp",
+  "timezone": "Asia/Kolkata",
+  "working_hours_start": "09:00",
+  "working_hours_end": "18:00",
+  "fiscal_year_start": 4
+}
+```
+
+### `PATCH /settings/tenant` — now accepts Tenant identity fields
+
+Extended body — any combination of:
+
+```json
+{
+  "legalName": "...",
+  "displayName": "...",
+  "country": "IN",
+  "defaultCurrency": "INR",
+  "primaryContactEmail": "hr@company.com",
+  "supportPhone": "+91...",
+  "logoUrl": "https://...",
+  "company_name": "...",
+  "timezone": "Asia/Kolkata",
+  "working_hours_start": "09:00",
+  "working_hours_end": "18:00"
+}
+```
+
+All fields optional. Returns the merged settings object (same shape as GET).
+
+---
+
+## New Endpoints — Implemented 2026-05-25 (UI Team Requests)
+
+> All routes below are live. Auth: Bearer token or `accessToken` cookie. Tenant resolved from JWT.
+
+---
+
+### Notifications
+
+#### `GET /notifications`
+
+**Roles:** any authenticated user.
+
+**Query params:**
+| Param | Type | Default | Notes |
+|-------|------|---------|-------|
+| `page` | integer | 1 | |
+| `limit` | integer | 20 | |
+| `unreadOnly` | boolean | false | Filter unread only |
+| `since` | ISO timestamp | — | Return items newer than this (polling) |
+
+**Response `data`:**
+
+```json
+{
+  "notifications": [
+    {
+      "id": "n_01",
+      "type": "LEAVE_APPROVED",
+      "title": "Your leave request was approved",
+      "body": "Aman Kumar approved your annual leave.",
+      "entityType": "LeaveRequest",
+      "entityId": "lr_99",
+      "actionUrl": "/leave?tab=my-requests&id=lr_99",
+      "isRead": false,
+      "createdAt": "2026-05-22T09:12:00.000Z"
+    }
+  ],
+  "unreadCount": 4,
+  "pagination": { "page": 1, "limit": 20, "total": 27, "pages": 2 }
+}
+```
+
+#### `POST /notifications/:id/read`
+
+Mark a single notification read.
+**Response:** `{ "id": "n_01", "isRead": true }`
+
+#### `PATCH /notifications/:id/read`
+
+Alias — same as POST above.
+
+#### `POST /notifications/read-all`
+
+Mark all notifications read for the caller.
+**Response:** `{ "markedRead": 7 }`
+
+#### `PATCH /notifications/read-all`
+
+Alias — same as POST above.
+
+---
+
+### Global Search
+
+#### `GET /search?q=<query>`
+
+**Roles:** any authenticated user. Permission-aware — employees see only self + direct reports.
+
+**Query params:**
+| Param | Type | Default | Notes |
+|-------|------|---------|-------|
+| `q` | string | required | Min 1 char |
+| `types` | string | all | Comma-separated: `employee,department,leave,holiday` |
+| `limit` | integer | 8 | Max 20 |
+
+**Response `data`:**
+
+```json
+{
+  "results": [
+    {
+      "type": "employee",
+      "id": "emp_...",
+      "label": "Priya Sharma",
+      "sublabel": "Senior Engineer · Engineering",
+      "url": "/employees/emp_..."
+    },
+    {
+      "type": "department",
+      "id": "dep_...",
+      "label": "Engineering",
+      "sublabel": "14 employees",
+      "url": "/departments?id=dep_..."
+    }
+  ],
+  "groupedCounts": { "employee": 5, "department": 1, "leave": 2 }
+}
+```
+
+---
+
+### Employees
+
+#### `GET /employees/next-code`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN.
+
+**Response:** `{ "code": "E0081" }`
+
+Format: `E` + 4-digit zero-padded number. Auto-increments, skips existing codes.
+
+#### `POST /employees/bulk/deactivate`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN.
+
+**Body:** `{ "ids": ["emp_a", "emp_b"] }`
+
+**Response `data`:**
+
+```json
+{
+  "succeeded": ["emp_a"],
+  "failed": [
+    { "id": "emp_b", "code": "EMPLOYEE_HAS_DEPENDENTS", "message": "Has 3 direct reports." }
+  ]
+}
+```
+
+#### `POST /employees/bulk/export`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN.
+
+**Body:** `{ "ids": ["emp_a"], "format": "csv" }` — format: `csv | excel | json`, default `csv`.
+
+**Response:** `{ "jobId": "...", "status": "PENDING" }`
+
+#### `POST /employees/:id/documents/presign`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN, or self.
+
+**Body:**
+
+```json
+{
+  "filename": "Aadhaar.pdf",
+  "contentType": "application/pdf",
+  "size": 2415616,
+  "category": "AADHAAR"
+}
+```
+
+`category` enum: `OFFER_LETTER | AADHAAR | PAN | BANK | CONTRACT | OTHER`
+
+**Response `data`:**
+
+```json
+{
+  "uploadUrl": "/api/v1/employees/:id/documents",
+  "method": "POST",
+  "headers": { "Content-Type": "multipart/form-data" },
+  "documentId": "doc_pending_..."
+}
+```
+
+> **Deviation from S3 presign:** Cloudinary does not support unauthenticated PUT presign URLs. `uploadUrl` points to our own multipart endpoint. Upload via `POST` with `multipart/form-data`, then call `/confirm`.
+
+#### `POST /employees/:id/documents/:documentId/confirm`
+
+Call after file upload completes. Returns the confirmed document record.
+
+**Response 201:** document object (same shape as GET /employees/:id/documents items).
+
+#### `GET /employees/:id/documents/:documentId/download`
+
+**Response 302:** redirect to short-lived signed download URL.
+
+---
+
+### Departments
+
+#### `GET /departments/:id/employees`
+
+**Roles:** any authenticated user.
+
+**Query params:** `page` (default 1), `limit` (default 20), `search` (optional name filter).
+
+**Response `data`:**
+
+```json
+{
+  "data": [
+    {
+      "id": "emp_...",
+      "firstName": "Priya",
+      "lastName": "Sharma",
+      "employeeCode": "E0001",
+      "designation": "Senior Engineer",
+      "employmentStatus": "ACTIVE"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 14, "pages": 1 }
+}
+```
+
+#### `POST /departments/:id/reassign-and-delete`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN.
+
+Reassigns all active employees to the target department, then soft-deletes the source department. Atomic transaction.
+
+**Body:** `{ "reassignEmployeesTo": "dep_target_id" }`
+
+**Response `data`:** `{ "id": "dep_old_id", "status": "archived", "reassignedEmployees": 14 }`
+
+**Errors:**
+| Code | Status | When |
+|-------|--------|------|
+| `INVALID_TARGET` | 400 | Target doesn't exist |
+| `SAME_DEPARTMENT` | 400 | Source = target |
+
+---
+
+### Leave
+
+#### `GET /leave/team/coverage`
+
+**Roles:** MANAGER, HR_ADMIN, SUPER_ADMIN.
+
+**Query params:** `date` (YYYY-MM-DD, required), `departmentId` (optional filter).
+
+**Response `data`:**
+
+```json
+{
+  "date": "2026-06-15",
+  "totalTeam": 12,
+  "onLeave": 4,
+  "available": 8,
+  "coveragePercent": 67,
+  "thresholdPercent": 70,
+  "isBelowThreshold": true
+}
+```
+
+#### `POST /leave/requests/bulk/approve`
+
+**Roles:** MANAGER, HR_ADMIN.
+
+**Body:** `{ "ids": ["lr_a", "lr_b"], "comment": "Approved in bulk" }` — comment optional.
+
+**Response `data`:**
+
+```json
+{
+  "succeeded": ["lr_a"],
+  "failed": [{ "id": "lr_b", "code": "LEAVE_ALREADY_DECIDED", "message": "Already decided." }]
+}
+```
+
+#### `POST /leave/requests/bulk/reject`
+
+Same shape as bulk/approve.
+
+> **Note:** Legacy paths `POST /leave/requests/bulk-approve` and `POST /leave/requests/bulk-deny` remain active as aliases.
+
+---
+
+### Attendance
+
+#### `GET /attendance/team/weekly`
+
+**Roles:** MANAGER, HR_ADMIN, SUPER_ADMIN.
+
+**Query params:** `weekStart` (YYYY-MM-DD, defaults to current Mon), `departmentId` (optional).
+
+**Response `data`:**
+
+```json
+{
+  "weekStart": "2026-05-25",
+  "members": [
+    {
+      "employeeId": "emp_...",
+      "name": "P. Sharma",
+      "designation": "Sr Engineer",
+      "days": [
+        { "date": "2026-05-25", "code": "P" },
+        { "date": "2026-05-26", "code": "L" },
+        { "date": "2026-05-27", "code": "A" },
+        { "date": "2026-05-28", "code": "W" },
+        { "date": "2026-05-29", "code": "O" }
+      ]
+    }
+  ]
+}
+```
+
+**`code` enum:** `P` (Present) | `A` (Absent) | `L` (Leave) | `W` (WFH) | `H` (Half-day) | `O` (Holiday/weekend).
+
+---
+
+### Settings
+
+All settings endpoints use **`snake_case`** field names.
+
+#### `GET /settings/branding` · `PATCH /settings/branding`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN (PATCH). Any admin (GET).
+
+**Response / PATCH body (any subset):**
+
+```json
+{
+  "logo_url": "https://cdn.../logo.png",
+  "primary_color_hex": "#3b5cff"
+}
+```
+
+PATCH via `multipart/form-data` with field `logo` (image ≤ 1 MB PNG/SVG), or JSON with `logo_url`.
+
+#### `GET /settings/attendance-rules` · `PATCH /settings/attendance-rules`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN.
+
+```json
+{
+  "work_week_days": ["MON", "TUE", "WED", "THU", "FRI"],
+  "late_after": "09:30",
+  "half_day_threshold_minutes": 240,
+  "full_day_threshold_minutes": 480,
+  "regularization_window_days": 7,
+  "geo_fencing_enabled": false
+}
+```
+
+#### `GET /settings/security/auth` · `PATCH /settings/security/auth`
+
+**Roles:** SUPER_ADMIN only.
+
+```json
+{
+  "password_min_length": 12,
+  "password_require_symbol": true,
+  "password_require_number": true,
+  "session_idle_timeout_minutes": 60,
+  "mfa_policy": "OPTIONAL",
+  "sso_enabled": false
+}
+```
+
+`mfa_policy` enum: `OPTIONAL | REQUIRED_ADMINS | REQUIRED_ALL`
+
+#### `GET /settings/notifications/preferences` · `PATCH /settings/notifications/preferences`
+
+**Scope:** per-caller (not per-tenant). Each user sees/updates their own prefs.
+
+```json
+{
+  "channels": { "in_app": true, "email": true },
+  "events": {
+    "leave_approved": ["in_app", "email"],
+    "leave_rejected": ["in_app", "email"],
+    "leave_requested": ["in_app"],
+    "attendance_regularization": ["in_app", "email"]
+  }
+}
+```
+
+#### `GET /settings/leave-types` · `POST /settings/leave-types` · `PATCH /settings/leave-types/:id` · `DELETE /settings/leave-types/:id`
+
+Same as the existing `/leave/types` alias. POST creates a new leave type:
+
+**POST body:**
+
+```json
+{
+  "name": "Bereavement",
+  "code": "BEREAVEMENT",
+  "annualAllowance": 5,
+  "carryForwardAllowed": false,
+  "isPaid": true,
+  "color": "#94a3b8"
+}
+```
+
+**Errors:** `DUPLICATE_LEAVE_TYPE_CODE` (409), `LEAVE_TYPE_IN_USE` (409 on DELETE if balances exist).
+
+#### Custom Roles
+
+##### `POST /settings/roles`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN.
+
+**Body:** `{ "name": "Recruiter", "key": "RECRUITER", "permissions": ["employees:read"] }`
+
+**Response 201:** `{ "key": "RECRUITER", "name": "Recruiter", "permissions": [...] }`
+
+**Error:** `DUPLICATE_ROLE_KEY` (409).
+
+##### `DELETE /settings/roles/:key`
+
+**Response:** `{ "key": "RECRUITER", "status": "deleted" }`
+
+**Error:** `ROLE_IN_USE` (409) if users assigned to this role.
+
+##### `POST /settings/roles/:key/users`
+
+**Body:** `{ "userIds": ["usr_a", "usr_b"] }`
+
+**Response:** `{ "assigned": ["usr_a", "usr_b"] }`
+
+---
+
+### Dashboard Analytics
+
+#### `GET /analytics/summary` — Extended with deltas
+
+Response now includes an additive `deltas` block (existing top-level fields unchanged):
+
+```json
+{
+  "totalEmployees": 80,
+  "activeToday": 62,
+  "onLeaveToday": 5,
+  "openRequests": 3,
+  "deltas": {
+    "totalEmployees": { "delta": 2, "deltaLabel": "vs last month" },
+    "activeToday": { "deltaPercent": 3.1 },
+    "onLeaveToday": { "delta": 1 },
+    "openRequests": { "urgent": 0 }
+  }
+}
+```
+
+#### `GET /analytics/recent-activity` — Extended with entity labels
+
+Each activity item now includes human-readable `entity_label` and `entity_url`:
+
+```json
+{
+  "id": "audit_...",
+  "user_email": "hr@acme.test",
+  "action": "UPDATE",
+  "entity_type": "Employee",
+  "entity_id": "cmpfypq1h001eunacja7guack",
+  "entity_label": "E0001 · Aman Kumar",
+  "entity_url": "/employees/cmpfypq1h001eunacja7guack",
+  "created_at": "2026-05-22T..."
+}
+```
+
+If entity was deleted: `entity_label: "<type> (deleted)"`, `entity_url: null`.
+
+#### `GET /manager/dashboard` — Extended
+
+Added `approvalBreakdown`, `presentToday`, `avgAttendancePercent`:
+
+```json
+{
+  "managerName": "Aman Kumar",
+  "teamSize": 19,
+  "pendingApprovals": 5,
+  "approvalBreakdown": { "leave": 3, "regularization": 2 },
+  "presentToday": 11,
+  "avgAttendancePercent": 94,
+  "todayAttendance": {}
+}
+```
+
+#### `GET /employee/dashboard` — Extended
+
+Added `todayAttendance` (camelCase field names) and `leaveBalanceSummary` (top-3 active types):
+
+```json
+{
+  "employeeName": "Priya Sharma",
+  "designation": "Senior Engineer",
+  "department": "Engineering",
+  "pendingLeaves": 0,
+  "todayAttendance": {
+    "checkedInAt": "2026-05-25T09:14:00.000Z",
+    "checkedOutAt": null,
+    "workMode": "WFH",
+    "status": "PRESENT"
+  },
+  "leaveBalanceSummary": [
+    { "code": "CASUAL", "name": "Casual", "available": 6 },
+    { "code": "SICK", "name": "Sick", "available": 4 },
+    { "code": "ANNUAL", "name": "Earned", "available": 12 }
+  ]
+}
+```
+
+---
+
+## Not Yet Implemented (Deferred)
+
+| Feature                        | Status       | Notes                                                                                                               |
+| ------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `POST /auth/otp/initiate`      | ❌ Not built | MFA challenge initiation. Current flow: `POST /auth/verify-otp` still works for existing users with OTP challenges. |
+| `POST /holidays/import` (.ics) | ❌ Not built | Requires .ics parsing library — flagged as separate ticket.                                                         |
+| Full S3 presign flow           | ⚠️ Deviated  | Cloudinary doesn't support anonymous PUT presign. Our presign returns our multipart endpoint instead.               |

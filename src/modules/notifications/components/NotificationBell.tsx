@@ -11,15 +11,18 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from '../hooks/useNotifications';
-import type { Notification, NotificationType } from '../types/notification.types';
+import type { Notification } from '../types/notification.types';
 
-const TYPE_COLOR: Record<NotificationType, string> = {
+const TYPE_COLOR: Record<string, string> = {
   LEAVE_APPROVED: 'bg-success',
   LEAVE_REJECTED: 'bg-danger',
+  LEAVE_WITHDRAWN: 'bg-warning',
   LEAVE_REQUESTED: 'bg-brand',
-  ATTENDANCE_REGULARIZATION_REQUESTED: 'bg-warning',
-  ATTENDANCE_REGULARIZATION_APPROVED: 'bg-success',
-  ATTENDANCE_REGULARIZATION_DENIED: 'bg-danger',
+  REGULARIZATION_REQUESTED: 'bg-warning',
+  REGULARIZATION_APPROVED: 'bg-success',
+  REGULARIZATION_DENIED: 'bg-danger',
+  ATTENDANCE_CHECK_IN: 'bg-success',
+  ATTENDANCE_CHECK_OUT: 'bg-info',
   EMPLOYEE_CREATED: 'bg-brand',
   DOCUMENT_UPLOADED: 'bg-info',
   SYSTEM: 'bg-fg-muted',

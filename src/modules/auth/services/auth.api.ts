@@ -24,10 +24,11 @@ export const authApi = {
     return data.data;
   },
 
-  verifyOtp: async (challengeId: string, otp: string): Promise<LoginResponse> => {
+  verifyOtp: async (challengeId: string, code: string): Promise<LoginResponse> => {
+    // Field name is "code" on the live backend (NOT "otp") — API_MAPPING.md §Auth
     const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/verify-otp', {
       challengeId,
-      otp,
+      code,
     });
     return data.data;
   },
