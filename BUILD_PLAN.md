@@ -39,8 +39,91 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 17 — Settings screen
 - [x] Step 18 — HR / Manager / Employee dashboards
 - [x] Step 19 — Global polish: error boundaries, dark mode, a11y pass
-- [ ] Step 20 — Final verification + demo readiness
-- [ ] Step 21 — Security gate (DO NOT SKIP — B1 tenant test + B2 secrets are non-negotiable)
+- [x] Step 20 — Final verification + demo readiness
+- [x] Step 21 — Security gate (Phase 1 demo shipped)
+
+---
+
+### PHASE 1.5 — Wireframe parity + missing functionality (post-demo)
+
+> Phase 1 demo is over. Stakeholder feedback: **match `docs/WIREFRAMES.pdf` exactly**
+> and fill in the functionality gaps. Steps below are self-contained — each
+> re-establishes context from cold so a fresh session can pick up at any step.
+>
+> Every step ends with the same protocol:
+>
+> 1. Run `pnpm typecheck` and `pnpm lint`. Show the output.
+> 2. Commit with the conventional-format message in the step.
+> 3. **STOP** and wait for the user to say "next".
+
+#### Foundation primitives (UI fixes that touch shared files — do these first)
+
+- [ ] Step 22 — Tokens: fix dark-mode `--accent` invisibility
+- [x] Step 23 — Button primitive: sizing, cursor, breathing space
+- [ ] Step 24 — Select primitive: render label by value (no more IDs) + cursor
+- [ ] Step 25 — Dropdown / context menus: cursor + dark-mode hover audit
+
+#### Layout shell parity
+
+- [ ] Step 26 — Topbar: global search input (with MSW handler)
+- [ ] Step 27 — Topbar: notification bell + popover (with MSW handler)
+- [ ] Step 28 — PageHeader: breadcrumbs + personalized greeting on dashboards
+
+#### Auth flows that are missing entirely
+
+- [ ] Step 29 — Forgot password + Reset password screens (MSW)
+- [ ] Step 30 — OTP verification screen (MSW)
+
+#### Dashboard wireframe parity
+
+- [ ] Step 31 — HR Admin Dashboard: rebuild to wireframe screen 04
+- [ ] Step 32 — Manager Dashboard: rebuild to wireframe screen 05
+- [ ] Step 33 — Employee Dashboard: rebuild to wireframe screen 06
+
+#### Employees screens parity
+
+- [ ] Step 34 — Employees List: Code + Joined columns, Density/Columns menus, Export button
+- [ ] Step 35 — Employees List: bulk deactivate + bulk export (MSW)
+- [ ] Step 36 — Employee Profile: populate Documents tab (MSW for upload)
+- [ ] Step 37 — Employee Profile: populate Attendance / Leave / Activity tabs
+- [ ] Step 38 — Employee Profile: Deactivate with type-employee-code confirmation
+- [ ] Step 39 — Employee Create: 4-step stepper (Personal / Job / Documents / Access)
+
+#### Departments parity
+
+- [ ] Step 40 — Department detail: employee list table + reassign-and-delete (MSW)
+
+#### Attendance parity
+
+- [ ] Step 41 — Attendance: Calendar/Table view toggle + dept/employee filter
+- [ ] Step 42 — Attendance: Day-detail drawer + regularization supporting doc
+
+#### Leave parity
+
+- [ ] Step 43 — Leave: Team Calendar tab (real month grid via MSW)
+- [ ] Step 44 — Leave: Bulk approve modal + coverage warning chip (MSW)
+
+#### Holidays parity
+
+- [ ] Step 45 — Holidays: year overview default + `.ics` import flow (MSW)
+
+#### Permissions parity
+
+- [ ] Step 46 — Permissions: Add custom role + "X users affected" preview (MSW)
+
+#### Settings restructure (biggest gap from demo)
+
+- [ ] Step 47 — Settings: restructure left nav into 6 groups + sub-routes
+- [ ] Step 48 — Settings: Sessions & devices + Audit log (live APIs)
+- [ ] Step 49 — Settings: Branding + Leave types CRUD (MSW)
+- [ ] Step 50 — Settings: Attendance rules + Authentication + Notification prefs (MSW)
+- [ ] Step 51 — Settings: Integrations / Billing placeholders ("Phase 2" cards)
+
+#### Final polish
+
+- [ ] Step 52 — EmptyState illustrations + a11y dark-mode sweep
+- [ ] Step 53 — Wireframe parity verification walk-through (all 15 screens)
+- [ ] Step 54 — Production build + demo redeploy
 
 ---
 
@@ -74,8 +157,8 @@ A step is DONE only when its Test Gate passes AND the step-specific "Definition 
 1. `src/styles/tokens.css` — full token set from `docs/DESIGN_SYSTEM.md` §2 (colors light+dark, typography, spacing, radius, shadows, motion). Wire into Tailwind.
 2. `src/lib/env.ts` — already created by bootstrap; verify it parses correctly.
 3. `src/lib/query-client.ts` — TanStack Query client with sensible defaults: `retry: 2`, `staleTime: 30_000`, and a global error behavior so failed queries don't crash the UI.
-4. `src/lib/api-client.ts` — Axios instance. Request interceptor attaches `x-tenant-key` (from env) and `Authorization: Bearer <token>`. Response interceptor: on 401, attempt one refresh via `/auth/refresh`, retry once, else clear auth and redirect to `/login`.
-5. `src/lib/auth.ts` — in-memory access token storage (NOT localStorage), helpers to set/get/clear.
+4. `src/lib/api-client.ts` — Axios instance with `baseURL: '/api'` and `withCredentials: true`. **No** `Authorization` header, **no** `x-tenant-key` — auth is cookie-based, tenant is resolved from the JWT (see `CLAUDE.md §3, §4, §10`). Response interceptor: on 401, queue + attempt one refresh via `/auth/refresh`, drain queue on success, else clear cache and redirect to `/login?next=<path>`.
+5. (Removed — there is no `src/lib/auth.ts`; cookies are the only token store.)
 6. `src/providers/` — `QueryProvider`, `ThemeProvider` (data-theme attribute for dark mode), `AuthProvider` (calls `/auth/me` on mount). Compose them in `src/app/layout.tsx`.
 
 **Definition of done:**
@@ -551,3 +634,1257 @@ Plus the human's written confirmation of B1–B5. Claude Code: do not mark Step 
 - If genuinely ambiguous, ask me. Do not guess at backend behavior.
 - Never mark a step done with a failing Test Gate.
 - Never proceed to the next step without me saying "next".
+
+---
+
+# PHASE 1.5 — Wireframe parity + missing functionality
+
+> **Each step below is self-contained for cold-start resumption.** A fresh
+> Claude session should be able to read one step in full and execute it
+> without external context. Each step ends with the same close protocol:
+>
+> 1. Run `pnpm typecheck` and `pnpm lint`. Show me the output.
+> 2. For UI changes, also `pnpm dev` and confirm the affected route renders
+>    in both light and dark mode with no console errors.
+> 3. Commit with the exact conventional-format message in the step.
+> 4. **STOP.** Wait for the user to say "next".
+>
+> **Hard rules** (apply to every step):
+>
+> - Wireframe parity is non-negotiable — see `CLAUDE.md §21`.
+> - Backend endpoints we don't have: mock via MSW exactly per
+>   `docs/BACKEND_API_REQUESTS.md`. Types + service unwrap must mirror the
+>   spec shape so the live endpoint drops in unchanged.
+> - Don't introduce a new state library, UI kit, or styling solution
+>   (`CLAUDE.md §2`).
+> - Don't reach into another module's internals. Use the module's barrel
+>   `index.ts` (`CLAUDE.md §6`).
+
+---
+
+## STEP 22 — Tokens: fix dark-mode `--accent` invisibility
+
+**Goal:** Hovered dropdown / select items must be legible in dark mode.
+
+**Read first:** `CLAUDE.md §12`; this whole step.
+
+**Current bug (confirmed):**
+
+- `src/app/globals.css:104` defines `--accent: var(--brand-50);`
+- `src/styles/tokens.css` does **not** redefine `--brand-50` (or `--accent`) for `[data-theme='dark']`.
+- In dark mode `--accent` stays `hsl(222 100% 97%)` (near-white) while `--accent-foreground` → `var(--text-primary)` flips to `hsl(220 14% 96%)` (also near-white).
+- Result: hovered `SelectItem` / `DropdownMenuItem` shows white-on-white text. Affects every dropdown.
+
+**Build:**
+
+1. In `src/styles/tokens.css` under `[data-theme='dark']`, add the dark-mode accent block:
+   ```css
+   --accent: hsl(222 16% 18%); /* tonal subtle hover bg */
+   --accent-foreground: hsl(220 14% 96%);
+   ```
+   Define both as raw HSL inside the `[data-theme='dark']` block (since `--accent` is consumed via `--color-accent` in `globals.css @theme inline`).
+2. Sanity-check other paired tokens at `globals.css:96-128` for the same bug pattern (one half flips, the other doesn't):
+   - `--popover` / `--popover-foreground` — should be fine because both reference `--bg-surface` and `--text-primary`, both flip. Confirm.
+   - `--secondary` / `--secondary-foreground` — confirm both flip.
+   - `--muted` / `--muted-foreground` — confirm.
+3. Do **not** change the light-mode values. Light-mode is correct.
+
+**Definition of done:**
+
+- In dark mode, open the user-menu dropdown in the topbar, the dept filter in the employees list, the timezone selector in Settings → Company Profile. Each hovered/focused item shows readable text.
+- Light mode unchanged.
+
+**Files to modify:** `src/styles/tokens.css`, possibly `src/app/globals.css` (only if a paired token is broken).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus: `pnpm dev`, toggle dark mode, hover three dropdowns.
+
+**Commit:** `fix(tokens): redefine --accent for dark mode so dropdown hover is legible`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 23 — Button primitive: sizing, cursor, breathing space
+
+**Goal:** Buttons feel like Linear / Vercel — bigger, breathable, with a pointer cursor.
+
+**Read first:** `CLAUDE.md §13, §20`; this step.
+
+**Current state (file:line):**
+
+- `src/components/ui/button.tsx:6` — base classes have **no** `cursor-pointer` (Base UI's `<Button>` element gets browser-default pointer on `<button>` but not when used as link via `buttonVariants(...)`).
+- `src/components/ui/button.tsx:22-34` — size scale is tight:
+  - `default = h-8 px-2.5` (32 px tall, 10 px H pad)
+  - `sm = h-7 px-2.5`
+  - `lg = h-9 px-2.5`
+  - Same horizontal padding for every size → no hierarchy.
+  - `gap-1.5` (6 px) between icon and label feels cramped.
+
+**Target scale (matches enterprise B2B feel):**
+| size | height | horizontal pad | icon gap | text |
+|---|---|---|---|---|
+| `xs` | h-7 | px-2.5 | gap-1.5 | text-xs |
+| `sm` | h-8 | px-3 | gap-2 | text-[0.8125rem] |
+| `default` | h-9 | px-4 | gap-2 | text-sm |
+| `lg` | h-10 | px-5 | gap-2 | text-sm |
+| `icon` | size-9 | — | — | — |
+| `icon-sm` | size-8 | — | — | — |
+| `icon-xs` | size-7 | — | — | — |
+| `icon-lg` | size-10 | — | — | — |
+
+**Build:**
+
+1. In `src/components/ui/button.tsx`, edit the `buttonVariants` base:
+   - Add `cursor-pointer disabled:cursor-not-allowed` to the base class string.
+   - Keep all existing focus/aria/transition classes.
+2. Update the size variant map to the table above.
+3. Adjust `has-data-[icon=inline-end]` / `has-data-[icon=inline-start]` pads so they balance with the new horizontal pads (e.g. `default` size with leading icon → `pl-3` instead of `pl-2`).
+4. **Audit call sites.** A lot of code calls `size="sm"` expecting "default-sized button". After this change `sm` is now genuinely smaller. Search for `size="sm"` and decide per call site whether it should now be `default`. Likely flips to `default`:
+   - Header action buttons (`page.tsx` files for employees, departments, holidays, leave, settings)
+   - Form submit buttons in `CompanyProfilePanel.tsx`, `PermissionsMatrix.tsx`
+   - Keep `sm` for: row actions, dropdown menu triggers, inline cell buttons.
+5. Don't introduce variant changes that aren't covered above. Don't refactor unrelated styles.
+
+**Definition of done:**
+
+- Every primary action button feels at least ~36 px tall.
+- Hovering any button shows pointer cursor.
+- No visual regression on icon-only / sized buttons.
+
+**Files to modify:** `src/components/ui/button.tsx`, plus the call-site fixups (likely 5-10 files).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus: `pnpm dev`, click through dashboard / employees / settings, confirm buttons look right in light + dark.
+
+**Commit:** `refactor(button): bigger default size, breathing space, cursor-pointer`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 24 — Select primitive: render label by value (no more IDs) + cursor
+
+**Goal:** When a department / manager / leave-type is selected, the trigger shows the **name**, not the CUID.
+
+**Read first:** `CLAUDE.md §6, §13`; this step.
+
+**Current bug (confirmed):**
+
+- `src/components/ui/select.tsx:21-29` — `SelectValue` is a thin wrapper around Base UI's `<Select.Value>`.
+- Base UI's `<Select.Value>` renders the **stored value** unless either (a) `items={...}` is passed to `<Select.Root>` with `{ value, label }` pairs, or (b) a `children` render function is passed.
+- Every call site passes `value={d.id}` and label as children of `SelectItem`. So after selection, the trigger shows the ID.
+- Affected: `EmployeeForm.tsx:213-225` (department), `EmployeeTable.tsx:264-277` (department filter), `LeaveRequestsTable.tsx`, `NewLeaveRequestDialog.tsx`, `DepartmentForm.tsx`.
+
+**Approach (chosen):** extend `SelectValue` to accept a `children` render function `(value: string) => ReactNode`. Each call site passes a mapper that resolves value → label from the same array it iterates for `SelectItem`s. Minimal blast radius; no Base UI items-prop migration needed.
+
+**Build:**
+
+1. In `src/components/ui/select.tsx`, change `SelectValue` to:
+   ```tsx
+   function SelectValue({
+     className,
+     children,
+     placeholder,
+     ...props
+   }: Omit<SelectPrimitive.Value.Props, 'children'> & {
+     children?: (value: string) => React.ReactNode;
+     placeholder?: string;
+   }) {
+     return (
+       <SelectPrimitive.Value
+         data-slot="select-value"
+         className={cn('flex flex-1 text-left', className)}
+         {...props}
+       >
+         {(value: unknown) => {
+           if (value == null || value === '') return placeholder ?? '';
+           const v = String(value);
+           return children ? children(v) : v;
+         }}
+       </SelectPrimitive.Value>
+     );
+   }
+   ```
+   (Adjust the exact prop signature to match the installed `@base-ui/react` Select.Value typings. The point is: render via a function that calls the passed `children(value)`, defaulting to the value if no mapper is given.)
+2. Replace `cursor-default` with `cursor-pointer` at `src/components/ui/select.tsx:114` (`SelectItem` base classes).
+3. Update every call site that has `value=id, label=name` to pass the mapper:
+   ```tsx
+   <SelectValue placeholder="Select department">
+     {(v) => flatDepts.find((d) => d.id === v)?.name ?? v}
+   </SelectValue>
+   ```
+   Files to touch:
+   - `src/modules/employees/components/EmployeeForm.tsx:213-225` (department) — also the manager picker if it's a Select.
+   - `src/modules/employees/components/EmployeeTable.tsx:264-277` (department filter).
+   - `src/modules/leave/components/LeaveRequestsTable.tsx` (status / leave-type filters).
+   - `src/modules/leave/components/NewLeaveRequestDialog.tsx` (leave-type).
+   - `src/modules/departments/components/DepartmentForm.tsx` (parent picker).
+4. Leave selects where `value === label` (timezone in `CompanyProfilePanel.tsx`, employment type, gender, status) unchanged — they happen to work but won't break with the new render path.
+
+**Definition of done:**
+
+- Open Employee → Create / Edit → pick a department → trigger shows the dept name, not the ID. Same in the Employees List department filter.
+- Cursor is pointer on every select item.
+
+**Files to modify:** `src/components/ui/select.tsx` + 5 call sites listed above.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus: `pnpm dev`, manual test department-pick flow.
+
+**Commit:** `fix(select): render label by value (was showing ids) + cursor-pointer on items`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 25 — Dropdown / context menus: cursor + dark-mode hover audit
+
+**Goal:** Every dropdown menu item shows pointer cursor and stays legible in dark mode.
+
+**Read first:** Step 22's output; this step.
+
+**Current state (file:line):**
+
+- `src/components/ui/dropdown-menu.tsx:91, 116, 151, 165, 201` — `DropdownMenuItem`, `DropdownMenuSubTrigger`, scroll buttons, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem` all use `cursor-default`.
+- After Step 22 the `--accent` token is correct in dark mode; this step just makes sure the cursor is right and the focus state on these primitives uses the corrected token.
+
+**Build:**
+
+1. In `src/components/ui/dropdown-menu.tsx` replace `cursor-default` with `cursor-pointer` in each of: `DropdownMenuItem`, `DropdownMenuSubTrigger`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`. Keep scroll buttons at `cursor-default` (they're auto-scroll, not click targets).
+2. Confirm the focus styles all use `focus:bg-accent focus:text-accent-foreground` (they do already) — no change needed, Step 22 fixed the token.
+3. Also fix `src/modules/settings/components/SettingsScreen.tsx:51` — left-nav `<button>`s should be `cursor-pointer` (they're plain buttons, not the shared primitive). Easiest: add `cursor-pointer` to the `cn(...)` string.
+
+**Definition of done:**
+
+- Every dropdown menu item (topbar user menu, row actions on Employees / Departments / Holidays, leave approve dropdown) hovers with pointer + readable text in both themes.
+
+**Files to modify:** `src/components/ui/dropdown-menu.tsx`, `src/modules/settings/components/SettingsScreen.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `fix(dropdown): cursor-pointer on items + settings left-nav buttons`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 26 — Topbar: global search input (with MSW handler)
+
+**Goal:** Topbar in every authenticated screen has a search input with ⌘/Ctrl + / keyboard shortcut and a results popover.
+
+**Read first:** `docs/WIREFRAMES.pdf` screens 04–15 (every screen shows the topbar with Search…); `docs/BACKEND_API_REQUESTS.md §3`; `CLAUDE.md §22`.
+
+**API contract (mock now, real endpoint later):**
+
+- `GET /search?q=&types=&limit=8` — see `BACKEND_API_REQUESTS.md §3` for the exact response.
+
+**Build:**
+
+1. Add MSW handler `src/mocks/handlers/search.ts` returning the spec shape. Reuse existing fixture data from `src/mocks/data/employees.ts`, `src/mocks/data/departments.ts` for the substring match.
+2. Wire into `src/mocks/handlers/index.ts`.
+3. New module `src/modules/search/` with the standard module anatomy (`services/`, `hooks/`, `types/`, `index.ts`). Service unwraps the documented shape.
+4. New component `src/modules/search/components/GlobalSearch.tsx`:
+   - Renders an `<Input>` with a `SearchIcon`.
+   - On focus or ⌘/Ctrl + `/`, opens a `Popover` with the results.
+   - Debounce 250 ms.
+   - Group results by `type`, each group with a header chip ("Employees · 3", "Departments · 1").
+   - Arrow-key navigation, Enter selects, Esc closes.
+   - On select, navigate to `result.url`.
+5. Place in `src/shared/layouts/AppShell.tsx` Topbar — between the mobile-menu button and the right-side actions. Spacer no longer needed.
+6. Keyboard shortcut: register a `keydown` listener (mounted while topbar is mounted) for `e.key === '/'` (when target is body, not input) → focuses the search input. Also handle ⌘/Ctrl+K for the same.
+
+**Definition of done:**
+
+- On any authenticated screen, the topbar shows a Search input occupying the middle horizontal space.
+- Press `/` (when not focused in an input) — search focuses.
+- Type "pri" — popover lists matching employees (from mock).
+- Click a result — navigates to the URL.
+- Empty query → popover hidden.
+
+**Files to create:** `src/mocks/handlers/search.ts`, `src/modules/search/**`.
+**Files to modify:** `src/mocks/handlers/index.ts`, `src/shared/layouts/AppShell.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` and manual test.
+
+**Commit:** `feat(search): topbar global search with MSW-backed /search endpoint`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 27 — Topbar: notification bell + popover (MSW)
+
+**Goal:** Bell shows unread badge + opens a list popover. Polls for new notifications.
+
+**Read first:** `docs/WIREFRAMES.pdf` screens 04, 05, 12; `docs/BACKEND_API_REQUESTS.md §2`; `CLAUDE.md §22`.
+
+**API contract (mock now):** see `BACKEND_API_REQUESTS.md §2` — `GET /notifications`, `POST /notifications/:id/read`, `POST /notifications/read-all`, plus polling via `?since=` parameter.
+
+**Build:**
+
+1. MSW handler `src/mocks/handlers/notifications.ts` with seed notifications (8-10 of varied types). Implement the list, mark-read, and mark-all-read endpoints exactly per spec.
+2. Wire into `src/mocks/handlers/index.ts`.
+3. New module `src/modules/notifications/` standard anatomy + a `useNotifications()` hook that polls every 30 s with `refetchInterval`.
+4. New component `src/modules/notifications/components/NotificationBell.tsx`:
+   - Bell icon + red badge with `unreadCount` if > 0.
+   - Click → `Popover` with list (avatar by `type` color, title, body excerpt, relative time).
+   - "Mark all as read" link at the bottom.
+   - Item click → navigate to `actionUrl`, mark that one as read.
+   - Empty state inside popover: "You're all caught up."
+5. Replace the bare `<Bell />` button in `AppShell.tsx:282-284` with the new `NotificationBell`.
+
+**Definition of done:**
+
+- Bell shows badge with count.
+- Click → popover shows 8 mocked notifications.
+- "Mark all as read" clears the badge.
+- Clicking a notification navigates to the URL.
+
+**Files to create:** `src/mocks/handlers/notifications.ts`, `src/modules/notifications/**`.
+**Files to modify:** `src/mocks/handlers/index.ts`, `src/shared/layouts/AppShell.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` manual.
+
+**Commit:** `feat(notifications): bell with unread badge + MSW-backed list`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 28 — PageHeader: breadcrumbs + personalized greeting on dashboards
+
+**Goal:** Every authenticated screen shows a breadcrumb trail (wireframe shows "Home / X" on every page). Dashboards show personalized greeting ("Welcome back, Aman" / "Hi Priya").
+
+**Read first:** Wireframe screens 04, 05, 06 (greeting copy varies); `src/shared/layouts/PageHeader.tsx`.
+
+**Current state:**
+
+- `PageHeader` supports `breadcrumbs` but Leave, Holidays, Settings screens don't pass it.
+- Dashboard pages show a generic `<PageHeader title="Dashboard" description="Welcome back. Here's what's happening." />` — not personalized.
+
+**Build:**
+
+1. Audit every page-level component for `breadcrumbs` prop:
+   - `LeaveScreen.tsx:33-36` — add `breadcrumbs={[{ label: 'Leave' }]}`.
+   - `HolidayScreen.tsx:64-77` — add breadcrumbs.
+   - `SettingsScreen.tsx:43` — add breadcrumbs.
+   - Department pages already have it; verify.
+2. In `src/app/(dashboard)/dashboard/page.tsx`, remove the generic `PageHeader`. Let `DashboardRouter` render the role-specific dashboard, **which renders its own personalized greeting** as the first element.
+3. In each role dashboard component, add a personalized greeting block at the top:
+   - `HRDashboard.tsx` — `Welcome back, {firstName}` (use `useAuth()` → `user.employee.firstName`, fallback to email-local-part).
+   - `ManagerDashboard.tsx` — `My Team` heading (wireframe screen 05 shows "My Team", not personalized).
+   - `EmployeeDashboard.tsx` — `Hi {firstName}`.
+4. Greeting is a `<h1 className="text-2xl font-semibold tracking-tight text-fg">`. Sub-line stays as today's date for HR / "Manage your team's day-to-day" for Manager / motivational for Employee — match wireframe copy where shown.
+
+**Definition of done:**
+
+- Login as HR → `/dashboard` shows "Welcome back, HR" + breadcrumb.
+- Login as Manager → "My Team".
+- Login as Employee → "Hi Priya".
+- All non-dashboard screens have breadcrumbs.
+
+**Files to modify:** `src/app/(dashboard)/dashboard/page.tsx`, the three dashboard components, `LeaveScreen.tsx`, `HolidayScreen.tsx`, `SettingsScreen.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` cycle through the four seed users.
+
+**Commit:** `feat(layout): breadcrumbs everywhere + personalized greetings on dashboards`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 29 — Forgot password + Reset password screens (MSW)
+
+**Goal:** Working forgot-password and reset-password flows behind MSW.
+
+**Read first:** `docs/WIREFRAMES.pdf` screen 02; `docs/BACKEND_API_REQUESTS.md §1` (`POST /auth/forgot-password`, `POST /auth/reset-password`).
+
+**Current state:** `src/app/(auth)/forgot-password/` directory exists but has **no** `page.tsx` → route 404s. No reset-password route at all.
+
+**Build:**
+
+1. MSW handlers for `POST /auth/forgot-password` and `POST /auth/reset-password` in `src/mocks/handlers/auth.ts` (or add the file if absent). Match spec shapes — always 202 for forgot-password regardless of email.
+2. Schemas in `src/modules/auth/validations/forgot-password.schema.ts` and `reset-password.schema.ts`.
+3. Service methods in `src/modules/auth/services/auth.api.ts`: `forgotPassword(email)`, `resetPassword(token, password)`.
+4. Hooks: `useForgotPassword`, `useResetPassword` (React Query mutations).
+5. `src/modules/auth/components/ForgotPasswordForm.tsx` — RHF + Zod, single email field, submit shows success card with copy from wireframe: "If an account exists, we have sent a link." Both states (idle, submitting, success, error).
+6. `src/modules/auth/components/ResetPasswordForm.tsx` — RHF + Zod, password + confirm-password fields. Reads `token` from query string. On success, redirect to `/login` with a banner.
+7. Pages: `src/app/(auth)/forgot-password/page.tsx`, `src/app/(auth)/reset-password/page.tsx` — both inside the `(auth)` route group so they get the `AuthShell`.
+8. Wire "Forgot password?" link in `LoginForm.tsx` (already points to `/forgot-password` — verify).
+
+**Definition of done:**
+
+- `/forgot-password` renders the wireframe layout: heading "Forgot your password?", subtitle, email field, "Send reset link" button, "Back to sign in" link.
+- Submit → 202 → success card.
+- `/reset-password?token=abc` renders password + confirm fields, submit → 200 → redirect to login with toast.
+- Invalid token → inline error.
+
+**Files to create:** Forgot/Reset pages + components + schemas; MSW handlers.
+**Files to modify:** `src/modules/auth/services/auth.api.ts`, `src/mocks/handlers/auth.ts` (or new), `src/mocks/handlers/index.ts`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev`, walk both forms in light + dark mode.
+
+**Commit:** `feat(auth): forgot-password and reset-password screens (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 30 — OTP verification screen (MSW)
+
+**Goal:** 6-cell OTP input screen with resend cooldown and lockout-after-5 behaviors.
+
+**Read first:** Wireframe screen 03; `docs/BACKEND_API_REQUESTS.md §1` (`POST /auth/otp/initiate`, `POST /auth/verify-otp`).
+
+**Current state:** `src/app/(auth)/otp-verification/` directory empty.
+
+**Build:**
+
+1. MSW handler for `POST /auth/otp/initiate` and the existing `POST /auth/verify-otp` (already in `API_MAPPING.md` — verify MSW or live). Match spec shape, include the resend cooldown timestamps.
+2. Custom OTP input component `src/modules/auth/components/OtpInput.tsx`:
+   - 6 cells (one digit each).
+   - Auto-advance on type, backspace moves left, paste-aware (pasting "123456" fills all six).
+   - Aria-labeled, keyboard navigable.
+3. `src/modules/auth/components/OtpVerificationForm.tsx`:
+   - Reads `challengeId` from query string.
+   - Calls `/auth/otp/initiate` on mount to get `expiresAt` and `resendAvailableAt`.
+   - 60-sec resend countdown ("Didn't get the code? Resend in 0:45").
+   - 5-failure lockout (local counter — server enforces too).
+   - "Verify and continue" submit button.
+4. Page `src/app/(auth)/otp-verification/page.tsx` inside the `(auth)` group.
+5. Update `useLogin` hook to handle the `mfaRequired` branch: on a login response with `{ mfaRequired: true, challengeId }`, redirect to `/otp-verification?challengeId=...`.
+
+**Definition of done:**
+
+- Hitting the MFA branch redirects to the OTP screen.
+- Paste a 6-digit code → cells fill, auto-submit.
+- Successful verify → app boots like normal login.
+- After 5 failures → "Too many attempts. Start over." with a link to `/login`.
+
+**Files to create:** OtpInput, OtpVerificationForm, page; MSW handler for `/auth/otp/initiate`.
+**Files to modify:** `src/modules/auth/hooks/useLogin.ts`, `src/modules/auth/services/auth.api.ts`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev`, simulate MFA branch by editing the MSW `auth/login` handler to return `mfaRequired: true` for one seed account.
+
+**Commit:** `feat(auth): OTP verification screen with resend cooldown + MSW`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 31 — HR Admin Dashboard: rebuild to wireframe screen 04
+
+**Goal:** Field-level parity with wireframe screen 04.
+
+**Read first:** Wireframe screen 04 in full; `CLAUDE.md §21`; `docs/BACKEND_API_REQUESTS.md §11` (analytics deltas + activity feed entity labels).
+
+**Wireframe checklist (acceptance criteria):**
+
+- [ ] Personalized greeting: "Welcome back, {firstName}" (done in Step 28 — re-verify).
+- [ ] **Top-right "Add Employee" button** — currently missing on dashboard. Render only if `permissions.includes('employees:write')`.
+- [ ] 4 stats cards with **delta sub-line**:
+  - Total Employees · "12 vs last month"
+  - Active Today · "3.1%" percentage delta
+  - On Leave · "2" delta
+  - Open Requests · "5 urgent" (warning-coloured sub-line)
+- [ ] Attendance — last 30 days: **line/area chart**, not bar. Range tabs 7d / 30d / 90d.
+- [ ] Headcount by Department: **donut chart**, not horizontal bar. Legend labels visible.
+- [ ] Recent Activity: table with columns **Who / Action / Resource / When**. User avatars in the Who column. Resource clickable to `entity_url`.
+- [ ] **Remove** the "Leave Summary (30d)" panel currently in `HRDashboard.tsx:258-264` (not in wireframe — scope creep).
+
+**API gaps (mock now per `BACKEND_API_REQUESTS.md §11`):**
+
+- Extend `useAnalyticsSummary` to read the optional `deltas` block; render the delta sub-line only if present.
+- Extend MSW handler for `/analytics/summary` to return the proposed extended shape.
+- Extend `useRecentActivity` + the audit-logs MSW handler to include `entity_label` and `entity_url` per `BACKEND_API_REQUESTS.md §12`.
+
+**Build:**
+
+1. `MSW`: update `src/mocks/handlers/audit-logs.ts` (or `analytics.ts`) so `/analytics/summary` and `/analytics/recent-activity` return the new extended shapes.
+2. Types: add the optional `deltas` block to `AnalyticsSummary` in `src/modules/dashboard/types/dashboard.types.ts`. Add `entity_label?: string; entity_url?: string | null` to the activity item type.
+3. `StatsCard`: add an optional `delta?: { value: string; tone?: 'positive'|'negative'|'warning' }` prop. Render sub-line if present.
+4. `src/shared/engines/ChartEngine/`:
+   - Add a `LineChart` (or `AreaChart`) wrapper for time-series.
+   - Add a `DonutChart` wrapper for the headcount widget.
+   - Both are thin wrappers around Recharts (`CLAUDE.md §2`). Same prop shape as the existing `BarChart` / `HorizontalBarChart` for consistency.
+5. Rewrite `HRDashboard.tsx`:
+   - Drop the `LeaveSummaryPanel` section.
+   - Use `LineChart` (replaces `BarChart`) for attendance trend.
+   - Use `DonutChart` (replaces `HorizontalBarChart`) for headcount.
+   - Convert Recent Activity feed into a table layout matching the wireframe: 4 columns. Avatar in Who column. Resource is a `<Link>` to `entity_url` if present.
+   - Header actions slot: `<Link href="/employees/new">` styled as a primary button via `buttonVariants({ size: 'default' })`.
+
+**Definition of done:** every wireframe checklist box ticks. Light + dark verified.
+
+**Files to create:** `src/shared/engines/ChartEngine/LineChart.tsx`, `DonutChart.tsx`.
+**Files to modify:** `HRDashboard.tsx`, dashboard types, dashboard MSW handlers, `StatsCard.tsx`, audit-logs MSW handler.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev`, login as HR, visually compare against wireframe screen 04.
+
+**Commit:** `feat(hr-dashboard): wireframe parity — line + donut charts, deltas, activity table`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 32 — Manager Dashboard: rebuild to wireframe screen 05
+
+**Goal:** Field-level parity with wireframe screen 05.
+
+**Read first:** Wireframe screen 05; `docs/BACKEND_API_REQUESTS.md §11` (`approvalBreakdown`, `GET /attendance/team/weekly`).
+
+**Wireframe checklist:**
+
+- [ ] Heading "My Team" (handled in Step 28 — re-verify).
+- [ ] Top-right header buttons: **"Bulk approve"** (opens modal with multi-select) and **"View team"** (routes to `/employees?manager=me` or similar filter).
+- [ ] 4 stats: Team size · Present today (`+1` delta) · Pending approvals (`3 leave, 2 reg.` sub-line, from `approvalBreakdown`) · Avg. attendance (`this month` period).
+- [ ] Pending Approvals panel: rows with avatar + name + leave type + days + reason + **inline Deny / Approve buttons per row**. Empty state "No pending approvals" with illustration.
+- [ ] Team Attendance — This Week: weekly grid (rows = team members, columns = M T W T F). Cell content = P/A/L/W/H letter, color-coded.
+
+**API gaps (mock per spec):**
+
+- Extend `/manager/dashboard` MSW response with `approvalBreakdown`, `presentToday`, `avgAttendancePercent`.
+- New MSW endpoint `/attendance/team/weekly?weekStart=YYYY-MM-DD` per `BACKEND_API_REQUESTS.md §11`.
+
+**Build:**
+
+1. Extend `src/mocks/handlers/manager.ts` (or wherever `/manager/dashboard` is handled) to return the augmented shape.
+2. Add MSW handler for `/attendance/team/weekly`.
+3. New types in `src/modules/dashboard/types/dashboard.types.ts` and `src/modules/attendance/types/attendance.types.ts`.
+4. New hook `useTeamWeeklyAttendance(weekStart)` in attendance or dashboard module.
+5. New components in `src/modules/dashboard/components/`:
+   - `PendingApprovalsPanel.tsx` — reads `/manager/approvals`, renders rows with inline Approve/Deny that call the existing leave-approve / reject mutations. Optimistic with rollback.
+   - `TeamWeeklyAttendanceGrid.tsx` — renders the grid. Tooltip on cell hover ("WFH · Jun 25").
+6. Rewrite `ManagerDashboard.tsx`:
+   - Header actions slot: two buttons.
+   - 4 StatsCards with sub-lines.
+   - Two-column layout below: Pending Approvals (left) + Team Weekly Grid (right).
+
+**Definition of done:** wireframe checklist boxes tick.
+
+**Files to create:** `PendingApprovalsPanel.tsx`, `TeamWeeklyAttendanceGrid.tsx`, MSW for `/attendance/team/weekly`.
+**Files to modify:** `ManagerDashboard.tsx`, manager dashboard hooks, types, manager MSW handler.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev`, login as Aman (manager seed), visually compare to wireframe.
+
+**Commit:** `feat(manager-dashboard): wireframe parity — pending approvals + weekly team grid`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 33 — Employee Dashboard: rebuild to wireframe screen 06
+
+**Goal:** Field-level parity with wireframe screen 06.
+
+**Read first:** Wireframe screen 06; `docs/BACKEND_API_REQUESTS.md §11` (`todayAttendance`, `leaveBalanceSummary`).
+
+**Wireframe checklist:**
+
+- [ ] Heading "Hi {firstName}" (Step 28 — re-verify).
+- [ ] Top-right "Request leave" button — opens `NewLeaveRequestDialog`.
+- [ ] **Today's Attendance** clock card: large clock display, status pill ("Checked in — WFH"), "Check out" button (or "Check in" if not yet), "View history" link. Respect `prefers-reduced-motion` on the clock.
+- [ ] **Leave Balance** card: per-type breakdown (Casual / Sick / Earned). Each shows available number.
+- [ ] **Upcoming Holidays** list: 3 nearest upcoming holidays from `GET /holidays?year=<current>`. Item format: "25 Jun · Eid".
+- [ ] **My Documents** list: each doc with verification pill (Verified / Pending / Rejected).
+- [ ] **My Team** list with manager flagged and peers under.
+- [ ] **Remove** the placeholder "Quick Actions" panel (not in wireframe).
+
+**API gaps:**
+
+- Extend `/employee/dashboard` MSW to include `todayAttendance` + `leaveBalanceSummary` per spec.
+- `My Documents`: live `GET /employee/documents` if implemented, else MSW.
+
+**Build:**
+
+1. MSW updates per spec.
+2. New / repositioned components in `src/modules/dashboard/components/`:
+   - Reuse `src/modules/attendance/components/CheckInOutCard.tsx` if compatible; if not, build `TodayAttendanceCard.tsx` here. It hits `/attendance/today`, `/attendance/check-in`, `/attendance/check-out`.
+   - `LeaveBalanceMiniCard.tsx` — three-column number layout reading `leaveBalanceSummary`.
+   - `UpcomingHolidaysCard.tsx` — reads `useHolidays(currentYear)` and slices to next 3 future holidays.
+   - `MyDocumentsCard.tsx` — reads `/employee/documents`, lists with status badge.
+3. Wire `<Link>`/button "Request leave" in header to open `NewLeaveRequestDialog` (open-state in local component).
+4. Rewrite `EmployeeDashboard.tsx`:
+   - Drop the StatsCard row (it doesn't match wireframe).
+   - Grid layout: row 1 = Today's Attendance (1/3) + Leave Balance (1/3) + Upcoming Holidays (1/3). Row 2 = My Documents (1/2) + My Team (1/2).
+   - Drop "Quick Actions" panel.
+
+**Definition of done:** wireframe checklist ticks. `prefers-reduced-motion` honoured on the clock.
+
+**Files to create:** the four cards above.
+**Files to modify:** `EmployeeDashboard.tsx`, MSW handlers for `/employee/dashboard` and possibly `/employee/documents`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev`, login as Priya, visually compare to wireframe.
+
+**Commit:** `feat(employee-dashboard): wireframe parity — clock + balance + holidays + documents`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 34 — Employees List: Code + Joined columns, Density/Columns menus, Export
+
+**Goal:** Wireframe screen 07 column parity + table tools.
+
+**Read first:** Wireframe screen 07; `EmployeeTable.tsx` current state.
+
+**Wireframe checklist:**
+
+- [ ] Add **Employee Code** column (mono, after employee name).
+- [ ] Add **Joined date** column (after Type).
+- [ ] **Columns menu** (top-right toolbar) toggles column visibility, persists per-user in `localStorage`.
+- [ ] **Density menu** (Comfortable / Compact / Cozy) — adjusts row height.
+- [ ] **Export** button (HR only) → calls existing `GET /employees/export/csv` (live).
+
+**Build:**
+
+1. Extend the columns array in `EmployeeTable.tsx` with `employeeCode` and `joinedOn` columns.
+2. Add Columns / Density buttons to the filter bar — use `DropdownMenu` + `DropdownMenuCheckboxItem` for columns.
+3. Persist visibility + density in `localStorage` keyed by user ID.
+4. Density is a wrapper class applied to rows: `py-1` / `py-2` / `py-3`.
+5. Export button calls `employees.api.exportCsv()` (add to service) → triggers a browser download (return `response.data` as Blob, `URL.createObjectURL`, click hidden anchor).
+
+**Definition of done:** wireframe ticks. Column visibility persists across page reloads.
+
+**Files to modify:** `EmployeeTable.tsx`, `src/modules/employees/services/employees.api.ts`, `src/modules/employees/types/employee.types.ts` (if needed).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(employees-list): code + joined columns, density / columns menus, csv export`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 35 — Employees List: bulk deactivate + bulk export (MSW)
+
+**Goal:** Row selection + bulk actions per wireframe screen 07 annotations.
+
+**Read first:** Wireframe screen 07 annotations; `BACKEND_API_REQUESTS.md §5`.
+
+**API gaps (MSW):**
+
+- `POST /employees/bulk/deactivate` — see spec.
+- `POST /employees/bulk/export` — see spec.
+
+**Build:**
+
+1. MSW handlers per spec.
+2. Extend `EmployeeTable` with selection state (Set<id>); add a checkbox column on the left. Header checkbox toggles all on current page.
+3. Floating action bar appears above the table when ≥ 1 selected:
+   - "X selected" + Bulk deactivate (HR only) + Bulk export.
+   - Confirmation modal with summary of will-be-affected rows.
+4. Show per-id failures in a result modal (succeeded vs failed list).
+
+**Definition of done:** select 3 rows → Bulk deactivate → confirm → some succeed, some fail → result modal lists both.
+
+**Files to modify:** `EmployeeTable.tsx`, employees service, employees hooks; new MSW handlers.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(employees-list): bulk deactivate + bulk export with MSW backing`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 36 — Employee Profile: populate Documents tab (MSW for upload)
+
+**Goal:** Documents tab on profile shows list + supports upload.
+
+**Read first:** Wireframe screen 08 (Documents preview list); `BACKEND_API_REQUESTS.md §4`.
+
+**API gaps (MSW):**
+
+- `POST /employees/:id/documents/presign`, `confirm`, `DELETE`, list.
+
+**Build:**
+
+1. MSW handlers per spec. Simulate the two-step pre-sign + confirm flow (the "S3 PUT" can be a no-op — MSW returns success).
+2. Module `src/modules/employees/` extension: types for `EmployeeDocument`, service methods, hooks.
+3. Component `src/modules/employees/components/DocumentsTab.tsx`:
+   - List with name, category, size, status badge, upload date.
+   - Upload button → file picker → presign → "S3 PUT" (simulated) → confirm.
+   - Delete with `ConfirmDialog`.
+   - Permission-gated upload/delete (self or HR).
+4. Wire into the profile tabs.
+
+**Definition of done:** upload a PDF (mock) → appears in list → can delete.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(employee-profile): documents tab with upload (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 37 — Employee Profile: populate Attendance / Leave / Activity tabs
+
+**Goal:** Each tab shows real data for that employee.
+
+**Read first:** Wireframe screen 08 tab annotations.
+
+**Build:**
+
+1. `AttendanceTab.tsx` — embeds the existing month calendar scoped to `employeeId`. Uses `/attendance/records?employeeId=&month=`.
+2. `LeaveTab.tsx` — uses existing leave table filtered by `employeeId`.
+3. `ActivityTab.tsx` — `/audit-logs?entity=Employee&entityId=:id&limit=20`. Same row format as HR Dashboard Recent Activity.
+4. Lazy-load via `next/dynamic` (wireframe annotation).
+
+**Definition of done:** click through tabs on a profile — each shows data filtered to that employee.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(employee-profile): attendance / leave / activity tabs populated`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 38 — Employee Profile: Deactivate with type-employee-code confirmation
+
+**Goal:** Wireframe screen 08 "Deactivate" with safe confirmation.
+
+**Read first:** Wireframe screen 08; existing `ConfirmDialog`.
+
+**Build:**
+
+1. New `TypeToConfirmDialog.tsx` in `src/components/feedback/` — extends ConfirmDialog with a required text-input matching a target string before the confirm button enables.
+2. Replace existing terminate action in `EmployeeProfile` header with this dialog: require typing the employee code (E0042). Maps to existing `DELETE /employees/:id`.
+3. Show resulting status banner on the profile.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(employee-profile): deactivate with type-to-confirm safeguard`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 39 — Employee Create: 4-step stepper (Personal / Job / Documents / Access)
+
+**Goal:** Wireframe screen 09 stepper layout.
+
+**Read first:** Wireframe screen 09; `EmployeeForm.tsx` current; `BACKEND_API_REQUESTS.md §5` (`GET /employees/next-code`).
+
+**Wireframe checklist:**
+
+- [ ] 4-step indicator at top of the form.
+- [ ] Step 1 Personal · Step 2 Job · Step 3 Documents · Step 4 Access.
+- [ ] "Auto / E20XX" + Generate code button calls `/employees/next-code` (MSW).
+- [ ] Auto-save draft to localStorage every 30 s.
+- [ ] Documents step uses Step 36's upload flow.
+- [ ] Access step: role select + "Send invite email" toggle (no email-send API today — MSW noop).
+
+**Build:**
+
+1. MSW handler for `GET /employees/next-code`.
+2. `src/modules/employees/components/EmployeeFormStepper.tsx` — new wrapper with step state, validation per step, back/next navigation. Uses RHF (one shared form, multiple step views).
+3. Migrate the existing flat form sections into the stepper steps. Step 3 (Documents) and Step 4 (Access) are new.
+4. localStorage draft auto-save — debounce 30 s, key `ems:emp-create-draft:<userId>`.
+5. Final "Create employee" only enabled when all required steps validate.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(employee-create): 4-step stepper with auto-save + documents + access`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 40 — Department detail: employee list table + reassign-and-delete (MSW)
+
+**Goal:** Wireframe screen 10 right panel + safe delete with reassign.
+
+**Read first:** Wireframe screen 10; `BACKEND_API_REQUESTS.md §6`.
+
+**Build:**
+
+1. MSW: `GET /departments/:id/employees`, `POST /departments/:id/reassign-and-delete` per spec.
+2. Department detail panel: add a `DynamicTable` of employees in the selected dept (paginated).
+3. Delete flow upgrade: when current DELETE returns `DEPARTMENT_NOT_EMPTY`, open a "Reassign and delete" dialog with a target-department picker. Submit calls the reassign endpoint.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(departments): per-dept employee table + reassign-and-delete flow`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 41 — Attendance: Calendar/Table view toggle + dept/employee filter
+
+**Goal:** Wireframe screen 11 toolbar.
+
+**Read first:** Wireframe screen 11.
+
+**Build:**
+
+1. Toolbar above calendar with view toggle (Calendar / Table) — URL state via `nuqs` `?view=calendar|table`.
+2. Department dropdown (HR/Manager only) and Employee dropdown (HR sees all; Manager sees their team).
+3. Table view = a DynamicTable of records for the selected month + employee.
+4. Calendar view = the existing component.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(attendance): calendar/table view toggle + scope filters`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 42 — Attendance: Day-detail drawer + regularization supporting doc
+
+**Goal:** Click a day → drawer with details. Regularization can attach a supporting document.
+
+**Read first:** Wireframe screen 11 (cell click → day detail drawer; regularization "supporting doc").
+
+**Build:**
+
+1. `DayDetailDrawer.tsx` — uses `Sheet`. Shows clock-in/out, hours, location, notes, status. Has "Regularize" CTA if applicable.
+2. Hook the day-cell `onClick` in `AttendanceCalendar.tsx`.
+3. Extend `RegularizationDialog.tsx` with optional document upload (reuses Step 36's upload flow). Document is linked to the regularization request id.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(attendance): day-detail drawer + supporting doc on regularization`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 43 — Leave: Team Calendar tab (real month grid via MSW)
+
+**Goal:** Wireframe screen 12 "Team Calendar" — actual month view, not a list.
+
+**Read first:** Wireframe screen 12; `BACKEND_API_REQUESTS.md §7` (`GET /leave/team/calendar`).
+
+**Build:**
+
+1. MSW handler for `/leave/team/calendar?month=YYYY-MM` per spec.
+2. Rewrite `LeaveTeamCalendar.tsx`:
+   - Rows = team members, columns = days of month.
+   - Cell color/letter encodes `LEAVE | WFH | HOLIDAY | WEEKEND | WORKING`.
+   - Hover tooltip with details.
+   - Month-prev / month-next toolbar.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(leave): team calendar month grid (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 44 — Leave: Bulk approve modal + coverage warning chip (MSW)
+
+**Goal:** Wireframe screen 12 "Bulk approve" + coverage warning chip.
+
+**Read first:** Wireframe screen 12; `BACKEND_API_REQUESTS.md §7`.
+
+**Build:**
+
+1. MSW for `/leave/requests/bulk/approve`, `/bulk/reject`, `/leave/team/coverage`.
+2. Row selection in `LeaveApprovalsTable` + floating bulk bar (Bulk approve / Bulk deny). Confirmation modal with optional shared comment field.
+3. Per-row inline warning chip when `coveragePercent < thresholdPercent` for that date (call `/leave/team/coverage?date=` lazily on hover or on mount).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(leave): bulk approve/reject + coverage warning chips (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 45 — Holidays: year overview default + `.ics` import flow (MSW)
+
+**Goal:** Wireframe screen 13.
+
+**Read first:** Wireframe screen 13; `BACKEND_API_REQUESTS.md §8`.
+
+**Build:**
+
+1. MSW for `/holidays/import` (multipart accepted), `/holidays/import/:jobId/preview`, `/holidays/import/:jobId/commit`.
+2. Make the year overview grid the default view. Toggle button switches to the existing list table.
+3. Click a month tile → expanded month view with names/details (modal or in-page).
+4. "Import .ics" header button:
+   - File picker → POST presign → preview dialog (shows candidates, "willOverwrite" flag) → commit button.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(holidays): year overview default + .ics import flow (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 46 — Permissions: Add custom role + "X users affected" preview (MSW)
+
+**Goal:** Wireframe screen 14 "Add role" + impact preview.
+
+**Read first:** Wireframe screen 14; `BACKEND_API_REQUESTS.md §10`.
+
+**Build:**
+
+1. MSW handlers for `POST /settings/roles`, `DELETE /settings/roles/:key`.
+2. "Add role" header button (Super Admin only) → dialog with name + key + initial permissions multi-select.
+3. Show custom roles as additional columns in the matrix.
+4. On Save Changes, show a confirm dialog: "X users will gain access, Y users will lose access" (compute client-side from current matrix).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(permissions): custom role create + impact preview on save`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 47 — Settings: restructure left nav into 6 groups + sub-routes
+
+**Goal:** Wireframe screen 15 left-nav grouping.
+
+**Read first:** Wireframe screen 15.
+
+**Build:**
+
+1. Refactor `SettingsScreen.tsx` to support grouped nav. Items become route segments under `/settings/<group>/<item>`.
+2. Groups (with placeholder panels — actual content filled in subsequent steps):
+   - **Workspace**: Company profile (existing), Branding, Locale & timezone, Working hours.
+   - **People**: Leave types, Holiday calendar (link out), Attendance rules.
+   - **Security**: Authentication, Sessions & devices, Audit log.
+   - **Notifications**: Email templates (existing), In-app preferences.
+   - **Integrations**: Email, Storage, Webhooks.
+   - **Billing**: Plan, Invoices.
+3. Each item is a sub-route at `src/app/(dashboard)/settings/<slug>/page.tsx`.
+4. Permission-gate items (hide entirely if user lacks the permission, per CLAUDE.md §10).
+5. Render placeholder cards for items not yet built: "Coming soon" + link to spec.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `refactor(settings): 6-group left nav + sub-routes (placeholders for new items)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 48 — Settings: Sessions & devices + Audit log (live APIs)
+
+**Goal:** Wire two settings items to existing live endpoints.
+
+**Read first:** `API_MAPPING.md` (`GET /auth/sessions`, `DELETE /auth/sessions/:id`, `GET /audit-logs`).
+
+**Build:**
+
+1. `SessionsAndDevicesPanel.tsx` — list `/auth/sessions`, show device, IP, location, last-seen, "Revoke" action. Current session marked.
+2. `AuditLogPanel.tsx` — paginated `/audit-logs` table. Filters: entity, action, user. (Snake_case fields — `CLAUDE.md §4`.)
+3. Wire into the Step 47 routes.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(settings): sessions & devices, audit log panels (live API)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 49 — Settings: Branding + Leave types CRUD (MSW)
+
+**Goal:** Two settings items.
+
+**Read first:** `BACKEND_API_REQUESTS.md §9`.
+
+**Build:**
+
+1. MSW for `PATCH /settings/branding` (multipart), `POST/PATCH/DELETE /settings/leave-types`.
+2. `BrandingPanel.tsx` — logo upload, primary color hex picker.
+3. `LeaveTypesPanel.tsx` — DynamicTable + Drawer form for create/edit.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(settings): branding + leave types CRUD (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 50 — Settings: Attendance rules + Authentication + Notification prefs (MSW)
+
+**Goal:** Three settings items.
+
+**Read first:** `BACKEND_API_REQUESTS.md §9`.
+
+**Build:**
+
+1. MSW for `GET/PATCH /settings/attendance-rules`, `GET/PATCH /settings/security/auth`, `GET/PATCH /settings/notifications/preferences`.
+2. Three panels with RHF + Zod. Snake_case payloads per spec.
+3. Each respects the role gating defined in the spec.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(settings): attendance rules, authentication, notification prefs (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 51 — Settings: Integrations / Billing placeholders
+
+**Goal:** Wireframe screen 15 listed these — render as "Coming in Phase 2" cards so the nav doesn't break.
+
+**Build:**
+
+1. Static placeholder panels under Settings → Integrations (Email, Storage, Webhooks).
+2. Static placeholder panels under Settings → Billing (Plan, Invoices).
+3. Each shows a "Phase 2" badge + short description.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(settings): integrations + billing phase-2 placeholders`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 52 — EmptyState illustrations + a11y dark-mode sweep
+
+**Goal:** Empty states get illustrations (wireframe annotates them). Final keyboard + dark-mode pass.
+
+**Build:**
+
+1. Extend `src/components/feedback/EmptyState.tsx` with an `illustration?: ReactNode` slot above the title.
+2. Add 5–7 small inline SVG illustrations under `src/components/feedback/illustrations/` (no external assets — inline so they theme via `currentColor`).
+3. Apply to key empties: employees list empty, no pending approvals, no holidays, no documents, no team members, no search results.
+4. Sweep every screen in dark mode: confirm no `bg-brand-50` / `bg-accent` invisibility lingering after Step 22. Run `react-doctor` for any new findings.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus manual dark-mode pass.
+
+**Commit:** `feat(polish): empty-state illustrations + dark-mode sweep`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 53 — Wireframe parity verification walk-through
+
+**Goal:** Walk every screen in the wireframe one more time, head-to-head with the running app.
+
+**Build:**
+
+1. No code by default. Click through each of the 15 wireframe screens.
+2. For each screen produce a one-line pass/fail report.
+3. Fix any final visual drift that's small enough to be done inline (typo in copy, missing chip, off-by-one icon).
+4. For anything substantial, propose it as a new step appended to this file.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `chore(parity): final walk-through verification report`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 54 — Production build + demo redeploy
+
+**Goal:** Ship the parity build to Vercel.
+
+**Build:**
+
+1. `pnpm build` must succeed.
+2. Deploy to Vercel (existing project).
+3. Smoke-click the 5 demo screens on the deployed URL: Login → HR Dashboard → Employees list → Profile → Leave approval.
+4. Confirm no console errors in production.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
+**Commit:** `chore: phase 1.5 — wireframe-parity build ready for demo`
+
+**STOP.** Wait for "next".

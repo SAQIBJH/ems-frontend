@@ -105,13 +105,13 @@ function EditTemplateDialog({ template, open, onOpenChange }: EditDialogProps) {
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => onOpenChange(false)}
               disabled={mutation.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={mutation.isPending}>
+            <Button type="submit" size="default" disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Save Template'}
             </Button>
           </DialogFooter>

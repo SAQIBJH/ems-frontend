@@ -68,7 +68,7 @@ export function HolidayScreen() {
         description="Public and optional holidays for the year."
         actions={
           canManage ? (
-            <Button size="sm" onClick={openAdd}>
+            <Button size="default" onClick={openAdd}>
               <PlusIcon className="size-4 mr-1.5" />
               Add Holiday
             </Button>
@@ -130,7 +130,7 @@ export function HolidayScreen() {
                 description={`No holidays have been added for ${year} yet.`}
                 action={
                   canManage ? (
-                    <Button size="sm" onClick={openAdd}>
+                    <Button size="default" onClick={openAdd}>
                       <PlusIcon className="size-4 mr-1.5" />
                       Add Holiday
                     </Button>

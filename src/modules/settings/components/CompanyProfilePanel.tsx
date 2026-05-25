@@ -176,7 +176,11 @@ export function CompanyProfilePanel() {
         )}
 
         <div className="flex items-center gap-3">
-          <Button type="submit" size="sm" disabled={mutation.isPending || !form.formState.isDirty}>
+          <Button
+            type="submit"
+            size="default"
+            disabled={mutation.isPending || !form.formState.isDirty}
+          >
             <SaveIcon className="size-3.5 mr-1.5" />
             {mutation.isPending ? 'Saving…' : 'Save Changes'}
           </Button>
@@ -184,7 +188,7 @@ export function CompanyProfilePanel() {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="default"
               onClick={() =>
                 form.reset({
                   company_name: data?.company_name ?? '',

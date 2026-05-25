@@ -24,17 +24,23 @@ export function FormFooter({
       {cancelHref ? (
         <Link
           href={cancelHref}
-          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+          className={cn(buttonVariants({ variant: 'outline', size: 'default' }))}
           aria-disabled={isPending}
         >
           Cancel
         </Link>
       ) : onCancel ? (
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          size="default"
+          onClick={onCancel}
+          disabled={isPending}
+        >
           Cancel
         </Button>
       ) : null}
-      <Button type="submit" size="sm" disabled={isPending} aria-busy={isPending}>
+      <Button type="submit" size="default" disabled={isPending} aria-busy={isPending}>
         {isPending && <Loader2Icon className="size-3.5 animate-spin" aria-hidden />}
         {submitLabel}
       </Button>

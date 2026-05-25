@@ -164,7 +164,7 @@ export function LeaveRequestsTable() {
           </SelectContent>
         </Select>
 
-        <Button size="sm" className="gap-1.5" onClick={() => setNewRequestOpen(true)}>
+        <Button size="default" className="gap-1.5" onClick={() => setNewRequestOpen(true)}>
           <PlusIcon className="size-4" aria-hidden />
           New Request
         </Button>

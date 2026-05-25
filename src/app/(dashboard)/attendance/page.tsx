@@ -26,7 +26,7 @@ export default function AttendancePage() {
         actions={
           <Button
             variant="outline"
-            size="sm"
+            size="default"
             className="gap-1.5"
             onClick={() => setRegularizationOpen(true)}
           >

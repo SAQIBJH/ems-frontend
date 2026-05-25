@@ -385,7 +385,7 @@ export function DepartmentTree() {
         breadcrumbs={[{ label: 'Departments' }]}
         actions={
           <PermissionWrapper permission="departments:write">
-            <Button size="sm" onClick={() => openCreateForm()}>
+            <Button size="default" onClick={() => openCreateForm()}>
               <PlusIcon className="mr-1.5 size-4 shrink-0" aria-hidden />
               New department
             </Button>
@@ -416,7 +416,7 @@ export function DepartmentTree() {
                     description="Create your first department to get started."
                     action={
                       <PermissionWrapper permission="departments:write">
-                        <Button size="sm" variant="outline" onClick={() => openCreateForm()}>
+                        <Button size="default" variant="outline" onClick={() => openCreateForm()}>
                           <PlusIcon className="mr-1.5 size-4" aria-hidden />
                           New department
                         </Button>

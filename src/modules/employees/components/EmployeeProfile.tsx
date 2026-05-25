@@ -391,7 +391,7 @@ export function EmployeeProfile({ id }: { id: string }) {
               <PermissionWrapper permission="employees:delete">
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="default"
                   className="border-danger/30 text-danger hover:bg-danger/5 hover:text-danger"
                   onClick={() => setShowTerminate(true)}
                 >

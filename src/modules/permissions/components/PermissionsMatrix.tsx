@@ -281,12 +281,16 @@ export function PermissionsMatrix() {
         actions={
           <div className="flex items-center gap-2">
             {isDirty && (
-              <Button variant="outline" size="sm" onClick={handleReset} disabled={isSaving}>
+              <Button variant="outline" size="default" onClick={handleReset} disabled={isSaving}>
                 <RotateCcwIcon className="size-3.5 mr-1.5" />
                 Reset
               </Button>
             )}
-            <Button size="sm" onClick={() => void handleSave()} disabled={!isDirty || isSaving}>
+            <Button
+              size="default"
+              onClick={() => void handleSave()}
+              disabled={!isDirty || isSaving}
+            >
               <SaveIcon className="size-3.5 mr-1.5" />
               {isSaving ? 'Saving…' : 'Save Changes'}
             </Button>
