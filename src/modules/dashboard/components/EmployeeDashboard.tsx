@@ -7,27 +7,37 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/providers';
 import { useEmployeeDashboard, useEmployeeTeam } from '../hooks/useDashboard';
-import type { TeamMember } from '../types/dashboard.types';
+import type { TeamPerson } from '../types/dashboard.types';
 
-function TeamMemberRow({ member }: { member: TeamMember }) {
-  const initials = (member.firstName[0] ?? '') + (member.lastName[0] ?? '');
+function TeamPersonRow({ person, isManager }: { person: TeamPerson; isManager?: boolean }) {
+  const initials = person.name
+    .split(' ')
+    .map((p) => p[0] ?? '')
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
     <li className="flex items-center gap-3 py-2">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-        {initials.toUpperCase()}
+        {initials}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-fg">
-          {member.firstName} {member.lastName}
-        </p>
-        <p className="truncate text-xs text-fg-muted">{member.designation}</p>
+        <p className="truncate text-sm font-medium text-fg">{person.name}</p>
+        <p className="truncate text-xs text-fg-muted">{person.designation}</p>
       </div>
+      {isManager && (
+        <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand">
+          Manager
+        </span>
+      )}
     </li>
   );
 }
 
 function EmployeeTeamPanel() {
   const { data, isLoading, isError, refetch } = useEmployeeTeam();
+  const hasContent = data && (data.manager || (data.peers && data.peers.length > 0));
 
   return (
     <div className="rounded-lg border border-subtle bg-surface">
@@ -51,12 +61,13 @@ function EmployeeTeamPanel() {
           <div className="py-4">
             <ErrorState message="Failed to load team" onRetry={() => refetch()} />
           </div>
-        ) : !data || data.length === 0 ? (
+        ) : !hasContent ? (
           <p className="py-6 text-center text-sm text-fg-muted">No team members found.</p>
         ) : (
           <ul className="divide-y divide-subtle">
-            {data.map((member) => (
-              <TeamMemberRow key={member.id} member={member} />
+            {data.manager && <TeamPersonRow person={data.manager} isManager />}
+            {data.peers.map((peer, i) => (
+              <TeamPersonRow key={peer.email ?? i} person={peer} />
             ))}
           </ul>
         )}

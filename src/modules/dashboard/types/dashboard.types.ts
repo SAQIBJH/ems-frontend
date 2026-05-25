@@ -56,7 +56,7 @@ export interface ManagerDashboardData {
   todayAttendance: Record<string, unknown>;
 }
 
-/** One entry in GET /manager/team or GET /employee/team */
+/** One entry in GET /manager/team */
 export interface TeamMember {
   id: string;
   firstName: string;
@@ -65,6 +65,19 @@ export interface TeamMember {
   workEmail: string;
   employmentStatus: string;
   department?: { id: string; name: string } | null;
+}
+
+/** Person shape returned by GET /employee/team */
+export interface TeamPerson {
+  name: string;
+  designation: string;
+  email?: string;
+}
+
+/** GET /employee/team — live response shape */
+export interface EmployeeTeamResponse {
+  manager: TeamPerson | null;
+  peers: TeamPerson[];
 }
 
 /** GET /employee/dashboard */

@@ -9,6 +9,7 @@ import type {
   ManagerDashboardData,
   RecentActivityItem,
   TeamMember,
+  EmployeeTeamResponse,
 } from '../types/dashboard.types';
 
 export const dashboardApi = {
@@ -96,10 +97,10 @@ export const dashboardApi = {
 
   /**
    * GET /employee/team
-   * Returns manager + peers in same department
+   * Returns { manager, peers } — live shape from backend.
    */
-  getEmployeeTeam: async (): Promise<TeamMember[]> => {
-    const { data } = await apiClient.get<{ data: TeamMember[] }>('/employee/team');
+  getEmployeeTeam: async (): Promise<EmployeeTeamResponse> => {
+    const { data } = await apiClient.get<{ data: EmployeeTeamResponse }>('/employee/team');
     return data.data;
   },
 };
