@@ -58,14 +58,14 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Foundation primitives (UI fixes that touch shared files — do these first)
 
-- [ ] Step 22 — Tokens: fix dark-mode `--accent` invisibility
+- [x] Step 22 — Tokens: fix dark-mode `--accent` invisibility
 - [x] Step 23 — Button primitive: sizing, cursor, breathing space
-- [ ] Step 24 — Select primitive: render label by value (no more IDs) + cursor
-- [ ] Step 25 — Dropdown / context menus: cursor + dark-mode hover audit
+- [x] Step 24 — Select primitive: render label by value (no more IDs) + cursor
+- [x] Step 25 — Dropdown / context menus: cursor + dark-mode hover audit
 
 #### Layout shell parity
 
-- [ ] Step 26 — Topbar: global search input (with MSW handler)
+- [x] Step 26 — Topbar: global search input (with MSW handler)
 - [ ] Step 27 — Topbar: notification bell + popover (with MSW handler)
 - [ ] Step 28 — PageHeader: breadcrumbs + personalized greeting on dashboards
 

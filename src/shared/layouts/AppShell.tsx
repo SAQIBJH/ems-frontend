@@ -23,6 +23,7 @@ import {
   LogOut,
   User,
 } from 'lucide-react';
+import { GlobalSearch } from '@/modules/search';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -273,8 +274,10 @@ function Topbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
         <Menu className="size-5" aria-hidden />
       </Button>
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Global search */}
+      <div className="flex-1 flex justify-center px-4">
+        <GlobalSearch />
+      </div>
 
       {/* Right actions */}
       <div className="flex items-center gap-1">
