@@ -15,7 +15,6 @@ import {
   Shield,
   Settings,
   Menu,
-  Bell,
   ChevronLeft,
   ChevronRight,
   Sun,
@@ -24,6 +23,7 @@ import {
   User,
 } from 'lucide-react';
 import { GlobalSearch } from '@/modules/search';
+import { NotificationBell } from '@/modules/notifications';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -282,9 +282,7 @@ function Topbar({ onMobileMenuClick }: { onMobileMenuClick: () => void }) {
       {/* Right actions */}
       <div className="flex items-center gap-1">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="text-fg-muted" aria-label="Notifications">
-          <Bell className="size-5" aria-hidden />
-        </Button>
+        <NotificationBell />
         <UserMenu />
       </div>
     </header>
