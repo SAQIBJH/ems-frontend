@@ -68,6 +68,7 @@ export const authHandlers = [
         expiresAt: challenge.expiresAt.toISOString(),
         resendAvailableAt: challenge.resendAvailableAt.toISOString(),
       },
+      meta: {},
     });
   }),
 
@@ -148,10 +149,14 @@ export const authHandlers = [
     const token = `mock-reset-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     pendingResets.set(token, email);
 
-    return HttpResponse.json({
-      success: true,
-      data: { message: 'If an account exists, we have sent a link.' },
-    });
+    return HttpResponse.json(
+      {
+        success: true,
+        data: { message: 'If an account exists, a reset link has been sent.' },
+        meta: {},
+      },
+      { status: 202 },
+    );
   }),
 
   // POST /api/auth/reset-password
@@ -159,11 +164,36 @@ export const authHandlers = [
     const body = (await request.json()) as { token?: string; password?: string };
     const { token, password } = body ?? {};
 
-    if (!token || !pendingResets.has(token)) {
+    if (!token) {
       return HttpResponse.json(
         {
           success: false,
-          error: { code: 'INVALID_TOKEN', message: 'Reset link is invalid or has expired.' },
+          error: { code: 'INVALID_TOKEN', message: 'Reset link is invalid.' },
+        },
+        { status: 400 },
+      );
+    }
+
+    const entry = pendingResets.get(token);
+    if (!entry) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'INVALID_TOKEN', message: 'Reset link is invalid or already used.' },
+        },
+        { status: 400 },
+      );
+    }
+
+    // Simulate expiry: tokens older than 30 min are expired
+    const [, tsStr] = token.split('-reset-');
+    const ts = Number(tsStr?.split('-')[0]);
+    if (!Number.isNaN(ts) && Date.now() - ts > 30 * 60 * 1000) {
+      pendingResets.delete(token);
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'EXPIRED_TOKEN', message: 'Reset link has expired. Request a new one.' },
         },
         { status: 400 },
       );
@@ -174,7 +204,7 @@ export const authHandlers = [
         {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'WEAK_PASSWORD',
             message: 'Password must be at least 8 characters',
             details: [{ field: 'password', message: 'Password must be at least 8 characters' }],
           },
@@ -185,6 +215,9 @@ export const authHandlers = [
 
     pendingResets.delete(token);
 
-    return HttpResponse.json({ success: true, data: null });
+    return HttpResponse.json(
+      { success: true, data: { message: 'Password reset successfully' }, meta: {} },
+      { status: 200 },
+    );
   }),
 ];
