@@ -17,9 +17,10 @@ import { useLogin } from '../hooks/useLogin';
 
 interface LoginFormProps {
   next: string;
+  resetSuccess?: boolean;
 }
 
-export function LoginForm({ next }: LoginFormProps) {
+export function LoginForm({ next, resetSuccess }: LoginFormProps) {
   const { push } = useRouter();
   const { mutateAsync, isPending } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
@@ -75,6 +76,16 @@ export function LoginForm({ next }: LoginFormProps) {
           Enter your work email and password to continue.
         </p>
       </div>
+
+      {/* Password reset success banner */}
+      {resetSuccess && (
+        <div
+          role="status"
+          className="rounded-lg border border-success/30 bg-success/5 px-4 py-3 text-sm text-success"
+        >
+          Your password has been reset. Sign in with your new password.
+        </div>
+      )}
 
       {/* General error */}
       {generalError && (
