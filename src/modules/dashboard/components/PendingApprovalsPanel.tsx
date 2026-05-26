@@ -24,9 +24,6 @@ export function PendingApprovalsPanel() {
   const approve = useApproveLeaveRequest();
   const reject = useRejectLeaveRequest();
   const [denying, setDenying] = useState<string | null>(null);
-  console.log('Pending approvals:', data);
-  console.log('Approve mutation:', approve);
-  console.log('Reject mutation:', reject);
 
   const pending = (data ?? []).filter((r) => r.status === 'PENDING');
 
