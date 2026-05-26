@@ -40,3 +40,12 @@ export function useTeamLeaveCalendar(month: string, enabled = true) {
     staleTime: 60_000,
   });
 }
+
+export function useTeamCoverage(date: string, enabled = true) {
+  return useQuery({
+    queryKey: ['leave', 'team-coverage', date],
+    queryFn: () => leaveApi.getTeamCoverage(date),
+    enabled: enabled && !!date,
+    staleTime: 5 * 60_000,
+  });
+}

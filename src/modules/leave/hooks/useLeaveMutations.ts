@@ -90,6 +90,32 @@ export function useRejectLeaveRequest() {
   });
 }
 
+export function useBulkApproveLeave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { ids: string[]; comment?: string }) => leaveApi.bulkApprove(vars),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave'] });
+    },
+    onError: (err) => {
+      toast.error(extractMessage(err, 'Bulk approve failed'));
+    },
+  });
+}
+
+export function useBulkRejectLeave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { ids: string[]; comment?: string }) => leaveApi.bulkReject(vars),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave'] });
+    },
+    onError: (err) => {
+      toast.error(extractMessage(err, 'Bulk deny failed'));
+    },
+  });
+}
+
 export function useWithdrawLeaveRequest() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -14,12 +14,15 @@ export {
   useLeaveRequests,
   useTeamLeaveRequests,
   useTeamLeaveCalendar,
+  useTeamCoverage,
 } from './hooks/useLeave';
 export {
   useCreateLeaveRequest,
   useApproveLeaveRequest,
   useRejectLeaveRequest,
   useWithdrawLeaveRequest,
+  useBulkApproveLeave,
+  useBulkRejectLeave,
 } from './hooks/useLeaveMutations';
 
 export { leaveApi } from './services/leave.api';
@@ -35,4 +38,7 @@ export type {
   TeamCalendarLeaveRange,
   TeamCalendarEmployee,
   TeamCalendarData,
+  BulkLeaveFailure,
+  BulkLeaveResponse,
+  TeamCoverageData,
 } from './types/leave.types';

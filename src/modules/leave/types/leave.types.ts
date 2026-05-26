@@ -25,6 +25,7 @@ export interface LeaveBalance {
 /** GET /leave/requests and GET /leave/team/requests share this shape. */
 export interface LeaveRequest {
   id: string;
+  referenceNo?: string;
   leaveTypeId: string;
   leaveTypeName: string;
   startDate: string;
@@ -43,6 +44,30 @@ export interface LeaveRequest {
     lastName: string;
     employeeCode: string;
   };
+}
+
+/** One failed item from bulk approve/reject — POST /leave/requests/bulk/approve|reject */
+export interface BulkLeaveFailure {
+  id: string;
+  code: string;
+  message: string;
+}
+
+/** POST /leave/requests/bulk/approve|reject → data */
+export interface BulkLeaveResponse {
+  succeeded: string[];
+  failed: BulkLeaveFailure[];
+}
+
+/** GET /leave/team/coverage?date=YYYY-MM-DD → data */
+export interface TeamCoverageData {
+  date: string;
+  totalTeam: number;
+  onLeave: number;
+  available: number;
+  coveragePercent: number;
+  thresholdPercent: number;
+  isBelowThreshold: boolean;
 }
 
 export interface LeaveRequestsPagination {

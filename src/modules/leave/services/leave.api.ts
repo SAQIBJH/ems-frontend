@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import { formatDateForApi } from '@/lib/date';
 import type {
+  BulkLeaveResponse,
   CreateLeaveInput,
   LeaveBalance,
   LeaveRequest,
@@ -8,6 +9,7 @@ import type {
   LeaveListParams,
   LeaveType,
   TeamCalendarData,
+  TeamCoverageData,
 } from '../types/leave.types';
 
 export const leaveApi = {
@@ -107,6 +109,52 @@ export const leaveApi = {
     const { data } = await apiClient.patch<{ data: LeaveRequest }>(
       `/leave/requests/${id}/withdraw`,
     );
+    return data.data;
+  },
+
+  /**
+   * POST /leave/requests/bulk/approve — MANAGER, HR_ADMIN
+   * Returns { succeeded: string[], failed: { id, code, message }[] }
+   */
+  bulkApprove: async ({
+    ids,
+    comment,
+  }: {
+    ids: string[];
+    comment?: string;
+  }): Promise<BulkLeaveResponse> => {
+    const { data } = await apiClient.post<{ data: BulkLeaveResponse }>(
+      '/leave/requests/bulk/approve',
+      { ids, comment },
+    );
+    return data.data;
+  },
+
+  /**
+   * POST /leave/requests/bulk/reject — MANAGER, HR_ADMIN
+   * Same shape as bulkApprove.
+   */
+  bulkReject: async ({
+    ids,
+    comment,
+  }: {
+    ids: string[];
+    comment?: string;
+  }): Promise<BulkLeaveResponse> => {
+    const { data } = await apiClient.post<{ data: BulkLeaveResponse }>(
+      '/leave/requests/bulk/reject',
+      { ids, comment },
+    );
+    return data.data;
+  },
+
+  /**
+   * GET /leave/team/coverage?date=YYYY-MM-DD — MANAGER, HR_ADMIN, SUPER_ADMIN
+   */
+  getTeamCoverage: async (date: string, departmentId?: string): Promise<TeamCoverageData> => {
+    const { data } = await apiClient.get<{ data: TeamCoverageData }>('/leave/team/coverage', {
+      params: { date, ...(departmentId ? { departmentId } : {}) },
+    });
     return data.data;
   },
 };
