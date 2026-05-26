@@ -91,7 +91,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Departments parity
 
-- [ ] Step 40 — Department detail: employee list table + reassign-and-delete (MSW)
+- [x] Step 40 — Department detail: employee list table + reassign-and-delete (LIVE API)
 
 #### Attendance parity
 
@@ -1574,17 +1574,21 @@ pnpm lint
 
 ---
 
-## STEP 40 — Department detail: employee list table + reassign-and-delete (MSW)
+## STEP 40 — Department detail: employee list table + reassign-and-delete (LIVE API)
 
 **Goal:** Wireframe screen 10 right panel + safe delete with reassign.
 
-**Read first:** Wireframe screen 10; `BACKEND_API_REQUESTS.md §6`.
+**Read first:** Wireframe screen 10; `API_MAPPING.md` (GET /departments/:id/employees, POST /departments/:id/reassign-and-delete).
+
+> **Both endpoints are LIVE** (shipped 2026-05-26) — no MSW needed.
+> Response shape: `GET /departments/:id/employees` → `data.data[]` + `data.pagination` (double-nested).
+> `POST /departments/:id/reassign-and-delete` → body `{ reassignEmployeesTo: "dep_id" }`.
 
 **Build:**
 
-1. MSW: `GET /departments/:id/employees`, `POST /departments/:id/reassign-and-delete` per spec.
-2. Department detail panel: add a `DynamicTable` of employees in the selected dept (paginated).
-3. Delete flow upgrade: when current DELETE returns `DEPARTMENT_NOT_EMPTY`, open a "Reassign and delete" dialog with a target-department picker. Submit calls the reassign endpoint.
+1. ~~MSW handlers~~ — use live endpoints directly.
+2. Department detail panel: add a paginated employee table using the live `GET /departments/:id/employees` endpoint.
+3. Delete flow upgrade: if `dept._count.employees > 0`, show a "Reassign and delete" dialog with a target-department picker instead of the simple ConfirmDialog. Submit calls the live `POST /departments/:id/reassign-and-delete` endpoint.
 
 **Test Gate:**
 

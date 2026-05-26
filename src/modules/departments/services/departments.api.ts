@@ -3,7 +3,9 @@ import type {
   Department,
   DepartmentCreateInput,
   DepartmentDeleteResult,
+  DepartmentEmployeesResponse,
   DepartmentUpdateInput,
+  ReassignAndDeleteResult,
 } from '../types/department.types';
 
 export const departmentsApi = {
@@ -40,6 +42,40 @@ export const departmentsApi = {
    */
   remove: async (id: string): Promise<DepartmentDeleteResult> => {
     const { data } = await apiClient.delete<{ data: DepartmentDeleteResult }>(`/departments/${id}`);
+    return data.data;
+  },
+
+  /**
+   * GET /departments/:id/employees
+   * Returns double-nested data.data[] + data.pagination.
+   * Query params: page, limit, search.
+   */
+  getDepartmentEmployees: async (
+    id: string,
+    params?: { page?: number; limit?: number; search?: string },
+  ): Promise<DepartmentEmployeesResponse> => {
+    const { data } = await apiClient.get<{ data: DepartmentEmployeesResponse }>(
+      `/departments/${id}/employees`,
+      { params },
+    );
+    return data.data;
+  },
+
+  /**
+   * POST /departments/:id/reassign-and-delete
+   * Reassigns all active employees to target dept, then soft-deletes source dept.
+   */
+  reassignAndDelete: async ({
+    id,
+    reassignEmployeesTo,
+  }: {
+    id: string;
+    reassignEmployeesTo: string;
+  }): Promise<ReassignAndDeleteResult> => {
+    const { data } = await apiClient.post<{ data: ReassignAndDeleteResult }>(
+      `/departments/${id}/reassign-and-delete`,
+      { reassignEmployeesTo },
+    );
     return data.data;
   },
 };

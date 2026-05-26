@@ -10,6 +10,7 @@ import type {
   DepartmentCreateInput,
   DepartmentDeleteResult,
   DepartmentUpdateInput,
+  ReassignAndDeleteResult,
 } from '../types/department.types';
 
 export function useCreateDepartment() {
@@ -33,6 +34,19 @@ export function useUpdateDepartment() {
 export function useDeleteDepartment() {
   return useMutation<DepartmentDeleteResult, AxiosError<ApiError>, string>({
     mutationFn: departmentsApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    },
+  });
+}
+
+export function useReassignAndDeleteDepartment() {
+  return useMutation<
+    ReassignAndDeleteResult,
+    AxiosError<ApiError>,
+    { id: string; reassignEmployeesTo: string }
+  >({
+    mutationFn: departmentsApi.reassignAndDelete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
     },

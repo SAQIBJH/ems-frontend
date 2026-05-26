@@ -30,3 +30,26 @@ export interface DepartmentDeleteResult {
   id: string;
   status: 'archived';
 }
+
+/** One row from GET /departments/:id/employees */
+export interface DepartmentEmployee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeCode: string;
+  designation: string;
+  employmentStatus: string;
+}
+
+/** GET /departments/:id/employees — data is double-nested */
+export interface DepartmentEmployeesResponse {
+  data: DepartmentEmployee[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+}
+
+/** POST /departments/:id/reassign-and-delete */
+export interface ReassignAndDeleteResult {
+  id: string;
+  status: 'archived';
+  reassignedEmployees: number;
+}

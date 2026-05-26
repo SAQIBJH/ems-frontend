@@ -23,6 +23,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
@@ -32,10 +47,14 @@ import { cn } from '@/lib/utils';
 import type { ApiError } from '@/types/api';
 
 import { useDepartments } from '../hooks/useDepartments';
-import { useDeleteDepartment } from '../hooks/useDepartmentMutations';
+import {
+  useDeleteDepartment,
+  useReassignAndDeleteDepartment,
+} from '../hooks/useDepartmentMutations';
 import type { Department } from '../types/department.types';
-import { findDepartmentById } from '../utils/department.utils';
+import { findDepartmentById, flattenDepartmentTree } from '../utils/department.utils';
 import { DepartmentForm } from './DepartmentForm';
+import { DepartmentEmployeesTable } from './DepartmentEmployeesTable';
 
 /* ── Tree item ───────────────────────────────────────────────────────────── */
 
@@ -310,6 +329,9 @@ function DepartmentDetailPanel({
           </ul>
         </div>
       )}
+
+      {/* Employee list */}
+      <DepartmentEmployeesTable deptId={dept.id} />
     </div>
   );
 }
@@ -324,11 +346,17 @@ export function DepartmentTree() {
   const [formParentId, setFormParentId] = useState<string | undefined>(undefined);
   const [formInitialDept, setFormInitialDept] = useState<Department | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<Department | null>(null);
+  const [reassignToDeptId, setReassignToDeptId] = useState('');
 
   const { data: departments = [], isLoading, isError, error, refetch } = useDepartments();
   const deleteMutation = useDeleteDepartment();
+  const reassignMutation = useReassignAndDeleteDepartment();
 
   const selectedDept = findDepartmentById(departments, selectedId);
+
+  // All departments flattened for use in the reassign target picker
+  const flatDepts = flattenDepartmentTree(departments);
 
   function openCreateForm(parentId?: string) {
     setFormMode('create');
@@ -353,6 +381,16 @@ export function DepartmentTree() {
     });
   }
 
+  function handleDeleteRequest(dept: Department) {
+    if (dept._count.employees > 0) {
+      // Has employees — must reassign before deleting
+      setReassignToDeptId('');
+      setReassignTarget(dept);
+    } else {
+      setDeleteTarget(dept);
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
@@ -364,10 +402,31 @@ export function DepartmentTree() {
       const axiosErr = err as AxiosError<ApiError>;
       const apiError = axiosErr.response?.data?.error;
       if (apiError?.code === 'DEPARTMENT_NOT_EMPTY') {
-        toast.error('Cannot delete: department has active employees or sub-departments.');
+        // Sub-departments exist even though employees = 0 — inform user
+        toast.error('Cannot delete: department still has sub-departments. Delete them first.');
       } else {
         toast.error(apiError?.message ?? 'Failed to delete department.');
       }
+      setDeleteTarget(null);
+    }
+  }
+
+  async function handleReassignAndDelete() {
+    if (!reassignTarget || !reassignToDeptId) return;
+    try {
+      const result = await reassignMutation.mutateAsync({
+        id: reassignTarget.id,
+        reassignEmployeesTo: reassignToDeptId,
+      });
+      toast.success(
+        `"${reassignTarget.name}" deleted. ${result.reassignedEmployees} employee(s) reassigned.`,
+      );
+      if (selectedId === reassignTarget.id) setSelectedId(null);
+      setReassignTarget(null);
+    } catch (err) {
+      const axiosErr = err as AxiosError<ApiError>;
+      const apiError = axiosErr.response?.data?.error;
+      toast.error(apiError?.message ?? 'Failed to reassign and delete.');
     }
   }
 
@@ -436,7 +495,7 @@ export function DepartmentTree() {
                       onToggleExpand={toggleExpand}
                       onEdit={openEditForm}
                       onAddChild={openCreateForm}
-                      onDelete={setDeleteTarget}
+                      onDelete={handleDeleteRequest}
                     />
                   ))}
                 </ul>
@@ -459,7 +518,7 @@ export function DepartmentTree() {
                   dept={selectedDept}
                   onEdit={openEditForm}
                   onAddChild={openCreateForm}
-                  onDelete={setDeleteTarget}
+                  onDelete={handleDeleteRequest}
                 />
               </div>
             )}
@@ -484,7 +543,7 @@ export function DepartmentTree() {
         title="Delete department?"
         description={
           deleteTarget
-            ? `"${deleteTarget.name}" will be permanently deleted. This will fail if the department has active employees or sub-departments.`
+            ? `"${deleteTarget.name}" will be permanently deleted. This will fail if the department still has sub-departments.`
             : ''
         }
         confirmLabel="Delete"
@@ -492,6 +551,64 @@ export function DepartmentTree() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
+
+      {/* Reassign-and-delete dialog — shown when dept has active employees */}
+      <Dialog
+        open={!!reassignTarget}
+        onOpenChange={(open) => {
+          if (!open) setReassignTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reassign employees &amp; delete?</DialogTitle>
+            <DialogDescription>
+              <strong>{reassignTarget?.name}</strong> has{' '}
+              <strong>{reassignTarget?._count.employees}</strong> active employee(s). Select a
+              department to move them to before deleting.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium text-fg" htmlFor="reassign-target-select">
+              Move employees to
+            </label>
+            <Select value={reassignToDeptId} onValueChange={(v) => setReassignToDeptId(v ?? '')}>
+              <SelectTrigger id="reassign-target-select">
+                <SelectValue placeholder="Select department…">
+                  {(v) => flatDepts.find((d) => d.id === v)?.name ?? v}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {flatDepts
+                  .filter((d) => d.id !== reassignTarget?.id)
+                  .map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReassignTarget(null)}
+              disabled={reassignMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!reassignToDeptId || reassignMutation.isPending}
+              onClick={handleReassignAndDelete}
+            >
+              {reassignMutation.isPending ? 'Processing…' : 'Reassign & delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
