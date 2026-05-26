@@ -30,8 +30,24 @@ export interface LeaveBalance {
   leaveType: { name: string; code: string };
 }
 
+export type DocumentType =
+  | 'ID_PROOF'
+  | 'OFFER_LETTER'
+  | 'CONTRACT'
+  | 'AADHAAR'
+  | 'PAN'
+  | 'BANK'
+  | 'OTHER';
+
+export type DocumentVerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+
 export interface EmployeeDocument {
   id: string;
+  documentType: DocumentType;
+  fileName: string;
+  fileUrl: string;
+  verificationStatus: DocumentVerificationStatus;
+  createdAt: string;
 }
 
 /** Shape returned by GET /employees (list items). All dates are ISO strings from the server. */

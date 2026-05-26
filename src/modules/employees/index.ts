@@ -24,6 +24,9 @@ export type {
   EmployeeDeptRef,
   EmployeeManagerRef,
   EmployeeUserRef,
+  EmployeeDocument,
+  DocumentType,
+  DocumentVerificationStatus,
 } from './types/employee.types';
 
 // Schemas
@@ -35,6 +38,7 @@ export type {
 
 // Service
 export { employeesApi } from './services/employees.api';
+export { documentsApi } from './services/documents.api';
 
 // Hooks
 export { useEmployees } from './hooks/useEmployees';
@@ -44,3 +48,4 @@ export {
   useUpdateEmployee,
   useDeleteEmployee,
 } from './hooks/useEmployeeMutations';
+export { useEmployeeDocuments, useUploadDocument, useRemoveDocument } from './hooks/useDocuments';

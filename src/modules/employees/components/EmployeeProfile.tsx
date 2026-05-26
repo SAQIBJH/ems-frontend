@@ -41,6 +41,7 @@ import type {
   EmploymentType,
   LeaveBalance,
 } from '../types/employee.types';
+import { DocumentsTab } from './DocumentsTab';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -180,18 +181,6 @@ function JobTab({ employee }: { employee: EmployeeDetail }) {
         <DetailRow icon={BriefcaseIcon} label="Pay currency" value={employee.payCurrency} />
       </div>
     </div>
-  );
-}
-
-/* ── Documents tab (placeholder) ─────────────────────────────────────────── */
-
-function DocumentsTab() {
-  return (
-    <EmptyState
-      title="Documents"
-      description="Document upload is not yet available. Check back soon."
-      icon={<FileTextIcon className="size-6 text-fg-muted" aria-hidden />}
-    />
   );
 }
 
@@ -457,7 +446,7 @@ export function EmployeeProfile({ id }: { id: string }) {
             <JobTab employee={employee} />
           </TabsContent>
           <TabsContent value="documents">
-            <DocumentsTab />
+            <DocumentsTab employeeId={id} />
           </TabsContent>
           <TabsContent value="attendance">
             <AttendanceTab />
