@@ -92,7 +92,7 @@ export function NotificationBell() {
   function handleAction(n: Notification) {
     if (!n.isRead) markRead.mutate(n.id);
     setOpen(false);
-    router.push(n.actionUrl);
+    if (n.actionUrl) router.push(n.actionUrl);
   }
 
   function handleMarkAllRead() {
