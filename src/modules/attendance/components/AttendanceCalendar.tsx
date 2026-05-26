@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { cn } from '@/lib/utils';
 
-import { useAttendanceRecords } from '../hooks/useAttendance';
+import { useAttendanceRecords, useAttendanceTeamRecords } from '../hooks/useAttendance';
 import { STATUS_CONFIG } from '../constants';
 import { buildDateMap, getDaysInMonth } from '../utils/attendance.utils';
 import type { AttendanceStatus } from '../types/attendance.types';
@@ -21,15 +21,26 @@ interface AttendanceCalendarProps {
   currentDate: Date;
   onPrev: () => void;
   onNext: () => void;
+  /** If set, shows records for this employee via the team endpoint. */
+  employeeId?: string;
 }
 
-export function AttendanceCalendar({ currentDate, onPrev, onNext }: AttendanceCalendarProps) {
+export function AttendanceCalendar({
+  currentDate,
+  onPrev,
+  onNext,
+  employeeId,
+}: AttendanceCalendarProps) {
   const monthParam = format(currentDate, 'yyyy-MM');
 
-  const { data, isLoading, isError, refetch } = useAttendanceRecords({
-    month: monthParam,
-    limit: 31,
-  });
+  // Two queries — only one is enabled at a time based on whether viewing another employee
+  const selfQuery = useAttendanceRecords({ month: monthParam, limit: 31 }, !employeeId);
+  const teamQuery = useAttendanceTeamRecords(
+    { month: monthParam, limit: 31, employeeId },
+    !!employeeId,
+  );
+
+  const { data, isLoading, isError, refetch } = employeeId ? teamQuery : selfQuery;
 
   const recordMap = useMemo(() => buildDateMap(data?.records ?? []), [data?.records]);
 

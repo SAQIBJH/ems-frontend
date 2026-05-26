@@ -58,6 +58,7 @@ export interface AttendanceRecordsParams {
   fromDate?: string;
   toDate?: string;
   employeeId?: string;
+  departmentId?: string;
 }
 
 /** POST /attendance/check-in body */

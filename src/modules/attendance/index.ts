@@ -2,6 +2,7 @@
 
 export { AttendanceCalendar } from './components/AttendanceCalendar';
 export { AttendanceSummaryCards } from './components/AttendanceSummaryCards';
+export { AttendanceTableView } from './components/AttendanceTableView';
 export { CheckInOutCard } from './components/CheckInOutCard';
 export { RegularizationDialog } from './components/RegularizationDialog';
 

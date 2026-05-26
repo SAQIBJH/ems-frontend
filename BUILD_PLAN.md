@@ -95,7 +95,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Attendance parity
 
-- [ ] Step 41 — Attendance: Calendar/Table view toggle + dept/employee filter
+- [x] Step 41 — Attendance: Calendar/Table view toggle + dept/employee filter
 - [ ] Step 42 — Attendance: Day-detail drawer + regularization supporting doc
 
 #### Leave parity
