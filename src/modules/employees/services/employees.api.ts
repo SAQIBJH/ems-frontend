@@ -103,4 +103,13 @@ export const employeesApi = {
     });
     return data.data;
   },
+
+  /**
+   * GET /employees/next-code → { nextCode: "EMP-0081" }
+   * Live endpoint — shape deviation: field is "nextCode", not "code".
+   */
+  getNextCode: async (): Promise<string> => {
+    const { data } = await apiClient.get<{ data: { code: string } }>('/employees/next-code');
+    return data.data.code;
+  },
 };

@@ -6,7 +6,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
+import { Wand2 } from 'lucide-react';
 import type { AxiosError } from 'axios';
+
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 import {
   Select,
@@ -36,6 +40,7 @@ import type {
 } from '../types/employee.types';
 import { useEmployee } from '../hooks/useEmployee';
 import { useCreateEmployee, useUpdateEmployee } from '../hooks/useEmployeeMutations';
+import { useNextEmployeeCode } from '../hooks/useNextEmployeeCode';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -82,6 +87,7 @@ function EmployeeFormInner({
   const updateMutation = useUpdateEmployee();
   const { data: deptList } = useDepartments();
   const flatDepts = flattenDepartmentTree(deptList ?? []);
+  const { refetch: fetchNextCode, isFetching: isGeneratingCode } = useNextEmployeeCode();
 
   const form = useForm<EmployeeCreateFormValues>({
     resolver: zodResolver(employeeCreateSchema),
@@ -193,10 +199,39 @@ function EmployeeFormInner({
         },
         {
           name: 'employeeCode',
-          type: 'text',
           label: 'Employee code',
-          placeholder: 'E0042',
           required: true,
+          render: ({ field, error }) => (
+            <div className="flex gap-2">
+              <Input
+                {...field}
+                id="df-employeeCode"
+                placeholder="E0042"
+                aria-invalid={!!error}
+                className="flex-1"
+              />
+              {mode === 'create' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isGeneratingCode}
+                  onClick={async () => {
+                    const result = await fetchNextCode();
+                    if (result.data) {
+                      field.onChange(result.data);
+                    } else {
+                      toast.error('Failed to generate employee code.');
+                    }
+                  }}
+                  className="shrink-0"
+                >
+                  <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  {isGeneratingCode ? 'Generating…' : 'Generate'}
+                </Button>
+              )}
+            </div>
+          ),
         },
         {
           name: 'designation',
