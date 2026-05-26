@@ -50,16 +50,13 @@ export function ManagerDashboard() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            href="/leave?view=bulk"
+            href="/leave?tab=approvals"
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
           >
             <CheckCheckIcon className="size-3.5" aria-hidden />
             Bulk approve
           </Link>
-          <Link
-            href="/employees?manager=me"
-            className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5')}
-          >
+          <Link href="/employees" className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5')}>
             <UsersIcon className="size-3.5" aria-hidden />
             View team
           </Link>
