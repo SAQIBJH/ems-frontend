@@ -13,6 +13,7 @@ export type RegularizationStatus = 'PENDING' | 'APPROVED' | 'DENIED';
 /** Shape of each record from GET /attendance/records */
 export interface AttendanceRecord {
   id: string;
+  referenceNo?: string;
   attendanceDate: string;
   checkInAt: string | null;
   checkOutAt: string | null;
@@ -56,6 +57,7 @@ export interface AttendanceRecordsParams {
   month?: string;
   fromDate?: string;
   toDate?: string;
+  employeeId?: string;
 }
 
 /** POST /attendance/check-in body */

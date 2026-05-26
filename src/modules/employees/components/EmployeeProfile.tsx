@@ -10,7 +10,6 @@ import {
   BriefcaseIcon,
   CalendarIcon,
   EditIcon,
-  FileTextIcon,
   MailIcon,
   MapPinIcon,
   PhoneIcon,
@@ -35,13 +34,11 @@ import { cn } from '@/lib/utils';
 import { useEmployee } from '../hooks/useEmployee';
 import { useDeleteEmployee } from '../hooks/useEmployeeMutations';
 import { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS } from '../constants';
-import type {
-  EmployeeDetail,
-  EmploymentStatus,
-  EmploymentType,
-  LeaveBalance,
-} from '../types/employee.types';
+import type { EmployeeDetail, EmploymentStatus, EmploymentType } from '../types/employee.types';
 import { DocumentsTab } from './DocumentsTab';
+import { AttendanceTab } from './AttendanceTab';
+import { LeaveTab } from './LeaveTab';
+import { ActivityTab } from './ActivityTab';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -181,75 +178,6 @@ function JobTab({ employee }: { employee: EmployeeDetail }) {
         <DetailRow icon={BriefcaseIcon} label="Pay currency" value={employee.payCurrency} />
       </div>
     </div>
-  );
-}
-
-/* ── Attendance tab (placeholder) ────────────────────────────────────────── */
-
-function AttendanceTab() {
-  return (
-    <EmptyState
-      title="Attendance records"
-      description="Attendance details will be available here."
-      icon={<CalendarIcon className="size-6 text-fg-muted" aria-hidden />}
-    />
-  );
-}
-
-/* ── Leave tab ────────────────────────────────────────────────────────────── */
-
-function LeaveTab({ balances }: { balances: LeaveBalance[] }) {
-  if (balances.length === 0) {
-    return (
-      <EmptyState
-        title="No leave balances"
-        description="Leave balances have not been configured for this employee."
-      />
-    );
-  }
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {balances.map((b) => (
-        <div
-          key={b.leaveTypeId}
-          className="space-y-3 rounded-lg border border-subtle bg-surface p-4"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-fg">{b.leaveType.name}</span>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {b.leaveType.code}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="tabular-nums text-xl font-semibold text-fg">{b.balance}</p>
-              <p className="text-[10px] uppercase tracking-wide text-fg-muted">Available</p>
-            </div>
-            <div>
-              <p className="tabular-nums text-xl font-semibold text-fg">{b.used}</p>
-              <p className="text-[10px] uppercase tracking-wide text-fg-muted">Used</p>
-            </div>
-            <div>
-              <p className="tabular-nums text-xl font-semibold text-warning">{b.pending}</p>
-              <p className="text-[10px] uppercase tracking-wide text-fg-muted">Pending</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Activity tab (placeholder) ──────────────────────────────────────────── */
-
-function ActivityTab() {
-  return (
-    <EmptyState
-      title="Activity log"
-      description="Audit trail for this employee will appear here."
-      icon={<FileTextIcon className="size-6 text-fg-muted" aria-hidden />}
-    />
   );
 }
 
@@ -449,13 +377,13 @@ export function EmployeeProfile({ id }: { id: string }) {
             <DocumentsTab employeeId={id} />
           </TabsContent>
           <TabsContent value="attendance">
-            <AttendanceTab />
+            <AttendanceTab employeeId={id} />
           </TabsContent>
           <TabsContent value="leave">
-            <LeaveTab balances={employee.leaveBalances} />
+            <LeaveTab balances={employee.leaveBalances} employeeId={id} />
           </TabsContent>
           <TabsContent value="activity">
-            <ActivityTab />
+            <ActivityTab employeeId={id} />
           </TabsContent>
         </Tabs>
       </div>

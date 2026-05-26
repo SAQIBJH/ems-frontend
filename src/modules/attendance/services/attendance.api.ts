@@ -33,6 +33,18 @@ export const attendanceApi = {
   },
 
   /**
+   * GET /attendance/team/records — MANAGER, HR_ADMIN
+   * Same envelope shape as getRecords: { records: [...], pagination: {} }
+   */
+  getTeamRecords: async (params?: AttendanceRecordsParams): Promise<AttendanceRecordsPage> => {
+    const { data } = await apiClient.get<{ data: AttendanceRecordsPage }>(
+      '/attendance/team/records',
+      { params },
+    );
+    return data.data;
+  },
+
+  /**
    * GET /attendance/summary
    * Returns { period, totalDays, present, absent, leave, wfh, halfDay, holiday, late, attendancePercentage }
    */

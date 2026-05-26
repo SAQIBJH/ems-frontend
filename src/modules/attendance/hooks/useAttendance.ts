@@ -11,10 +11,19 @@ export function useAttendanceToday() {
   });
 }
 
-export function useAttendanceRecords(params?: AttendanceRecordsParams) {
+export function useAttendanceRecords(params?: AttendanceRecordsParams, enabled = true) {
   return useQuery({
     queryKey: ['attendance', 'records', params ?? {}],
     queryFn: () => attendanceApi.getRecords(params),
+    enabled,
+  });
+}
+
+export function useAttendanceTeamRecords(params?: AttendanceRecordsParams, enabled = true) {
+  return useQuery({
+    queryKey: ['attendance', 'team-records', params ?? {}],
+    queryFn: () => attendanceApi.getTeamRecords(params),
+    enabled,
   });
 }
 
