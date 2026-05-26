@@ -66,4 +66,15 @@ export const employeesApi = {
     const { data } = await apiClient.delete<{ data: EmployeeDeleteResult }>(`/employees/${id}`);
     return data.data;
   },
+
+  /**
+   * GET /employees/export/csv → triggers a file download.
+   * Returns a Blob; caller must create an object URL and click a hidden anchor.
+   */
+  exportCsv: async (): Promise<Blob> => {
+    const response = await apiClient.get('/employees/export/csv', {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
 };
