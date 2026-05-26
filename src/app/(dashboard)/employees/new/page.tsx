@@ -1,5 +1,5 @@
-import { EmployeeForm } from '@/modules/employees';
+import { EmployeeFormStepper } from '@/modules/employees';
 
 export default function NewEmployeePage() {
-  return <EmployeeForm mode="create" />;
+  return <EmployeeFormStepper />;
 }

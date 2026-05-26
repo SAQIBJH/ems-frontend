@@ -2,6 +2,7 @@
 export { EmployeeTable } from './components/EmployeeTable';
 export { EmployeeProfile } from './components/EmployeeProfile';
 export { EmployeeForm } from './components/EmployeeForm';
+export { EmployeeFormStepper } from './components/EmployeeFormStepper';
 
 // Constants
 export { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS } from './constants';

@@ -87,7 +87,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 36 — Employee Profile: Documents tab — live API (Cloudinary multipart, HR-only upload/delete)
 - [x] Step 37 — Employee Profile: populate Attendance / Leave / Activity tabs
 - [x] Step 38 — Employee Profile: Deactivate with type-employee-code confirmation
-- [ ] Step 39 — Employee Create: 4-step stepper (Personal / Job / Documents / Access)
+- [x] Step 39 — Employee Create: 4-step stepper (Personal / Job / Documents / Access)
 
 #### Departments parity
 
@@ -1546,16 +1546,16 @@ pnpm lint
 
 **Wireframe checklist:**
 
-- [ ] 4-step indicator at top of the form.
-- [ ] Step 1 Personal · Step 2 Job · Step 3 Documents · Step 4 Access.
-- [ ] "Auto / E20XX" + Generate code button calls `/employees/next-code` (MSW).
-- [ ] Auto-save draft to localStorage every 30 s.
-- [ ] Documents step uses Step 36's upload flow.
-- [ ] Access step: role select + "Send invite email" toggle (no email-send API today — MSW noop).
+- [x] 4-step indicator at top of the form.
+- [x] Step 1 Personal · Step 2 Job · Step 3 Documents · Step 4 Access.
+- [x] "Auto / E20XX" + Generate code button calls `/employees/next-code` (live — no MSW needed; shape deviation: `nextCode` field).
+- [x] Auto-save draft to localStorage every 30 s.
+- [x] Documents step uses Step 36's upload flow (queued locally, uploaded after employee creation).
+- [x] Access step: role select + "Send invite email" toggle (UI-only — no API today).
 
 **Build:**
 
-1. MSW handler for `GET /employees/next-code`.
+1. ~~MSW handler for `GET /employees/next-code`~~ — live endpoint; `getNextCode()` + `useNextEmployeeCode` hook already shipped.
 2. `src/modules/employees/components/EmployeeFormStepper.tsx` — new wrapper with step state, validation per step, back/next navigation. Uses RHF (one shared form, multiple step views).
 3. Migrate the existing flat form sections into the stepper steps. Step 3 (Documents) and Step 4 (Access) are new.
 4. localStorage draft auto-save — debounce 30 s, key `ems:emp-create-draft:<userId>`.
