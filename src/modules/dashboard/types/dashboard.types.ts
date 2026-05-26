@@ -141,13 +141,36 @@ export interface EmployeeTeamResponse {
   peers: TeamPerson[];
 }
 
+/** One item in leaveBalanceSummary from GET /employee/dashboard */
+export interface EmployeeLeaveBalance {
+  code: string;
+  name: string;
+  available: number;
+}
+
+/** GET /employee/documents → data.documents[] */
+export interface EmployeeDocument {
+  id: string;
+  filename: string;
+  category: string;
+  sizeBytes: number;
+  status: 'VERIFIED' | 'PENDING' | 'REJECTED';
+  uploadedAt: string;
+}
+
 /** GET /employee/dashboard */
 export interface EmployeeDashboardData {
   employeeName: string;
   designation: string;
   department: string;
-  todayAttendance: Record<string, unknown>;
+  todayAttendance: {
+    checkedInAt: string | null;
+    checkedOutAt: string | null;
+    workMode: string | null;
+    status: string | null;
+  } | null;
   pendingLeaves: number;
+  leaveBalanceSummary: EmployeeLeaveBalance[];
 }
 
 export type AttendanceRange = '7d' | '30d' | '90d';

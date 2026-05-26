@@ -2,6 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { attendanceApi } from '../services/attendance.api';
 import type { AttendanceRecordsParams } from '../types/attendance.types';
 
+export function useAttendanceToday() {
+  return useQuery({
+    queryKey: ['attendance', 'today'],
+    queryFn: attendanceApi.getToday,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
 export function useAttendanceRecords(params?: AttendanceRecordsParams) {
   return useQuery({
     queryKey: ['attendance', 'records', params ?? {}],

@@ -13,6 +13,15 @@ import type {
 
 export const attendanceApi = {
   /**
+   * GET /attendance/today
+   * Returns today's attendance record or null if not checked in yet.
+   */
+  getToday: async (): Promise<AttendanceRecord | null> => {
+    const { data } = await apiClient.get<{ data: AttendanceRecord | null }>('/attendance/today');
+    return data.data;
+  },
+
+  /**
    * GET /attendance/records
    * Returns { records: [...], pagination: {} }
    */

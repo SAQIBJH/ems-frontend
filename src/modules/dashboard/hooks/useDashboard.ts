@@ -92,3 +92,11 @@ export function useEmployeeTeam() {
     staleTime: 60_000,
   });
 }
+
+export function useEmployeeDocuments() {
+  return useQuery({
+    queryKey: ['employee', 'documents'],
+    queryFn: dashboardApi.getEmployeeDocuments,
+    staleTime: 5 * 60_000,
+  });
+}

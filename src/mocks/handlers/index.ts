@@ -1,6 +1,7 @@
 import { healthMockHandlers } from './health-mock';
 import { employeeHandlers } from './employees';
 import { authHandlers } from './auth';
+import { employeeSelfServiceHandlers } from './employee-self-service';
 
 // MSW intercepts these when NEXT_PUBLIC_USE_MOCKS=true.
 //
@@ -10,5 +11,12 @@ import { authHandlers } from './auth';
 //
 // Still mocked (backend not yet built):
 //   POST /auth/otp/initiate
+//   GET /employee/dashboard (todayAttendance + leaveBalanceSummary fields)
+//   GET /employee/documents
 
-export const handlers = [...healthMockHandlers, ...authHandlers, ...employeeHandlers];
+export const handlers = [
+  ...healthMockHandlers,
+  ...authHandlers,
+  ...employeeHandlers,
+  ...employeeSelfServiceHandlers,
+];

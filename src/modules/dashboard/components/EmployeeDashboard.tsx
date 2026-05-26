@@ -1,12 +1,17 @@
 'use client';
 
-import Link from 'next/link';
-import { CalendarIcon, ClipboardListIcon, UsersIcon } from 'lucide-react';
-import { StatsCard } from '@/components/data-display/StatsCard';
-import { ErrorState } from '@/components/feedback/ErrorState';
+import { useState } from 'react';
+import { CalendarPlusIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/providers';
+import { NewLeaveRequestDialog } from '@/modules/leave/components/NewLeaveRequestDialog';
+
 import { useEmployeeDashboard, useEmployeeTeam } from '../hooks/useDashboard';
+import { TodayAttendanceCard } from './TodayAttendanceCard';
+import { LeaveBalanceMiniCard } from './LeaveBalanceMiniCard';
+import { UpcomingHolidaysCard } from './UpcomingHolidaysCard';
+import { MyDocumentsCard } from './MyDocumentsCard';
 import type { TeamPerson } from '../types/dashboard.types';
 
 function TeamPersonRow({ person, isManager }: { person: TeamPerson; isManager?: boolean }) {
@@ -18,7 +23,7 @@ function TeamPersonRow({ person, isManager }: { person: TeamPerson; isManager?: 
     .toUpperCase();
 
   return (
-    <li className="flex items-center gap-3 py-2">
+    <li className="flex items-center gap-3 py-2.5">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
         {initials}
       </span>
@@ -35,7 +40,7 @@ function TeamPersonRow({ person, isManager }: { person: TeamPerson; isManager?: 
   );
 }
 
-function EmployeeTeamPanel() {
+function MyTeamPanel() {
   const { data, isLoading, isError, refetch } = useEmployeeTeam();
   const hasContent = data && (data.manager || (data.peers && data.peers.length > 0));
 
@@ -48,7 +53,7 @@ function EmployeeTeamPanel() {
         {isLoading ? (
           <div className="space-y-3 py-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3">
+              <div key={i} className="flex items-center gap-3 py-1">
                 <Skeleton className="size-8 rounded-full" />
                 <div className="flex-1 space-y-1">
                   <Skeleton className="h-3.5 w-36" />
@@ -59,7 +64,14 @@ function EmployeeTeamPanel() {
           </div>
         ) : isError ? (
           <div className="py-4">
-            <ErrorState message="Failed to load team" onRetry={() => refetch()} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetch()}
+              className="text-xs text-danger"
+            >
+              Failed to load team — Retry
+            </Button>
           </div>
         ) : !hasContent ? (
           <p className="py-6 text-center text-sm text-fg-muted">No team members found.</p>
@@ -79,82 +91,48 @@ function EmployeeTeamPanel() {
 export function EmployeeDashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useEmployeeDashboard();
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
 
-  const displayName =
-    data?.employeeName ??
-    (user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : (user?.email ?? ''));
-
-  const firstName = user?.employee?.firstName ?? displayName.split(' ')[0];
+  const firstName = user?.employee?.firstName ?? data?.employeeName?.split(' ')[0] ?? '';
+  const subtitle = data ? `${data.designation} · ${data.department}` : null;
 
   return (
     <div className="space-y-6 p-6">
-      {/* Greeting */}
-      <div>
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-40" />
-            <Skeleton className="h-4 w-56" />
-          </div>
-        ) : (
-          <>
-            <h1 className="text-2xl font-semibold tracking-tight text-fg">Hi, {firstName}</h1>
-            <p className="mt-0.5 text-sm text-fg-muted">
-              {data?.designation ? `${data.designation} · ${data.department}` : 'Welcome back.'}
-            </p>
-          </>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatsCard
-          label="Pending Leave Requests"
-          value={data?.pendingLeaves ?? 0}
-          icon={<ClipboardListIcon className="size-4" aria-hidden />}
-          loading={isLoading}
-          href="/leave"
-        />
-        <StatsCard
-          label="My Attendance"
-          value="View"
-          icon={<CalendarIcon className="size-4" aria-hidden />}
-          loading={false}
-          href="/attendance"
-        />
-        <StatsCard
-          label="Team Members"
-          value="View"
-          icon={<UsersIcon className="size-4" aria-hidden />}
-          loading={false}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <EmployeeTeamPanel />
-
-        {/* Quick links */}
-        <div className="rounded-lg border border-subtle bg-surface">
-          <div className="border-b border-subtle px-5 py-3">
-            <h2 className="text-sm font-medium text-fg">Quick Actions</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
-            {[
-              { label: 'Request Leave', href: '/leave', icon: CalendarIcon },
-              { label: 'View Attendance', href: '/attendance', icon: CalendarIcon },
-              { label: 'Upcoming Holidays', href: '/holidays', icon: CalendarIcon },
-            ].map(({ label, href, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-2.5 rounded-lg border border-subtle bg-surface-2 px-4 py-3 text-sm font-medium text-fg transition-colors hover:bg-surface hover:border-default-border"
-              >
-                <Icon className="size-4 text-fg-muted" aria-hidden />
-                {label}
-              </Link>
-            ))}
-          </div>
+      {/* Greeting + action */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-40" />
+              <Skeleton className="h-4 w-56" />
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-semibold tracking-tight text-fg">Hi, {firstName}</h1>
+              {subtitle && <p className="mt-0.5 text-sm text-fg-muted">{subtitle}</p>}
+            </>
+          )}
         </div>
+        <Button size="sm" className="shrink-0 gap-1.5" onClick={() => setLeaveDialogOpen(true)}>
+          <CalendarPlusIcon className="size-4" aria-hidden />
+          Request leave
+        </Button>
       </div>
+
+      {/* Row 1: 3-column cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <TodayAttendanceCard />
+        <LeaveBalanceMiniCard />
+        <UpcomingHolidaysCard />
+      </div>
+
+      {/* Row 2: 2-column panels */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <MyDocumentsCard />
+        <MyTeamPanel />
+      </div>
+
+      <NewLeaveRequestDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} />
     </div>
   );
 }

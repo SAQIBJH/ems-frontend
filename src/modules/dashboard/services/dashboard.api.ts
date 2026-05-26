@@ -5,6 +5,7 @@ import type {
   AttendanceRange,
   DepartmentHeadcount,
   EmployeeDashboardData,
+  EmployeeDocument,
   LeaveSummaryAnalytics,
   ManagerApprovalsResponse,
   ManagerDashboardData,
@@ -125,5 +126,16 @@ export const dashboardApi = {
   getEmployeeTeam: async (): Promise<EmployeeTeamResponse> => {
     const { data } = await apiClient.get<{ data: EmployeeTeamResponse }>('/employee/team');
     return data.data;
+  },
+
+  /**
+   * GET /employee/documents
+   * Returns { documents: [...] } — MSW backed until backend ships.
+   */
+  getEmployeeDocuments: async (): Promise<EmployeeDocument[]> => {
+    const { data } = await apiClient.get<{ data: { documents: EmployeeDocument[] } }>(
+      '/employee/documents',
+    );
+    return data.data.documents;
   },
 };
