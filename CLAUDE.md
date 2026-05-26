@@ -189,26 +189,25 @@ GET    /api/v1/search?q=&type=&page=&limit=
 
 ### What still needs MSW
 
-Backend coverage is partial. **`docs/BACKEND_API_REQUESTS.md`** is the
-authoritative list of endpoints the frontend needs that don't yet exist on
-the backend — it includes the **exact response shape** each MSW handler must
-return, so that when the real endpoint ships the frontend swaps the mock for
-live with no other change.
+The backend team shipped all previously-mocked endpoints as of 2026-05-26.
+Only **two** endpoints remain unimplemented on the backend and are still
+served by MSW (see `docs/BACKEND_API_REQUESTS.md` §1 and §8 for shapes):
 
-Categories currently mocked (see `BACKEND_API_REQUESTS.md` for the full per-endpoint spec):
+- **`POST /auth/otp/initiate`** — MFA challenge initiation
+- **`POST /holidays/import`** (+ preview + commit) — `.ics` file import flow
 
-- **Auth extras** — OTP initiate (`POST /auth/otp/initiate`) only; forgot-password,
-  reset-password, verify-otp are all live as of 2026-05-25
-- **Document upload** — pre-signed S3 upload + confirm + delete
-- **Employees convenience** — `next-code`, bulk deactivate, bulk export
-- **Departments** — reassign-and-delete, list-employees
-- **Leave** — bulk approve/reject, team calendar, coverage warning
-- **Holidays** — `.ics` import (upload + preview + commit)
-- **Settings** — branding, leave-types CRUD, attendance rules, auth settings, notification preferences
-- **Custom roles** — create / delete / assign
-- **Analytics** — summary deltas, weekly team grid, manager-dashboard `approvalBreakdown`, employee-dashboard `todayAttendance` + `leaveBalanceSummary`
-- **Activity feed** — `entity_label` + `entity_url` augmentation
-- **Resignations** — Prisma model exists, no routes
+All other requests pass through MSW unmatched → BFF → real Render backend.
+
+### Shape deviations from `BACKEND_API_REQUESTS.md` (do NOT mock these — use live shape)
+
+The backend shipped some endpoints with shapes that differ from what was
+documented. Frontend code uses the actual live shapes below:
+
+| Endpoint                                | Documented shape                          | Actual live shape                                                     |
+| --------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------- |
+| `GET /employees/next-code`              | `data.code`                               | `data.nextCode`                                                       |
+| `POST /employees/:id/documents/presign` | `uploadUrl` = S3 presign, `method: "PUT"` | `uploadUrl` = our own Cloudinary multipart endpoint, `method: "POST"` |
+| `GET /leave/team/calendar`              | `members[].days[]` per-day status grid    | `members[].leaves[]` range objects                                    |
 
 ### MSW discipline (unchanged)
 
