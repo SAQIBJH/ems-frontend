@@ -6,13 +6,13 @@ import type {
   DepartmentHeadcount,
   EmployeeDashboardData,
   LeaveSummaryAnalytics,
+  ManagerApprovalsResponse,
   ManagerDashboardData,
   RecentActivityItem,
   TeamMember,
   TeamWeeklyAttendance,
   EmployeeTeamResponse,
 } from '../types/dashboard.types';
-import type { LeaveRequest } from '@/modules/leave/types/leave.types';
 
 export const dashboardApi = {
   /**
@@ -81,10 +81,10 @@ export const dashboardApi = {
 
   /**
    * GET /manager/approvals
-   * Pending leave (and regularization) requests for the manager's team
+   * Returns { leaveRequests: [...], regularizationRequests: [...] }
    */
-  getManagerApprovals: async (): Promise<LeaveRequest[]> => {
-    const { data } = await apiClient.get<{ data: LeaveRequest[] }>('/manager/approvals');
+  getManagerApprovals: async (): Promise<ManagerApprovalsResponse> => {
+    const { data } = await apiClient.get<{ data: ManagerApprovalsResponse }>('/manager/approvals');
     return data.data;
   },
 

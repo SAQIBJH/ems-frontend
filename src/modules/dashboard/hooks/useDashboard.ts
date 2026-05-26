@@ -57,6 +57,7 @@ export function useManagerApprovals() {
     queryKey: ['manager', 'approvals'],
     queryFn: dashboardApi.getManagerApprovals,
     staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 

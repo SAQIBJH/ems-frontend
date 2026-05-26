@@ -63,6 +63,35 @@ export interface RecentActivityItem {
   entity_url?: string | null;
 }
 
+/** One leave request item in GET /manager/approvals */
+export interface ManagerLeaveApproval {
+  id: string;
+  employeeCode: string;
+  employeeName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason: string;
+  status: string;
+}
+
+/** One regularization item in GET /manager/approvals */
+export interface ManagerRegularizationApproval {
+  id: string;
+  employeeCode: string;
+  employeeName: string;
+  attendanceDate: string;
+  reason: string;
+  status: string;
+}
+
+/** GET /manager/approvals */
+export interface ManagerApprovalsResponse {
+  leaveRequests: ManagerLeaveApproval[];
+  regularizationRequests: ManagerRegularizationApproval[];
+}
+
 /** GET /manager/dashboard (extended live shape 2026-05-25) */
 export interface ManagerDashboardData {
   managerName: string;
