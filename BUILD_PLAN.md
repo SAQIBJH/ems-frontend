@@ -78,7 +78,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 - [x] Step 31 — HR Admin Dashboard: rebuild to wireframe screen 04
 - [x] Step 32 — Manager Dashboard: rebuild to wireframe screen 05
-- [ ] Step 33 — Employee Dashboard: rebuild to wireframe screen 06
+- [x] Step 33 — Employee Dashboard: rebuild to wireframe screen 06
 
 #### Employees screens parity
 

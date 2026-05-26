@@ -1,5 +1,6 @@
 import { healthMockHandlers } from './health-mock';
 import { authHandlers } from './auth';
+import { employeeSelfServiceHandlers } from './employee-self-service';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -8,6 +9,8 @@ import { authHandlers } from './auth';
 // ── Still mocked (backend not yet built — 2026-05-26) ──────────────────────
 //   POST /auth/otp/initiate          — MFA challenge initiation
 //   POST /holidays/import            — .ics import + preview + commit
+//   GET  /employee/dashboard         — leaveBalanceSummary not yet on live backend
+//   GET  /employee/documents         — no live endpoint yet
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
@@ -16,7 +19,8 @@ import { authHandlers } from './auth';
 //   Attendance  records, summary, check-in/out, regularization, team/weekly
 //   Holidays    CRUD, upcoming
 //   Analytics   summary (+deltas), attendance, headcount, recent-activity
-//   Dashboards  /employee/dashboard, /manager/dashboard (both extended)
+//   Dashboards  /manager/dashboard (extended)
+//   Employee    /employee/team (live)
 //   Notifications GET, PATCH read, PATCH read-all
 //   Search      GET /search
 //   Settings    tenant, branding, attendance-rules, security/auth,
@@ -31,4 +35,4 @@ import { authHandlers } from './auth';
 //   GET /leave/team/calendar       → members[].leaves[] (range objects),
 //                                     not members[].days[] (per-day status grid)
 
-export const handlers = [...healthMockHandlers, ...authHandlers];
+export const handlers = [...healthMockHandlers, ...authHandlers, ...employeeSelfServiceHandlers];
