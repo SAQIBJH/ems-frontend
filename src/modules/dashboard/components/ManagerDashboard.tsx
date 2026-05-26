@@ -68,7 +68,7 @@ export function ManagerDashboard() {
 
       {/* Stats row */}
       {summaryError ? (
-        <ErrorState message="Failed to load dashboard" onRetry={() => refetchSummary()} />
+        <ErrorState compact message="Failed to load dashboard" onRetry={() => refetchSummary()} />
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatsCard

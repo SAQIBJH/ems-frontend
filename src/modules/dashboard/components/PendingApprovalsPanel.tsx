@@ -24,6 +24,9 @@ export function PendingApprovalsPanel() {
   const approve = useApproveLeaveRequest();
   const reject = useRejectLeaveRequest();
   const [denying, setDenying] = useState<string | null>(null);
+  console.log('Pending approvals:', data);
+  console.log('Approve mutation:', approve);
+  console.log('Reject mutation:', reject);
 
   const pending = (data ?? []).filter((r) => r.status === 'PENDING');
 
@@ -48,8 +51,12 @@ export function PendingApprovalsPanel() {
             ))}
           </div>
         ) : isError ? (
-          <div className="p-5">
-            <ErrorState message="Failed to load pending approvals" onRetry={() => refetch()} />
+          <div className="p-4">
+            <ErrorState
+              compact
+              message="Failed to load pending approvals"
+              onRetry={() => refetch()}
+            />
           </div>
         ) : pending.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 px-5">

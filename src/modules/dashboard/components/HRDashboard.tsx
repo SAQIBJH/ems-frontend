@@ -93,7 +93,7 @@ function AttendanceTrendChart() {
       {isLoading ? (
         <Skeleton className="h-60 w-full rounded-md" />
       ) : isError ? (
-        <ErrorState message="Failed to load attendance data" onRetry={() => refetch()} />
+        <ErrorState compact message="Failed to load attendance data" onRetry={() => refetch()} />
       ) : chartData.length === 0 ? (
         <div className="flex h-60 items-center justify-center text-sm text-fg-muted">
           No attendance data for this period.
@@ -130,7 +130,7 @@ function HeadcountChart() {
       {isLoading ? (
         <Skeleton className="h-56 w-full rounded-md" />
       ) : isError ? (
-        <ErrorState message="Failed to load headcount data" onRetry={() => refetch()} />
+        <ErrorState compact message="Failed to load headcount data" onRetry={() => refetch()} />
       ) : chartData.length === 0 ? (
         <div className="flex h-56 items-center justify-center text-sm text-fg-muted">
           No department data available.
@@ -218,7 +218,7 @@ function RecentActivityTable() {
           ))}
         </div>
       ) : isError ? (
-        <ErrorState message="Failed to load recent activity" onRetry={() => refetch()} />
+        <ErrorState compact message="Failed to load recent activity" onRetry={() => refetch()} />
       ) : !data || data.length === 0 ? (
         <div className="py-6 text-center text-sm text-fg-muted">No recent activity.</div>
       ) : (
@@ -296,7 +296,7 @@ export function HRDashboard() {
 
       {/* Stats row */}
       {summaryError ? (
-        <ErrorState message="Failed to load summary" onRetry={() => refetchSummary()} />
+        <ErrorState compact message="Failed to load summary" onRetry={() => refetchSummary()} />
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatsCard

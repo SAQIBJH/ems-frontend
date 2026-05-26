@@ -50,7 +50,7 @@ export function TeamWeeklyAttendanceGrid() {
             ))}
           </div>
         ) : isError ? (
-          <ErrorState message="Failed to load team attendance" onRetry={() => refetch()} />
+          <ErrorState compact message="Failed to load team attendance" onRetry={() => refetch()} />
         ) : !data || data.members.length === 0 ? (
           <div className="py-8 text-center text-sm text-fg-muted">No team attendance data.</div>
         ) : (
