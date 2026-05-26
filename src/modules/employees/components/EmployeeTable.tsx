@@ -33,6 +33,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -469,17 +470,18 @@ export function EmployeeTable() {
               {DENSITY_LABELS[density]}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="text-xs">Row density</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {(Object.keys(DENSITY_LABELS) as Density[]).map((d) => (
-                <DropdownMenuItem
-                  key={d}
-                  onClick={() => changeDensity(d)}
-                  className={cn(density === d && 'font-medium text-brand')}
-                >
-                  {DENSITY_LABELS[d]}
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs">Row density</DropdownMenuLabel>
+                {(Object.keys(DENSITY_LABELS) as Density[]).map((d) => (
+                  <DropdownMenuItem
+                    key={d}
+                    onClick={() => changeDensity(d)}
+                    className={cn(density === d && 'font-medium text-brand')}
+                  >
+                    {DENSITY_LABELS[d]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -495,17 +497,18 @@ export function EmployeeTable() {
               Columns
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="text-xs">Toggle columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {ALL_COLUMN_IDS.filter((id) => id !== 'actions').map((id) => (
-                <DropdownMenuCheckboxItem
-                  key={id}
-                  checked={columnVisibility[id]}
-                  onCheckedChange={(checked) => toggleColumn(id, checked)}
-                >
-                  {COLUMN_LABELS[id]}
-                </DropdownMenuCheckboxItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs">Toggle columns</DropdownMenuLabel>
+                {ALL_COLUMN_IDS.filter((id) => id !== 'actions').map((id) => (
+                  <DropdownMenuCheckboxItem
+                    key={id}
+                    checked={columnVisibility[id]}
+                    onCheckedChange={(checked) => toggleColumn(id, checked)}
+                  >
+                    {COLUMN_LABELS[id]}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
