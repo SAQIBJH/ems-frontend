@@ -255,16 +255,15 @@ function DocumentsSkeleton() {
 /* ── main component ───────────────────────────────────────────────────────── */
 
 export function DocumentsTab({ employeeId }: { employeeId: string }) {
-  const { user, permissions } = useAuth();
+  const { permissions } = useAuth();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data: documents, isLoading, isError, refetch } = useEmployeeDocuments(employeeId);
   const removeMutation = useRemoveDocument(employeeId);
 
-  const isSelf = user?.employeeId === employeeId;
-  const canUpload = isSelf || permissions.includes('employees:write');
-  const canDelete = permissions.includes('employees:delete') || isSelf;
+  const canUpload = permissions.includes('employees:write');
+  const canDelete = permissions.includes('employees:delete');
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -294,7 +293,7 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
             : 'No documents'}
         </p>
         {canUpload && (
-          <PermissionWrapper permission="employees:write" fallback={isSelf ? undefined : null}>
+          <PermissionWrapper permission="employees:write">
             <Button
               size="sm"
               variant="outline"
