@@ -116,3 +116,19 @@ export interface EmployeeDeleteResult {
   id: string;
   status: 'TERMINATED';
 }
+
+export interface BulkDeactivateFailure {
+  id: string;
+  code: string;
+  message: string;
+}
+
+export interface BulkDeactivateResult {
+  succeeded: string[];
+  failed: BulkDeactivateFailure[];
+}
+
+export interface BulkExportResult {
+  jobId: string;
+  status: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+}

@@ -6,6 +6,8 @@ import { queryClient } from '@/lib/query-client';
 import type { ApiError } from '@/types/api';
 import { employeesApi } from '../services/employees.api';
 import type {
+  BulkDeactivateResult,
+  BulkExportResult,
   EmployeeCreateInput,
   EmployeeDeleteResult,
   EmployeeDetail,
@@ -37,5 +39,20 @@ export function useDeleteEmployee() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
+  });
+}
+
+export function useBulkDeactivate() {
+  return useMutation<BulkDeactivateResult, AxiosError<ApiError>, string[]>({
+    mutationFn: employeesApi.bulkDeactivate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+}
+
+export function useBulkExport() {
+  return useMutation<BulkExportResult, AxiosError<ApiError>, string[]>({
+    mutationFn: employeesApi.bulkExport,
   });
 }

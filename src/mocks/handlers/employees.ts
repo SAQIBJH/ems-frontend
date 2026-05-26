@@ -152,6 +152,44 @@ export const employeeHandlers = [
   }),
 
   /**
+   * POST /api/employees/bulk/deactivate → 200
+   * Shape: { success, data: { succeeded: string[], failed: [...] } }
+   */
+  http.post('/api/employees/bulk/deactivate', async ({ request }) => {
+    const body = (await request.json()) as { ids: string[] };
+    const succeeded: string[] = [];
+    const failed: Array<{ id: string; code: string; message: string }> = [];
+
+    for (const id of body.ids) {
+      const emp = store.find((e) => e.id === id);
+      if (!emp) {
+        failed.push({ id, code: 'NOT_FOUND', message: 'Employee not found.' });
+      } else if (emp.employmentStatus === 'TERMINATED') {
+        failed.push({ id, code: 'ALREADY_TERMINATED', message: 'Employee is already inactive.' });
+      } else {
+        store = store.map((e) =>
+          e.id === id ? { ...e, employmentStatus: 'TERMINATED' as const } : e,
+        );
+        succeeded.push(id);
+      }
+    }
+
+    return HttpResponse.json({ success: true, data: { succeeded, failed }, meta: {} });
+  }),
+
+  /**
+   * POST /api/employees/bulk/export → 200
+   * Shape: { success, data: { jobId: string, status: "PENDING" } }
+   */
+  http.post('/api/employees/bulk/export', async () => {
+    return HttpResponse.json({
+      success: true,
+      data: { jobId: `job-${Date.now()}`, status: 'PENDING' },
+      meta: {},
+    });
+  }),
+
+  /**
    * DELETE /api/employees/:id → 200 (soft delete)
    * Shape: { success, data: { id, status: "TERMINATED" } }
    */

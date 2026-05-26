@@ -1,6 +1,8 @@
 import { apiClient } from '@/lib/api-client';
 import { formatDateForApi } from '@/lib/date';
 import type {
+  BulkDeactivateResult,
+  BulkExportResult,
   EmployeeCreateInput,
   EmployeeDeleteResult,
   EmployeeDetail,
@@ -76,5 +78,29 @@ export const employeesApi = {
       responseType: 'blob',
     });
     return response.data as Blob;
+  },
+
+  /**
+   * POST /employees/bulk/deactivate → 200
+   * Soft-deactivates multiple employees; returns per-id success/failure.
+   */
+  bulkDeactivate: async (ids: string[]): Promise<BulkDeactivateResult> => {
+    const { data } = await apiClient.post<{ data: BulkDeactivateResult }>(
+      '/employees/bulk/deactivate',
+      { ids },
+    );
+    return data.data;
+  },
+
+  /**
+   * POST /employees/bulk/export → 200
+   * Enqueues a bulk CSV export job; returns the job ID.
+   */
+  bulkExport: async (ids: string[]): Promise<BulkExportResult> => {
+    const { data } = await apiClient.post<{ data: BulkExportResult }>('/employees/bulk/export', {
+      ids,
+      format: 'csv',
+    });
+    return data.data;
   },
 };
