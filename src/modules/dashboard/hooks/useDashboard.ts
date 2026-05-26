@@ -52,6 +52,22 @@ export function useManagerDashboard() {
   });
 }
 
+export function useManagerApprovals() {
+  return useQuery({
+    queryKey: ['manager', 'approvals'],
+    queryFn: dashboardApi.getManagerApprovals,
+    staleTime: 30_000,
+  });
+}
+
+export function useTeamWeeklyAttendance(weekStart?: string) {
+  return useQuery({
+    queryKey: ['attendance', 'team-weekly', weekStart ?? 'current'],
+    queryFn: () => dashboardApi.getTeamWeeklyAttendance(weekStart),
+    staleTime: 60_000,
+  });
+}
+
 export function useManagerTeam() {
   return useQuery({
     queryKey: ['manager', 'team'],

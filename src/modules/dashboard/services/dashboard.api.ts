@@ -9,8 +9,10 @@ import type {
   ManagerDashboardData,
   RecentActivityItem,
   TeamMember,
+  TeamWeeklyAttendance,
   EmployeeTeamResponse,
 } from '../types/dashboard.types';
+import type { LeaveRequest } from '@/modules/leave/types/leave.types';
 
 export const dashboardApi = {
   /**
@@ -74,6 +76,27 @@ export const dashboardApi = {
    */
   getManagerDashboard: async (): Promise<ManagerDashboardData> => {
     const { data } = await apiClient.get<{ data: ManagerDashboardData }>('/manager/dashboard');
+    return data.data;
+  },
+
+  /**
+   * GET /manager/approvals
+   * Pending leave (and regularization) requests for the manager's team
+   */
+  getManagerApprovals: async (): Promise<LeaveRequest[]> => {
+    const { data } = await apiClient.get<{ data: LeaveRequest[] }>('/manager/approvals');
+    return data.data;
+  },
+
+  /**
+   * GET /attendance/team/weekly?weekStart=YYYY-MM-DD
+   * Weekly attendance grid for the manager's team
+   */
+  getTeamWeeklyAttendance: async (weekStart?: string): Promise<TeamWeeklyAttendance> => {
+    const { data } = await apiClient.get<{ data: TeamWeeklyAttendance }>(
+      '/attendance/team/weekly',
+      { params: weekStart ? { weekStart } : undefined },
+    );
     return data.data;
   },
 

@@ -63,12 +63,29 @@ export interface RecentActivityItem {
   entity_url?: string | null;
 }
 
-/** GET /manager/dashboard */
+/** GET /manager/dashboard (extended live shape 2026-05-25) */
 export interface ManagerDashboardData {
   managerName: string;
   teamSize: number;
   pendingApprovals: number;
+  approvalBreakdown?: { leave: number; regularization: number };
+  presentToday?: number;
+  avgAttendancePercent?: number;
   todayAttendance: Record<string, unknown>;
+}
+
+/** One member row in GET /attendance/team/weekly */
+export interface TeamWeeklyMember {
+  employeeId: string;
+  name: string;
+  designation: string;
+  days: { date: string; code: string }[];
+}
+
+/** GET /attendance/team/weekly */
+export interface TeamWeeklyAttendance {
+  weekStart: string;
+  members: TeamWeeklyMember[];
 }
 
 /** One entry in GET /manager/team */
