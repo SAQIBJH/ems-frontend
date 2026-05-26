@@ -82,9 +82,9 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Employees screens parity
 
-- [ ] Step 34 — Employees List: Code + Joined columns, Density/Columns menus, Export button
-- [ ] Step 35 — Employees List: bulk deactivate + bulk export (MSW)
-- [ ] Step 36 — Employee Profile: populate Documents tab (MSW for upload)
+- [x] Step 34 — Employees List: Code + Joined columns, Density/Columns menus, Export button
+- [x] Step 35 — Employees List: bulk deactivate + bulk export (MSW)
+- [x] Step 36 — Employee Profile: Documents tab — live API (Cloudinary multipart, HR-only upload/delete)
 - [ ] Step 37 — Employee Profile: populate Attendance / Leave / Activity tabs
 - [ ] Step 38 — Employee Profile: Deactivate with type-employee-code confirmation
 - [ ] Step 39 — Employee Create: 4-step stepper (Personal / Job / Documents / Access)
@@ -1378,56 +1378,127 @@ pnpm lint
 
 ---
 
-## STEP 36 — Employee Profile: populate Documents tab (MSW for upload)
+## STEP 36 — Employee Profile: Documents tab ✅
 
-**Goal:** Documents tab on profile shows list + supports upload.
+**Implemented:** Live Cloudinary-backed API (no MSW). Direct `POST /employees/:id/documents` multipart upload. Upload + delete gated to `employees:write` / `employees:delete` (HR_ADMIN, SUPER_ADMIN only — employees are read-only viewers).
 
-**Read first:** Wireframe screen 08 (Documents preview list); `BACKEND_API_REQUESTS.md §4`.
+**Files:**
 
-**API gaps (MSW):**
+- `src/modules/employees/types/employee.types.ts` — `EmployeeDocument`, `DocumentType`, `DocumentVerificationStatus`
+- `src/modules/employees/services/documents.api.ts` — `list`, `upload`, `remove`
+- `src/modules/employees/hooks/useDocuments.ts` — `useEmployeeDocuments`, `useUploadDocument`, `useRemoveDocument`
+- `src/modules/employees/components/DocumentsTab.tsx`
 
-- `POST /employees/:id/documents/presign`, `confirm`, `DELETE`, list.
-
-**Build:**
-
-1. MSW handlers per spec. Simulate the two-step pre-sign + confirm flow (the "S3 PUT" can be a no-op — MSW returns success).
-2. Module `src/modules/employees/` extension: types for `EmployeeDocument`, service methods, hooks.
-3. Component `src/modules/employees/components/DocumentsTab.tsx`:
-   - List with name, category, size, status badge, upload date.
-   - Upload button → file picker → presign → "S3 PUT" (simulated) → confirm.
-   - Delete with `ConfirmDialog`.
-   - Permission-gated upload/delete (self or HR).
-4. Wire into the profile tabs.
-
-**Definition of done:** upload a PDF (mock) → appears in list → can delete.
-
-**Test Gate:**
-
-```bash
-pnpm typecheck
-pnpm lint
-```
-
-**Commit:** `feat(employee-profile): documents tab with upload (MSW)`
-
-**STOP.** Wait for "next".
+**Commits:** `feat(employee-profile): documents tab with upload (live API)`, `fix(employee-profile): documents list handles both response shapes + fix multipart upload`, `fix(employee-profile): restrict document upload/delete to HR_ADMIN+ only`
 
 ---
 
 ## STEP 37 — Employee Profile: populate Attendance / Leave / Activity tabs
 
-**Goal:** Each tab shows real data for that employee.
+**Goal:** Each tab shows real data for that employee. All tabs read-only — no approve/reject/withdraw actions here.
 
-**Read first:** Wireframe screen 08 tab annotations.
+**Read first:** `docs/API_MAPPING.md` — "GET /attendance/records", "GET /attendance/team/records", "GET /leave/requests", "GET /audit-logs".
 
-**Build:**
+---
 
-1. `AttendanceTab.tsx` — embeds the existing month calendar scoped to `employeeId`. Uses `/attendance/records?employeeId=&month=`.
-2. `LeaveTab.tsx` — uses existing leave table filtered by `employeeId`.
-3. `ActivityTab.tsx` — `/audit-logs?entity=Employee&entityId=:id&limit=20`. Same row format as HR Dashboard Recent Activity.
-4. Lazy-load via `next/dynamic` (wireframe annotation).
+### Attendance tab
 
-**Definition of done:** click through tabs on a profile — each shows data filtered to that employee.
+**Two endpoints depending on viewer:**
+
+| Viewer   | Endpoint                                                     | Detection                        |
+| -------- | ------------------------------------------------------------ | -------------------------------- |
+| Self     | `GET /attendance/records?month=YYYY-MM`                      | `user.employeeId === employeeId` |
+| HR/Admin | `GET /attendance/team/records?employeeId=<id>&month=YYYY-MM` | Otherwise                        |
+
+**Response shape (both endpoints):** `{ data: { records: [...], pagination: {} } }` — unwrap as `data.data.records`.
+
+**Record fields:** `id`, `referenceNo`, `attendanceDate` (ISO), `checkInAt` (ISO|null), `checkOutAt` (ISO|null), `status`, `workMode`, `totalMinutes`, `notes`.
+
+**Status badge colours** are already defined in `src/modules/attendance/constants/index.ts` via `STATUS_CONFIG` — reuse them.
+
+**What to add:**
+
+1. `employeeId?: string` to `AttendanceRecordsParams` in `src/modules/attendance/types/attendance.types.ts`.
+2. `getTeamRecords(params?: AttendanceRecordsParams)` method to `attendanceApi` (`/attendance/team/records`) in `src/modules/attendance/services/attendance.api.ts`.
+3. `useAttendanceTeamRecords(params?)` hook in `src/modules/attendance/hooks/useAttendance.ts`.
+4. `src/modules/employees/components/AttendanceTab.tsx` — month navigator (prev/next buttons, current month label) + flat table of records: date, check-in time, check-out time, duration (totalMinutes → "Xh Ym"), status badge. Skeleton / empty / error states. **Do NOT reuse `AttendanceCalendar`** — that component is not designed for read-only embedded use.
+
+---
+
+### Leave tab
+
+**What stays:** The existing leave balance cards already rendered from `employee.leaveBalances` are fine. Keep them.
+
+**What to add — self only:** A "Leave requests" section below the balance cards showing `GET /leave/requests?limit=10`.
+
+- Self detection: `user.employeeId === employeeId`.
+- Use existing `leaveApi.getRequests(params)` + `useLeaveRequests(params)` — no changes to those files.
+- **HR viewing another employee:** the API has no `employeeId` filter on `/leave/requests` or `/leave/team/requests`, so show balance cards only — no request history section.
+
+**Request history row:** `referenceNo`, leave type name (`leaveTypeName`), date range (`startDate` – `endDate`, formatted `dd MMM`), `totalDays`, `LeaveStatusBadge` (existing component). No action buttons.
+
+**What to add:**
+
+- `src/modules/employees/components/LeaveTab.tsx` — replaces the inline `LeaveTab` function in `EmployeeProfile.tsx`. Props: `{ balances: LeaveBalance[], employeeId: string }`.
+
+---
+
+### Activity tab
+
+**HR_ADMIN / SUPER_ADMIN only.** Employees and Managers see an `EmptyState` with message "Activity log is visible to HR administrators only."
+
+**Endpoint:** `GET /audit-logs?entity=Employee&entityId=<employeeId>&limit=20`
+
+**Response:** `{ data: { logs: [...], pagination: {} } }` — unwrap as `data.data.logs`.
+
+**Log fields are snake_case:** `id`, `user_email`, `action` (`CREATE | UPDATE | DELETE`), `entity_type`, `entity_id`, `created_at`. (`old_value`, `new_value`, `ip_address`, `user_agent` are present but not needed for display.)
+
+**Permission check:** `permissions.includes('audit-logs:read')` OR `['HR_ADMIN','SUPER_ADMIN'].includes(user.memberType)`.
+
+**What to add:**
+
+1. `src/modules/employees/services/auditLogs.api.ts` — one method: `listForEmployee(employeeId: string)` calling `GET /audit-logs?entity=Employee&entityId=<id>&limit=20`, unwraps `data.data.logs`. Define `AuditLogEntry` type inline (snake_case fields).
+2. `src/modules/employees/hooks/useEmployeeAuditLogs.ts` — `useEmployeeAuditLogs(employeeId, enabled)` query.
+3. `src/modules/employees/components/ActivityTab.tsx` — vertical list: actor email, action badge (CREATE green, UPDATE blue, DELETE red), relative date (`formatDistanceToNow` from date-fns). Skeleton / empty / error states.
+
+---
+
+### Wiring into EmployeeProfile
+
+Replace the three inline placeholder components with the new imported ones. Pass these props:
+
+- `<AttendanceTab employeeId={id} />` — tab manages its own month state
+- `<LeaveTab balances={employee.leaveBalances} employeeId={id} />` — replaces old `<LeaveTab balances=.../>` signature
+- `<ActivityTab employeeId={id} />` — tab handles its own permission check internally
+
+Remove the old inline `AttendanceTab`, `LeaveTab`, `ActivityTab` function declarations from `EmployeeProfile.tsx`.
+
+---
+
+### What NOT to do
+
+- Do NOT reuse `AttendanceCalendar` — not designed for profile embedding.
+- Do NOT reuse `LeaveRequestsTable` — it uses `nuqs` URL state, unsuitable inside a profile tab.
+- Do NOT add `next/dynamic` lazy loading — all three are client components inside an already-client component.
+- Do NOT add pagination UI — `limit=10` / `limit=20` caps are sufficient for profile view.
+- Do NOT add approve / reject / withdraw buttons anywhere in these tabs.
+
+---
+
+### Files to create
+
+- `src/modules/employees/components/AttendanceTab.tsx`
+- `src/modules/employees/components/LeaveTab.tsx`
+- `src/modules/employees/components/ActivityTab.tsx`
+- `src/modules/employees/services/auditLogs.api.ts`
+- `src/modules/employees/hooks/useEmployeeAuditLogs.ts`
+
+### Files to modify
+
+- `src/modules/attendance/types/attendance.types.ts` — add `employeeId?` to `AttendanceRecordsParams`
+- `src/modules/attendance/services/attendance.api.ts` — add `getTeamRecords`
+- `src/modules/attendance/hooks/useAttendance.ts` — add `useAttendanceTeamRecords`
+- `src/modules/employees/components/EmployeeProfile.tsx` — import new tab components, update `<LeaveTab>` props, remove three inline placeholder functions
 
 **Test Gate:**
 
