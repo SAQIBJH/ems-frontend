@@ -85,8 +85,8 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 34 — Employees List: Code + Joined columns, Density/Columns menus, Export button
 - [x] Step 35 — Employees List: bulk deactivate + bulk export (MSW)
 - [x] Step 36 — Employee Profile: Documents tab — live API (Cloudinary multipart, HR-only upload/delete)
-- [ ] Step 37 — Employee Profile: populate Attendance / Leave / Activity tabs
-- [ ] Step 38 — Employee Profile: Deactivate with type-employee-code confirmation
+- [x] Step 37 — Employee Profile: populate Attendance / Leave / Activity tabs
+- [x] Step 38 — Employee Profile: Deactivate with type-employee-code confirmation
 - [ ] Step 39 — Employee Create: 4-step stepper (Personal / Job / Documents / Access)
 
 #### Departments parity

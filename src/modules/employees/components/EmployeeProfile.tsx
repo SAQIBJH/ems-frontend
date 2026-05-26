@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
@@ -24,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import { TypeToConfirmDialog } from '@/components/feedback/TypeToConfirmDialog';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { useAuth } from '@/providers';
@@ -210,7 +209,6 @@ function ProfileSkeleton() {
 /* ── Main component ───────────────────────────────────────────────────────── */
 
 export function EmployeeProfile({ id }: { id: string }) {
-  const router = useRouter();
   const { permissions } = useAuth();
   const [showTerminate, setShowTerminate] = useState(false);
 
@@ -223,7 +221,6 @@ export function EmployeeProfile({ id }: { id: string }) {
       await deleteMutation.mutateAsync(employee.id);
       toast.success(`${employee.firstName} ${employee.lastName} has been terminated.`);
       setShowTerminate(false);
-      router.push('/employees');
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;
       toast.error(axiosErr.response?.data?.error?.message ?? 'Failed to terminate employee.');
@@ -355,6 +352,15 @@ export function EmployeeProfile({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* Terminated banner */}
+      {employee.employmentStatus === 'TERMINATED' && (
+        <div className="border-b border-warning/20 bg-warning/5 px-6 py-3">
+          <p className="text-sm text-warning">
+            This employee has been terminated. Their account access has been revoked.
+          </p>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="px-6 py-6">
         <Tabs defaultValue="overview">
@@ -388,11 +394,12 @@ export function EmployeeProfile({ id }: { id: string }) {
         </Tabs>
       </div>
 
-      <ConfirmDialog
+      <TypeToConfirmDialog
         open={showTerminate}
         onOpenChange={setShowTerminate}
         title="Terminate employee?"
         description={`${fullName}'s employment will be marked as terminated. This action can be reversed by an administrator.`}
+        confirmText={employee.employeeCode}
         confirmLabel="Terminate"
         variant="danger"
         loading={deleteMutation.isPending}
