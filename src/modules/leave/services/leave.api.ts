@@ -7,6 +7,7 @@ import type {
   LeaveRequestsPage,
   LeaveListParams,
   LeaveType,
+  TeamCalendarData,
 } from '../types/leave.types';
 
 export const leaveApi = {
@@ -83,6 +84,18 @@ export const leaveApi = {
   reject: async ({ id, comment }: { id: string; comment: string }): Promise<LeaveRequest> => {
     const { data } = await apiClient.patch<{ data: LeaveRequest }>(`/leave/requests/${id}/reject`, {
       comment,
+    });
+    return data.data;
+  },
+
+  /**
+   * GET /leave/team/calendar?month=YYYY-MM — MANAGER, HR_ADMIN
+   * Returns { month, employees: [{ id, name, employeeCode, leaves: [...] }] }
+   * Live endpoint — shape deviation: employees[].leaves[] (range objects), not per-day grid.
+   */
+  getTeamCalendar: async (month: string): Promise<TeamCalendarData> => {
+    const { data } = await apiClient.get<{ data: TeamCalendarData }>('/leave/team/calendar', {
+      params: { month },
     });
     return data.data;
   },

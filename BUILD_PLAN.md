@@ -100,7 +100,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Leave parity
 
-- [ ] Step 43 — Leave: Team Calendar tab (real month grid via MSW)
+- [x] Step 43 — Leave: Team Calendar tab (real month grid via MSW)
 - [ ] Step 44 — Leave: Bulk approve modal + coverage warning chip (MSW)
 
 #### Holidays parity

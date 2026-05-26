@@ -31,3 +31,12 @@ export function useTeamLeaveRequests(params?: LeaveListParams, enabled = true) {
     enabled,
   });
 }
+
+export function useTeamLeaveCalendar(month: string, enabled = true) {
+  return useQuery({
+    queryKey: ['leave', 'team-calendar', month],
+    queryFn: () => leaveApi.getTeamCalendar(month),
+    enabled,
+    staleTime: 60_000,
+  });
+}

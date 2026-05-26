@@ -13,6 +13,7 @@ export {
   useLeaveBalance,
   useLeaveRequests,
   useTeamLeaveRequests,
+  useTeamLeaveCalendar,
 } from './hooks/useLeave';
 export {
   useCreateLeaveRequest,
@@ -31,4 +32,7 @@ export type {
   LeaveStatus,
   CreateLeaveInput,
   LeaveListParams,
+  TeamCalendarLeaveRange,
+  TeamCalendarEmployee,
+  TeamCalendarData,
 } from './types/leave.types';

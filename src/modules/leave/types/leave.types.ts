@@ -67,6 +67,31 @@ export interface LeaveListParams {
   toDate?: string;
 }
 
+/** One leave range entry in the team calendar — GET /leave/team/calendar */
+export interface TeamCalendarLeaveRange {
+  id: string;
+  /** Full ISO datetime string, e.g. "2026-05-27T18:30:00.000Z" */
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  status: LeaveStatus;
+  leaveType: string;
+  leaveTypeCode: string;
+}
+
+export interface TeamCalendarEmployee {
+  id: string;
+  name: string;
+  employeeCode: string;
+  leaves: TeamCalendarLeaveRange[];
+}
+
+/** GET /leave/team/calendar?month=YYYY-MM → data */
+export interface TeamCalendarData {
+  month: string;
+  employees: TeamCalendarEmployee[];
+}
+
 /** POST /leave/requests body. Dates must be YYYY-MM-DD. */
 export interface CreateLeaveInput {
   leaveTypeId: string;
