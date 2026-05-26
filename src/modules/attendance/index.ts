@@ -4,6 +4,7 @@ export { AttendanceCalendar } from './components/AttendanceCalendar';
 export { AttendanceSummaryCards } from './components/AttendanceSummaryCards';
 export { AttendanceTableView } from './components/AttendanceTableView';
 export { CheckInOutCard } from './components/CheckInOutCard';
+export { DayDetailDrawer } from './components/DayDetailDrawer';
 export { RegularizationDialog } from './components/RegularizationDialog';
 
 export {

@@ -23,6 +23,11 @@ interface AttendanceCalendarProps {
   onNext: () => void;
   /** If set, shows records for this employee via the team endpoint. */
   employeeId?: string;
+  /** Called when the user clicks a day cell. */
+  onDayClick?: (
+    date: string,
+    record: import('../types/attendance.types').AttendanceRecord | null,
+  ) => void;
 }
 
 export function AttendanceCalendar({
@@ -30,6 +35,7 @@ export function AttendanceCalendar({
   onPrev,
   onNext,
   employeeId,
+  onDayClick,
 }: AttendanceCalendarProps) {
   const monthParam = format(currentDate, 'yyyy-MM');
 
@@ -117,6 +123,15 @@ export function AttendanceCalendar({
           return (
             <div
               key={key}
+              role={onDayClick ? 'button' : undefined}
+              tabIndex={onDayClick ? 0 : undefined}
+              onClick={() => onDayClick?.(key, record ?? null)}
+              onKeyDown={(e) => {
+                if (onDayClick && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onDayClick(key, record ?? null);
+                }
+              }}
               className={cn(
                 'relative flex flex-col items-center justify-start gap-0.5',
                 'border-b border-r border-subtle p-1 pt-1.5',
@@ -125,6 +140,8 @@ export function AttendanceCalendar({
                 isLastCol && 'border-r-0',
                 isWeekend && 'bg-surface-2/50',
                 isCurrentDay && 'ring-1 ring-inset ring-brand/40',
+                onDayClick &&
+                  'cursor-pointer transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
               )}
             >
               {isLoading ? (

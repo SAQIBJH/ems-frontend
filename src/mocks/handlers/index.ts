@@ -1,6 +1,7 @@
 import { healthMockHandlers } from './health-mock';
 import { authHandlers } from './auth';
 import { employeeSelfServiceHandlers } from './employee-self-service';
+import { attendanceHandlers } from './attendance';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -11,6 +12,7 @@ import { employeeSelfServiceHandlers } from './employee-self-service';
 //   POST /holidays/import            — .ics import + preview + commit
 //   GET  /employee/dashboard         — leaveBalanceSummary not yet on live backend
 //   GET  /employee/documents         — no live endpoint yet
+//   POST /attendance/regularization/:id/documents — supporting doc upload not yet live
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
@@ -35,4 +37,9 @@ import { employeeSelfServiceHandlers } from './employee-self-service';
 //   GET /leave/team/calendar       → members[].leaves[] (range objects),
 //                                     not members[].days[] (per-day status grid)
 
-export const handlers = [...healthMockHandlers, ...authHandlers, ...employeeSelfServiceHandlers];
+export const handlers = [
+  ...healthMockHandlers,
+  ...authHandlers,
+  ...employeeSelfServiceHandlers,
+  ...attendanceHandlers,
+];

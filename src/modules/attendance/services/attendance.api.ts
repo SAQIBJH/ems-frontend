@@ -134,4 +134,23 @@ export const attendanceApi = {
     );
     return data.data;
   },
+
+  /**
+   * POST /attendance/regularization/:id/documents
+   * Uploads a supporting document (multipart/form-data) for a regularization request.
+   * MSW-served — backend endpoint not yet live.
+   */
+  uploadRegularizationDocument: async (
+    id: string,
+    file: File,
+  ): Promise<{ documentUrl: string }> => {
+    const form = new FormData();
+    form.append('document', file);
+    const { data } = await apiClient.post<{ data: { documentUrl: string } }>(
+      `/attendance/regularization/${id}/documents`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return data.data;
+  },
 };

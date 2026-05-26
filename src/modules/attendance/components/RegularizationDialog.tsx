@@ -1,7 +1,9 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { PaperclipIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
@@ -25,6 +27,7 @@ import {
 } from '@/components/ui/form';
 
 import { useRequestRegularization } from '../hooks/useAttendanceMutations';
+import { attendanceApi } from '../services/attendance.api';
 import {
   regularizationSchema,
   type RegularizationFormValues,
@@ -42,6 +45,9 @@ export function RegularizationDialog({
   defaultDate,
 }: RegularizationDialogProps) {
   const mutation = useRequestRegularization();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<RegularizationFormValues>({
     resolver: zodResolver(regularizationSchema),
@@ -51,12 +57,48 @@ export function RegularizationDialog({
     },
   });
 
-  function onSubmit(values: RegularizationFormValues) {
+  // Re-sync defaultDate when dialog opens with a pre-filled date
+  const currentDefault = form.getValues('attendanceDate');
+  if (open && defaultDate && currentDefault !== defaultDate) {
+    form.setValue('attendanceDate', defaultDate);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setAttachedFile(file);
+    // reset so re-selecting same file triggers onChange
+    e.target.value = '';
+  }
+
+  function removeFile() {
+    setAttachedFile(null);
+  }
+
+  async function onSubmit(values: RegularizationFormValues) {
     mutation.mutate(values, {
-      onSuccess: () => {
+      onSuccess: async (record) => {
+        // If a supporting document was attached, upload it now
+        if (attachedFile) {
+          setUploading(true);
+          try {
+            await attendanceApi.uploadRegularizationDocument(record.id, attachedFile);
+          } catch {
+            // Non-fatal: request was submitted; doc upload failed
+            toast.warning(
+              'Request submitted, but document upload failed. You can re-attach later.',
+            );
+            onOpenChange(false);
+            form.reset();
+            setAttachedFile(null);
+            setUploading(false);
+            return;
+          }
+          setUploading(false);
+        }
         toast.success('Regularization request submitted');
         onOpenChange(false);
         form.reset();
+        setAttachedFile(null);
       },
       onError: (err: unknown) => {
         const axiosErr = err as AxiosError<{
@@ -73,6 +115,8 @@ export function RegularizationDialog({
       },
     });
   }
+
+  const isPending = mutation.isPending || uploading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,17 +162,54 @@ export function RegularizationDialog({
               )}
             />
 
+            {/* Supporting document (optional) */}
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-fg">Supporting document</p>
+              {attachedFile ? (
+                <div className="flex items-center gap-2 rounded-md border border-subtle bg-surface-2 px-3 py-2">
+                  <PaperclipIcon className="size-4 shrink-0 text-fg-muted" aria-hidden />
+                  <span className="flex-1 truncate text-sm text-fg">{attachedFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={removeFile}
+                    className="text-fg-muted hover:text-fg"
+                    aria-label="Remove attachment"
+                  >
+                    <XIcon className="size-4" aria-hidden />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <PaperclipIcon className="size-3.5" aria-hidden />
+                  Attach file (optional)
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={mutation.isPending}
+                disabled={isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Submitting…' : 'Submit Request'}
+              <Button type="submit" disabled={isPending}>
+                {isPending ? 'Submitting…' : 'Submit Request'}
               </Button>
             </div>
           </form>

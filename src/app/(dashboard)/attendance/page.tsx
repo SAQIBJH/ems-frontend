@@ -32,10 +32,16 @@ import {
   RegularizationDialog,
 } from '@/modules/attendance';
 import { AttendanceTableView } from '@/modules/attendance/components/AttendanceTableView';
+import { DayDetailDrawer } from '@/modules/attendance/components/DayDetailDrawer';
+import type { AttendanceRecord } from '@/modules/attendance';
 
 export default function AttendancePage() {
   const { user } = useAuth();
   const [regularizationOpen, setRegularizationOpen] = useState(false);
+  const [regularizationDate, setRegularizationDate] = useState<string | undefined>(undefined);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDate, setDrawerDate] = useState<string | null>(null);
+  const [drawerRecord, setDrawerRecord] = useState<AttendanceRecord | null>(null);
 
   const [view, setView] = useQueryState('view', parseAsString.withDefault('calendar'));
   const [month, setMonth] = useQueryState(
@@ -83,6 +89,17 @@ export default function AttendancePage() {
         }))
       : [];
 
+  function handleDayClick(date: string, record: AttendanceRecord | null) {
+    setDrawerDate(date);
+    setDrawerRecord(record);
+    setDrawerOpen(true);
+  }
+
+  function handleRequestRegularization(date: string) {
+    setRegularizationDate(date);
+    setRegularizationOpen(true);
+  }
+
   function navigateMonth(direction: 1 | -1) {
     const next = direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1);
     setMonth(format(next, 'yyyy-MM'));
@@ -107,7 +124,10 @@ export default function AttendancePage() {
             variant="outline"
             size="default"
             className="gap-1.5"
-            onClick={() => setRegularizationOpen(true)}
+            onClick={() => {
+              setRegularizationDate(undefined);
+              setRegularizationOpen(true);
+            }}
           >
             <FileEditIcon className="size-4" aria-hidden />
             Request Regularization
@@ -242,6 +262,7 @@ export default function AttendancePage() {
               onPrev={() => navigateMonth(-1)}
               onNext={() => navigateMonth(1)}
               employeeId={empId || undefined}
+              onDayClick={handleDayClick}
             />
           </div>
         </div>
@@ -251,7 +272,20 @@ export default function AttendancePage() {
         </div>
       )}
 
-      <RegularizationDialog open={regularizationOpen} onOpenChange={setRegularizationOpen} />
+      <RegularizationDialog
+        open={regularizationOpen}
+        onOpenChange={setRegularizationOpen}
+        defaultDate={regularizationDate}
+      />
+
+      <DayDetailDrawer
+        date={drawerDate}
+        record={drawerRecord}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onRequestRegularization={handleRequestRegularization}
+        readOnly={!!empId}
+      />
     </div>
   );
 }
