@@ -63,3 +63,75 @@ export interface EmailTemplateUpdateInput {
   subject: string;
   body: string;
 }
+
+/** Branding — snake_case (settings domain convention). */
+export interface BrandingSettings {
+  logo_url: string | null;
+  primary_color_hex: string | null;
+}
+
+export interface BrandingUpdateInput {
+  primary_color_hex?: string;
+  logo_url?: string;
+}
+
+/** Leave types — camelCase (leave domain convention). */
+export interface LeaveType {
+  id: string;
+  name: string;
+  code: string;
+  annualAllowance: number;
+  carryForwardAllowed: boolean;
+  isPaid: boolean;
+  color?: string;
+}
+
+export interface LeaveTypeCreateInput {
+  name: string;
+  code: string;
+  annualAllowance: number;
+  isPaid: boolean;
+  carryForwardAllowed: boolean;
+  color?: string;
+}
+
+export type LeaveTypeUpdateInput = Partial<LeaveTypeCreateInput>;
+
+/** Attendance rules — snake_case (settings domain). */
+export interface AttendanceRules {
+  work_week_days: string[];
+  late_after: string;
+  half_day_threshold_minutes: number;
+  full_day_threshold_minutes: number;
+  regularization_window_days: number;
+  geo_fencing_enabled: boolean;
+}
+
+export type AttendanceRulesUpdateInput = Partial<AttendanceRules>;
+
+/** Authentication / security settings — snake_case, SUPER_ADMIN only. */
+export interface AuthSettings {
+  password_min_length: number;
+  password_require_symbol: boolean;
+  password_require_number: boolean;
+  session_idle_timeout_minutes: number;
+  mfa_policy: 'OPTIONAL' | 'REQUIRED_ADMINS' | 'REQUIRED_ALL';
+  sso_enabled: boolean;
+}
+
+export type AuthSettingsUpdateInput = Partial<AuthSettings>;
+
+export type NotifChannel = 'in_app' | 'email';
+
+/** Notification preferences — per-caller, snake_case. */
+export interface NotificationPrefs {
+  channels: { in_app: boolean; email: boolean };
+  events: {
+    leave_approved: NotifChannel[];
+    leave_rejected: NotifChannel[];
+    leave_requested: NotifChannel[];
+    attendance_regularization: NotifChannel[];
+  };
+}
+
+export type NotificationPrefsUpdateInput = Partial<NotificationPrefs>;

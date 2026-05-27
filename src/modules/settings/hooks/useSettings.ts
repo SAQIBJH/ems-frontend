@@ -25,3 +25,43 @@ export function useAuditLogs(params: AuditLogsParams = {}) {
     staleTime: 30_000,
   });
 }
+
+export function useBranding() {
+  return useQuery({
+    queryKey: ['settings', 'branding'],
+    queryFn: settingsApi.getBranding,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useLeaveTypes() {
+  return useQuery({
+    queryKey: ['settings', 'leave-types'],
+    queryFn: settingsApi.getLeaveTypes,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAttendanceRules() {
+  return useQuery({
+    queryKey: ['settings', 'attendance-rules'],
+    queryFn: settingsApi.getAttendanceRules,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAuthSettings() {
+  return useQuery({
+    queryKey: ['settings', 'auth'],
+    queryFn: settingsApi.getAuthSettings,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useNotificationPrefs() {
+  return useQuery({
+    queryKey: ['settings', 'notification-prefs'],
+    queryFn: settingsApi.getNotificationPrefs,
+    staleTime: 60_000,
+  });
+}

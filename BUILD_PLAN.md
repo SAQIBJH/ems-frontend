@@ -115,9 +115,9 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 - [x] Step 47 — Settings: restructure left nav into 6 groups + sub-routes
 - [x] Step 48 — Settings: Sessions & devices + Audit log (live APIs)
-- [ ] Step 49 — Settings: Branding + Leave types CRUD (MSW)
-- [ ] Step 50 — Settings: Attendance rules + Authentication + Notification prefs (MSW)
-- [ ] Step 51 — Settings: Integrations / Billing placeholders ("Phase 2" cards)
+- [x] Step 49 — Settings: Branding + Leave types CRUD (live API)
+- [x] Step 50 — Settings: Attendance rules + Authentication + Notification prefs (live API)
+- [x] Step 51 — Settings: Integrations / Billing placeholders ("Phase 2" cards)
 
 #### Final polish
 

@@ -1,12 +1,7 @@
-import { PlaceholderPanel } from '@/modules/settings/components/PlaceholderPanel';
+import { AuthSettingsPanel } from '@/modules/settings/components/AuthSettingsPanel';
 
 export const metadata = { title: 'Authentication — Settings' };
 
 export default function AuthenticationPage() {
-  return (
-    <PlaceholderPanel
-      title="Authentication"
-      description="Configure MFA requirements, password policies, and SSO integrations for your organisation."
-    />
-  );
+  return <AuthSettingsPanel />;
 }
