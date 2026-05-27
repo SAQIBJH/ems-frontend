@@ -105,7 +105,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Holidays parity
 
-- [ ] Step 45 — Holidays: year overview default + `.ics` import flow (MSW)
+- [x] Step 45 — Holidays: year overview default + `.ics` import flow (MSW)
 
 #### Permissions parity
 
