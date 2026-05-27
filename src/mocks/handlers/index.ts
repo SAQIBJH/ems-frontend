@@ -3,6 +3,7 @@ import { authHandlers } from './auth';
 import { employeeSelfServiceHandlers } from './employee-self-service';
 import { attendanceHandlers } from './attendance';
 import { holidaysHandlers } from './holidays';
+import { permissionsHandlers } from './permissions';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -14,6 +15,8 @@ import { holidaysHandlers } from './holidays';
 //   GET  /employee/dashboard         — leaveBalanceSummary not yet on live backend
 //   GET  /employee/documents         — no live endpoint yet
 //   POST /attendance/regularization/:id/documents — supporting doc upload not yet live
+//   POST /settings/roles             — create custom role (Step 46)
+//   DELETE /settings/roles/:key      — delete custom role (Step 46)
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
@@ -44,4 +47,5 @@ export const handlers = [
   ...employeeSelfServiceHandlers,
   ...attendanceHandlers,
   ...holidaysHandlers,
+  ...permissionsHandlers,
 ];

@@ -1,7 +1,10 @@
 export { PermissionsMatrix } from './components/PermissionsMatrix';
 export type {
-  RolesPermissionsData,
-  RoleName,
+  BuiltInRoleName,
+  CreateCustomRoleInput,
+  CustomRoleInfo,
   PermissionKey,
+  RoleName,
+  RolesPermissionsData,
   UpdateRolePermissionsInput,
 } from './types/permissions.types';

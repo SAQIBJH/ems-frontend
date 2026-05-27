@@ -1,12 +1,13 @@
 import { apiClient } from '@/lib/api-client';
-import type { RolesPermissionsData, UpdateRolePermissionsInput } from '../types/permissions.types';
+import type {
+  CreateCustomRoleInput,
+  CustomRoleInfo,
+  RolesPermissionsData,
+  UpdateRolePermissionsInput,
+} from '../types/permissions.types';
 
 export const permissionsApi = {
-  /**
-   * GET /settings/roles-permissions
-   * Required role: SUPER_ADMIN
-   * Returns { roles, permissions, matrix }
-   */
+  /** GET /settings/roles-permissions — Required role: SUPER_ADMIN */
   getRolesPermissions: async (): Promise<RolesPermissionsData> => {
     const { data } = await apiClient.get<{ data: RolesPermissionsData }>(
       '/settings/roles-permissions',
@@ -15,9 +16,8 @@ export const permissionsApi = {
   },
 
   /**
-   * PATCH /settings/roles-permissions
-   * Required role: SUPER_ADMIN
-   * Body: { role, permissions[] } — replaces the full permission set for that role.
+   * PATCH /settings/roles-permissions — Required role: SUPER_ADMIN
+   * Replaces the full permission set for a built-in role.
    * Error: CANNOT_LOCK_OUT_SUPER_ADMIN (403) if role === 'SUPER_ADMIN'
    */
   updateRolePermissions: async (
@@ -26,6 +26,30 @@ export const permissionsApi = {
     const { data } = await apiClient.patch<{ data: RolesPermissionsData }>(
       '/settings/roles-permissions',
       input,
+    );
+    return data.data;
+  },
+
+  /**
+   * POST /settings/roles — MSW (not yet live)
+   * Error: DUPLICATE_ROLE_KEY (409)
+   */
+  createRole: async (
+    input: CreateCustomRoleInput,
+  ): Promise<CustomRoleInfo & { permissions: string[] }> => {
+    const { data } = await apiClient.post<{
+      data: CustomRoleInfo & { permissions: string[] };
+    }>('/settings/roles', input);
+    return data.data;
+  },
+
+  /**
+   * DELETE /settings/roles/:key — MSW (not yet live)
+   * Error: ROLE_IN_USE (409) if users assigned to this role
+   */
+  deleteRole: async (key: string): Promise<{ key: string; status: string }> => {
+    const { data } = await apiClient.delete<{ data: { key: string; status: string } }>(
+      `/settings/roles/${key}`,
     );
     return data.data;
   },
