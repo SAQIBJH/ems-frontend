@@ -134,7 +134,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 59 — Payroll: Run payroll flow (initiate → calculate → review)
 - [x] Step 60 — Payroll: Run detail page + payslip viewer
 - [x] Step 61 — Payroll: Employee self-service payslip history
-- [ ] Step 62 — Reports: Module skeleton + page layout + MSW
+- [x] Step 62 — Reports: Module skeleton + page layout + MSW
 - [ ] Step 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
 - [ ] Step 64 — Reports: Attendance & Leave reports
 - [ ] Step 65 — Reports: Payroll reports + Export
