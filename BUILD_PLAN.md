@@ -122,7 +122,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 #### Final polish
 
 - [x] Step 52 — EmptyState illustrations + a11y dark-mode sweep
-- [ ] Step 53 — Wireframe parity verification walk-through (all 15 screens)
+- [x] Step 53 — Wireframe parity verification walk-through (all 15 screens)
 - [ ] Step 54 — Production build + demo redeploy
 
 ---
