@@ -92,3 +92,6 @@ export { SalaryComponentDrawer } from './components/SalaryComponentDrawer';
 export { PayGroupsPanel } from './components/PayGroupsPanel';
 export { PayGroupDrawer } from './components/PayGroupDrawer';
 export { PaySchedulesPanel } from './components/PaySchedulesPanel';
+export { PayrollScreen } from './components/PayrollScreen';
+export { PayrollRunsTab } from './components/PayrollRunsTab';
+export { InitiateRunDialog } from './components/InitiateRunDialog';

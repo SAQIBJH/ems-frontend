@@ -217,7 +217,7 @@ export function SettingsNav() {
   const role = user?.memberType ?? '';
 
   return (
-    <aside className="w-52 shrink-0 border-r border-subtle bg-surface-raised/40 overflow-y-auto p-3 space-y-4">
+    <aside className="shrink-0 border-r border-subtle bg-surface-raised/40 overflow-y-auto p-3 space-y-4">
       {NAV_GROUPS.map((group) => {
         const visibleItems = group.items.filter((item) => !item.roles || item.roles.includes(role));
         if (visibleItems.length === 0) return null;
