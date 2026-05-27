@@ -1,5 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import type {
+  AuditLogsParams,
+  AuditLogsResponse,
   EmailTemplate,
   EmailTemplatesData,
   EmailTemplateType,
@@ -49,6 +51,16 @@ export const settingsApi = {
       `/settings/email-templates/${type}`,
       input,
     );
+    return data.data;
+  },
+
+  /**
+   * GET /audit-logs — HR_ADMIN, SUPER_ADMIN only.
+   * Returns data: { logs: [], pagination: {} } — shape is data.logs[], not data[].
+   * All fields are snake_case (API_MAPPING.md §Audit Logs).
+   */
+  getAuditLogs: async (params: AuditLogsParams = {}): Promise<AuditLogsResponse> => {
+    const { data } = await apiClient.get<{ data: AuditLogsResponse }>('/audit-logs', { params });
     return data.data;
   },
 };

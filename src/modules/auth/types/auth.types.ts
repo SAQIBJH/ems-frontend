@@ -62,11 +62,14 @@ export interface OtpInitiateResponse {
   resendAvailableAt: string;
 }
 
+/** Shape from GET /auth/sessions — all camelCase per auth domain (API_MAPPING.md). */
 export interface Session {
   id: string;
+  deviceName: string | null;
+  ipAddress: string;
   userAgent: string;
-  ip: string;
-  lastActiveAt: string;
-  createdAt: string;
-  isCurrent: boolean;
+  loginAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  isRevoked: boolean;
 }
