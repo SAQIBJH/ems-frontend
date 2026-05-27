@@ -12,11 +12,11 @@ const panelMap: Record<ReportType, React.LazyExoticComponent<React.ComponentType
   'workforce/headcount': lazy(() => import('./HeadcountReport')),
   'workforce/turnover': lazy(() => import('./TurnoverReport')),
   'workforce/demographics': lazy(() => import('./DemographicsReport')),
-  // Step 64 — attendance & leave panels (placeholder until next step)
-  'attendance/summary': lazy(() => import('./panels/AttendanceSummaryPanel')),
-  'attendance/absenteeism': lazy(() => import('./panels/AbsenteeismPanel')),
-  'leave/utilization': lazy(() => import('./panels/LeaveUtilizationPanel')),
-  'leave/pending': lazy(() => import('./panels/LeavePendingPanel')),
+  // Step 64 — attendance & leave panels (real)
+  'attendance/summary': lazy(() => import('./AttendanceSummaryReport')),
+  'attendance/absenteeism': lazy(() => import('./AbsenteeismReport')),
+  'leave/utilization': lazy(() => import('./LeaveUtilizationReport')),
+  'leave/pending': lazy(() => import('./PendingLeaveReport')),
   // Step 65 — payroll panels (placeholder until next step)
   'payroll/summary': lazy(() => import('./panels/PayrollSummaryPanel')),
   'payroll/ctc-analysis': lazy(() => import('./panels/CtcAnalysisPanel')),
