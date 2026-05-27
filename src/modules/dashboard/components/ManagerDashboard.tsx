@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
@@ -9,15 +10,18 @@ import {
   BarChart2Icon,
   CheckCheckIcon,
 } from 'lucide-react';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { cn } from '@/lib/utils';
 import { useManagerDashboard } from '../hooks/useDashboard';
 import { PendingApprovalsPanel } from './PendingApprovalsPanel';
 import { TeamWeeklyAttendanceGrid } from './TeamWeeklyAttendanceGrid';
+import { BulkApproveModal } from './BulkApproveModal';
 
 export function ManagerDashboard() {
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+
   const {
     data: summary,
     isLoading: summaryLoading,
@@ -49,19 +53,23 @@ export function ManagerDashboard() {
           <p className="mt-0.5 text-sm text-fg-muted">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/leave?tab=approvals"
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setBulkModalOpen(true)}
           >
             <CheckCheckIcon className="size-3.5" aria-hidden />
             Bulk approve
-          </Link>
+          </Button>
           <Link href="/employees" className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5')}>
             <UsersIcon className="size-3.5" aria-hidden />
             View team
           </Link>
         </div>
       </div>
+
+      <BulkApproveModal open={bulkModalOpen} onClose={() => setBulkModalOpen(false)} />
 
       {/* Stats row */}
       {summaryError ? (
