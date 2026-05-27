@@ -25,10 +25,11 @@ const WEEKDAY_ABBRS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 interface HolidayYearGridProps {
   year: number;
   holidays: Holiday[];
+  /** Called when the user clicks a month card (0-based month index) */
+  onMonthClick?: (month: number) => void;
 }
 
-export function HolidayYearGrid({ year, holidays }: HolidayYearGridProps) {
-  // Build a Set of YYYY-MM-DD keys and a map of date → holiday for the year
+export function HolidayYearGrid({ year, holidays, onMonthClick }: HolidayYearGridProps) {
   const holidayDateMap = useMemo(() => {
     const map = new Map<string, Holiday>();
     for (const h of holidays) {
@@ -47,6 +48,7 @@ export function HolidayYearGrid({ year, holidays }: HolidayYearGridProps) {
           month={monthIndex}
           monthName={monthName}
           holidayDateMap={holidayDateMap}
+          onClick={onMonthClick ? () => onMonthClick(monthIndex) : undefined}
         />
       ))}
     </div>
@@ -58,9 +60,10 @@ interface MonthCardProps {
   month: number;
   monthName: string;
   holidayDateMap: Map<string, Holiday>;
+  onClick?: () => void;
 }
 
-function MonthCard({ year, month, monthName, holidayDateMap }: MonthCardProps) {
+function MonthCard({ year, month, monthName, holidayDateMap, onClick }: MonthCardProps) {
   const days = useMemo(() => {
     const result: Date[] = [];
     const d = new Date(year, month, 1);
@@ -72,22 +75,28 @@ function MonthCard({ year, month, monthName, holidayDateMap }: MonthCardProps) {
   }, [year, month]);
 
   const leadingBlanks = days[0]?.getDay() ?? 0;
-
-  const hasHolidayThisMonth = days.some((d) => holidayDateMap.has(format(d, 'yyyy-MM-dd')));
+  const holidayCount = days.filter((d) => holidayDateMap.has(format(d, 'yyyy-MM-dd'))).length;
+  const hasHoliday = holidayCount > 0;
 
   return (
     <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
       className={cn(
         'rounded-lg border bg-surface transition-colors',
-        hasHolidayThisMonth ? 'border-brand/20' : 'border-subtle',
+        hasHoliday ? 'border-brand/20' : 'border-subtle',
+        onClick &&
+          'cursor-pointer hover:border-brand/40 hover:bg-surface-raised/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
       )}
     >
       {/* Month header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-subtle">
         <h3 className="text-xs font-semibold text-fg">{monthName}</h3>
-        {hasHolidayThisMonth && (
+        {hasHoliday && (
           <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-            {days.filter((d) => holidayDateMap.has(format(d, 'yyyy-MM-dd'))).length}
+            {holidayCount}
           </span>
         )}
       </div>
@@ -123,8 +132,7 @@ function MonthCard({ year, month, monthName, holidayDateMap }: MonthCardProps) {
                 <span
                   className={cn(
                     'flex size-6 items-center justify-center rounded-full text-[11px] leading-none transition-colors',
-                    isTodayDay && !holiday && 'bg-brand text-on-primary font-semibold',
-                    isTodayDay && holiday && 'bg-brand text-on-primary font-semibold',
+                    isTodayDay && 'bg-brand text-on-primary font-semibold',
                     !isTodayDay &&
                       holiday &&
                       !holiday.isOptional &&

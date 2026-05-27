@@ -2,7 +2,16 @@
 
 import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  PencilIcon,
+  Trash2Icon,
+  LayoutGridIcon,
+  ListIcon,
+  UploadIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
@@ -13,6 +22,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { useAuth } from '@/providers';
+import { cn } from '@/lib/utils';
 import type { ApiError } from '@/types/api';
 
 import { useHolidays } from '../hooks/useHolidays';
@@ -20,14 +30,22 @@ import { useDeleteHoliday } from '../hooks/useHolidayMutations';
 import type { Holiday } from '../types/holiday.types';
 import { HolidayYearGrid } from './HolidayYearGrid';
 import { HolidayFormDialog } from './HolidayFormDialog';
+import { MonthDetailModal } from './MonthDetailModal';
+import { IcsImportDialog } from './IcsImportDialog';
+
+type View = 'grid' | 'list';
 
 export function HolidayScreen() {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
+  const [view, setView] = useState<View>('grid');
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Holiday | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Holiday | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [monthModalOpen, setMonthModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useHolidays(year);
   const deleteMutation = useDeleteHoliday(year);
@@ -59,7 +77,14 @@ export function HolidayScreen() {
     });
   }
 
+  function handleMonthClick(month: number) {
+    setSelectedMonth(month);
+    setMonthModalOpen(true);
+  }
+
   const holidays = data?.holidays ?? [];
+
+  const sortedHolidays = [...holidays].sort((a, b) => a.holidayDate.localeCompare(b.holidayDate));
 
   return (
     <div className="flex flex-col">
@@ -69,16 +94,22 @@ export function HolidayScreen() {
         breadcrumbs={[{ label: 'Holidays' }]}
         actions={
           canManage ? (
-            <Button size="default" onClick={openAdd}>
-              <PlusIcon className="size-4 mr-1.5" />
-              Add Holiday
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="default" onClick={() => setImportOpen(true)}>
+                <UploadIcon className="size-4 mr-1.5" />
+                Import .ics
+              </Button>
+              <Button size="default" onClick={openAdd}>
+                <PlusIcon className="size-4 mr-1.5" />
+                Add Holiday
+              </Button>
+            </div>
           ) : undefined
         }
       />
 
       <div className="p-6 space-y-6">
-        {/* Year navigator */}
+        {/* Toolbar: year navigator + view toggle */}
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
@@ -102,29 +133,74 @@ export function HolidayScreen() {
               {data.total} holiday{data.total !== 1 ? 's' : ''}
             </span>
           )}
+
+          {/* View toggle — right-aligned */}
+          <div className="ml-auto flex items-center rounded-md border border-subtle p-0.5 gap-0.5">
+            <button
+              type="button"
+              onClick={() => setView('grid')}
+              className={cn(
+                'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
+                view === 'grid'
+                  ? 'bg-surface-raised text-fg shadow-xs'
+                  : 'text-fg-subtle hover:text-fg',
+              )}
+              aria-pressed={view === 'grid'}
+            >
+              <LayoutGridIcon className="size-3.5" />
+              Grid
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={cn(
+                'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
+                view === 'list'
+                  ? 'bg-surface-raised text-fg shadow-xs'
+                  : 'text-fg-subtle hover:text-fg',
+              )}
+              aria-pressed={view === 'list'}
+            >
+              <ListIcon className="size-3.5" />
+              List
+            </button>
+          </div>
         </div>
 
-        {/* Calendar grid */}
-        {isError ? (
-          <ErrorState message="Failed to load holidays." onRetry={() => void refetch()} />
-        ) : isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 12 }).map((_, i) => (
+        {/* Loading skeletons */}
+        {isLoading && (
+          <div
+            className={
+              view === 'grid'
+                ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                : 'space-y-2'
+            }
+          >
+            {Array.from({ length: view === 'grid' ? 12 : 6 }).map((_, i) => (
               <div
                 key={i}
-                className="h-44 rounded-lg border border-subtle bg-surface animate-pulse"
+                className={cn(
+                  'rounded-lg border border-subtle bg-surface animate-pulse',
+                  view === 'grid' ? 'h-44' : 'h-10',
+                )}
               />
             ))}
           </div>
-        ) : (
-          <HolidayYearGrid year={year} holidays={holidays} />
         )}
 
-        {/* Holiday list */}
-        {!isLoading && !isError && (
-          <section>
-            <h2 className="text-sm font-semibold text-fg mb-3">Holiday List — {year}</h2>
+        {/* Error state */}
+        {isError && (
+          <ErrorState message="Failed to load holidays." onRetry={() => void refetch()} />
+        )}
 
+        {/* Grid view — default */}
+        {!isLoading && !isError && view === 'grid' && (
+          <HolidayYearGrid year={year} holidays={holidays} onMonthClick={handleMonthClick} />
+        )}
+
+        {/* List view */}
+        {!isLoading && !isError && view === 'list' && (
+          <section>
             {holidays.length === 0 ? (
               <EmptyState
                 title="No holidays defined"
@@ -163,59 +239,57 @@ export function HolidayScreen() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...holidays]
-                      .sort((a, b) => a.holidayDate.localeCompare(b.holidayDate))
-                      .map((h) => (
-                        <tr
-                          key={h.id}
-                          className="border-b border-subtle last:border-0 hover:bg-surface-raised/50 transition-colors"
-                        >
-                          <td className="px-4 py-2.5 text-fg-subtle tabular-nums">
-                            {format(parseISO(h.holidayDate), 'dd MMM')}
-                          </td>
-                          <td className="px-4 py-2.5 font-medium text-fg">{h.name}</td>
-                          <td className="px-4 py-2.5 text-fg-subtle">{h.location ?? '—'}</td>
-                          <td className="px-4 py-2.5">
-                            {h.isOptional ? (
-                              <Badge
-                                variant="outline"
-                                className="text-info border-info/30 bg-info/10 text-xs"
-                              >
-                                Optional
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-success border-success/30 bg-success/10 text-xs"
-                              >
-                                Public
-                              </Badge>
-                            )}
-                          </td>
-                          {canManage && (
-                            <td className="px-4 py-2.5">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-7"
-                                  onClick={() => openEdit(h)}
-                                >
-                                  <PencilIcon className="size-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-7 text-danger hover:text-danger"
-                                  onClick={() => setDeleteTarget(h)}
-                                >
-                                  <Trash2Icon className="size-3.5" />
-                                </Button>
-                              </div>
-                            </td>
+                    {sortedHolidays.map((h) => (
+                      <tr
+                        key={h.id}
+                        className="border-b border-subtle last:border-0 hover:bg-surface-raised/50 transition-colors"
+                      >
+                        <td className="px-4 py-2.5 text-fg-subtle tabular-nums">
+                          {format(parseISO(h.holidayDate), 'dd MMM')}
+                        </td>
+                        <td className="px-4 py-2.5 font-medium text-fg">{h.name}</td>
+                        <td className="px-4 py-2.5 text-fg-subtle">{h.location ?? '—'}</td>
+                        <td className="px-4 py-2.5">
+                          {h.isOptional ? (
+                            <Badge
+                              variant="outline"
+                              className="text-info border-info/30 bg-info/10 text-xs"
+                            >
+                              Optional
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-success border-success/30 bg-success/10 text-xs"
+                            >
+                              Public
+                            </Badge>
                           )}
-                        </tr>
-                      ))}
+                        </td>
+                        {canManage && (
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                onClick={() => openEdit(h)}
+                              >
+                                <PencilIcon className="size-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 text-danger hover:text-danger"
+                                onClick={() => setDeleteTarget(h)}
+                              >
+                                <Trash2Icon className="size-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -224,6 +298,7 @@ export function HolidayScreen() {
         )}
       </div>
 
+      {/* Add / Edit dialog */}
       <HolidayFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -231,6 +306,7 @@ export function HolidayScreen() {
         holiday={editTarget ?? undefined}
       />
 
+      {/* Delete confirmation */}
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
@@ -247,6 +323,24 @@ export function HolidayScreen() {
         onConfirm={handleDeleteConfirm}
         loading={deleteMutation.isPending}
       />
+
+      {/* Month detail modal */}
+      <MonthDetailModal
+        open={monthModalOpen}
+        onOpenChange={setMonthModalOpen}
+        year={year}
+        month={selectedMonth}
+        holidays={holidays}
+      />
+
+      {/* .ics import dialog */}
+      {canManage && (
+        <IcsImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImported={() => void refetch()}
+        />
+      )}
     </div>
   );
 }

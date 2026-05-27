@@ -6,6 +6,9 @@ import type {
   HolidayDeleteResult,
   HolidaysData,
   HolidayUpdateInput,
+  IcsImportCommitResult,
+  IcsImportJob,
+  IcsImportPreview,
 } from '../types/holiday.types';
 
 export const holidaysApi = {
@@ -51,6 +54,41 @@ export const holidaysApi = {
    */
   remove: async (id: string): Promise<HolidayDeleteResult> => {
     const { data } = await apiClient.delete<{ data: HolidayDeleteResult }>(`/holidays/${id}`);
+    return data.data;
+  },
+
+  /**
+   * POST /holidays/import (multipart) → 202, data = { jobId, previewUrl }
+   * MSW-backed — backend not yet built.
+   */
+  startImport: async (file: File): Promise<IcsImportJob> => {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await apiClient.post<{ data: IcsImportJob }>('/holidays/import', form);
+    return data.data;
+  },
+
+  /**
+   * GET /holidays/import/:jobId/preview
+   */
+  getImportPreview: async (jobId: string): Promise<IcsImportPreview> => {
+    const { data } = await apiClient.get<{ data: IcsImportPreview }>(
+      `/holidays/import/${jobId}/preview`,
+    );
+    return data.data;
+  },
+
+  /**
+   * POST /holidays/import/:jobId/commit → { imported, overwritten, skipped }
+   */
+  commitImport: async (
+    jobId: string,
+    overwriteExisting: boolean,
+  ): Promise<IcsImportCommitResult> => {
+    const { data } = await apiClient.post<{ data: IcsImportCommitResult }>(
+      `/holidays/import/${jobId}/commit`,
+      { overwriteExisting },
+    );
     return data.data;
   },
 };

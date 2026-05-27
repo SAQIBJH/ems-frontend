@@ -2,6 +2,7 @@ import { healthMockHandlers } from './health-mock';
 import { authHandlers } from './auth';
 import { employeeSelfServiceHandlers } from './employee-self-service';
 import { attendanceHandlers } from './attendance';
+import { holidaysHandlers } from './holidays';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -42,4 +43,5 @@ export const handlers = [
   ...authHandlers,
   ...employeeSelfServiceHandlers,
   ...attendanceHandlers,
+  ...holidaysHandlers,
 ];
