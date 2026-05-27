@@ -109,7 +109,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Permissions parity
 
-- [ ] Step 46 — Permissions: Add custom role + "X users affected" preview (MSW)
+- [x] Step 46 — Permissions: Add custom role + "X users affected" preview (MSW)
 
 #### Settings restructure (biggest gap from demo)
 
