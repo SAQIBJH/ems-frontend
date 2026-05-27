@@ -136,7 +136,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 61 — Payroll: Employee self-service payslip history
 - [x] Step 62 — Reports: Module skeleton + page layout + MSW
 - [x] Step 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
-- [ ] Step 64 — Reports: Attendance & Leave reports
+- [x] Step 64 — Reports: Attendance & Leave reports
 - [ ] Step 65 — Reports: Payroll reports + Export
 - [ ] Step 66 — Analytics: Dedicated /analytics page (existing endpoints)
 - [ ] Step 67 — Analytics: Workforce trend + attrition + payroll-cost charts (MSW)
@@ -2023,7 +2023,7 @@ pnpm build
 - [x] Step 61 — Payroll: Employee self-service payslip history
 - [x] Step 62 — Reports: Module skeleton + page layout + MSW
 - [x] Step 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
-- [ ] Step 64 — Reports: Attendance & Leave reports
+- [x] Step 64 — Reports: Attendance & Leave reports
 - [ ] Step 65 — Reports: Payroll reports + Export
 - [ ] Step 66 — Analytics: Dedicated /analytics page (existing endpoints)
 - [ ] Step 67 — Analytics: Workforce trend + attrition + payroll-cost charts (MSW)
