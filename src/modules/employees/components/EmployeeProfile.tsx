@@ -38,6 +38,7 @@ import { DocumentsTab } from './DocumentsTab';
 import { AttendanceTab } from './AttendanceTab';
 import { LeaveTab } from './LeaveTab';
 import { ActivityTab } from './ActivityTab';
+import { CompensationTab } from './CompensationTab';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -209,7 +210,7 @@ function ProfileSkeleton() {
 /* ── Main component ───────────────────────────────────────────────────────── */
 
 export function EmployeeProfile({ id }: { id: string }) {
-  const { permissions } = useAuth();
+  const { permissions, user: viewer } = useAuth();
   const [showTerminate, setShowTerminate] = useState(false);
 
   const { data: employee, isLoading, isError, error, refetch } = useEmployee(id);
@@ -367,6 +368,9 @@ export function EmployeeProfile({ id }: { id: string }) {
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="job">Job</TabsTrigger>
+            {(viewer?.memberType === 'HR_ADMIN' || viewer?.memberType === 'SUPER_ADMIN') && (
+              <TabsTrigger value="compensation">Compensation</TabsTrigger>
+            )}
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
             <TabsTrigger value="leave">Leave</TabsTrigger>
@@ -378,6 +382,9 @@ export function EmployeeProfile({ id }: { id: string }) {
           </TabsContent>
           <TabsContent value="job">
             <JobTab employee={employee} />
+          </TabsContent>
+          <TabsContent value="compensation">
+            <CompensationTab employeeId={id} />
           </TabsContent>
           <TabsContent value="documents">
             <DocumentsTab employeeId={id} />
