@@ -1,6 +1,6 @@
 # Remaining APIs — Pending Backend Implementation
 
-> **Last updated:** 2026-05-27  
+> **Last updated:** 2026-05-27 (Step 46 added §3)  
 > **Status:** Frontend is running against MSW mocks for all endpoints below.  
 > When each endpoint ships, delete the corresponding MSW handler and this entry.
 >
@@ -246,6 +246,124 @@ The frontend mocks return exactly these shapes. If any field name or structure d
 **Preview mock returns 8 candidates** (mix of `willOverwrite: true/false`, `isOptional: true/false`), summary `{ "new": 6, "overwrites": 2, "skipped": 0 }`.
 
 **Commit mock returns:** `{ "success": true, "data": { "imported": 6, "overwritten": 2, "skipped": 0 }, "meta": {} }`
+
+---
+
+---
+
+## 3. Custom Roles CRUD
+
+**MSW file:** `src/mocks/handlers/permissions.ts`  
+**Used by:** Permissions screen (wireframe screen 14), Step 46  
+**Field casing:** `camelCase` (matches permissions domain)
+
+The frontend lets a SUPER_ADMIN or HR_ADMIN create custom roles beyond the five built-in ones and assign permissions to them. All three endpoints below are needed together.
+
+---
+
+### `POST /api/v1/settings/roles`
+
+Create a new custom role for the tenant.
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN
+
+**Request body:**
+
+```json
+{
+  "name": "Recruiter",
+  "key": "RECRUITER",
+  "permissions": ["employees:read", "departments:read"]
+}
+```
+
+| Field         | Type     | Required | Notes                                                                                   |
+| ------------- | -------- | -------- | --------------------------------------------------------------------------------------- |
+| `name`        | string   | Yes      | Display label, 2–50 chars                                                               |
+| `key`         | string   | Yes      | Internal identifier — uppercase letters, digits, underscores; must be unique per tenant |
+| `permissions` | string[] | Yes      | Subset of the values returned by `GET /settings/roles-permissions` → `permissions[]`    |
+
+**Success response — 201:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "key": "RECRUITER",
+    "name": "Recruiter",
+    "permissions": ["employees:read", "departments:read"]
+  },
+  "meta": {}
+}
+```
+
+**Error responses:**
+
+| HTTP | Code                 | When                                                 |
+| ---- | -------------------- | ---------------------------------------------------- |
+| 409  | `DUPLICATE_ROLE_KEY` | A role with this `key` already exists for the tenant |
+| 422  | `VALIDATION_ERROR`   | Missing/invalid fields                               |
+
+**Side-effects:** The new role key must appear in `GET /settings/roles-permissions` → `roles[]` and `matrix` immediately after creation (so the frontend's React Query cache, which is patched optimistically, stays in sync on a hard refresh).
+
+---
+
+### `DELETE /api/v1/settings/roles/:key`
+
+Delete a custom role. Cannot delete built-in roles.
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN
+
+**Path params:**
+
+- `key` — the role key to delete (e.g. `RECRUITER`)
+
+**Success response — 200:**
+
+```json
+{
+  "success": true,
+  "data": { "key": "RECRUITER", "status": "deleted" },
+  "meta": {}
+}
+```
+
+**Error responses:**
+
+| HTTP | Code          | When                                               |
+| ---- | ------------- | -------------------------------------------------- |
+| 404  | `NOT_FOUND`   | Role key does not exist                            |
+| 409  | `ROLE_IN_USE` | One or more users are currently assigned this role |
+
+---
+
+### `POST /api/v1/settings/roles/:key/users`
+
+Assign one or more users to a custom role. (Not yet used by the frontend — built for future user-assignment flow.)
+
+**Required roles:** HR_ADMIN, SUPER_ADMIN
+
+**Request body:**
+
+```json
+{ "userIds": ["usr_a", "usr_b"] }
+```
+
+**Success response — 200:**
+
+```json
+{
+  "success": true,
+  "data": { "assigned": ["usr_a", "usr_b"] },
+  "meta": {}
+}
+```
+
+---
+
+### How `GET /settings/roles-permissions` must change
+
+Once custom roles exist, `GET /settings/roles-permissions` should include them in both `roles[]` and `matrix`. The current response shape already supports this — just append the custom role keys. No new fields or shape change needed.
 
 ---
 
