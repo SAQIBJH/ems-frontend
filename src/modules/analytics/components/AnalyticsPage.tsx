@@ -5,6 +5,18 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { parseAsString, useQueryState } from 'nuqs';
 import { ExternalLinkIcon } from 'lucide-react';
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -12,6 +24,8 @@ import { AreaChart } from '@/shared/engines/ChartEngine/AreaChart';
 import { BarChart } from '@/shared/engines/ChartEngine/BarChart';
 import { DonutChart } from '@/shared/engines/ChartEngine/DonutChart';
 import type { DonutSlice } from '@/shared/engines/ChartEngine/DonutChart';
+import { DynamicTable } from '@/shared/engines/DynamicTable';
+import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import {
   Select,
@@ -29,6 +43,17 @@ import {
   useRecentActivity,
 } from '@/modules/dashboard';
 import type { AttendanceRange, RecentActivityItem } from '@/modules/dashboard';
+import {
+  useWorkforceTrend,
+  useAttritionTrend,
+  usePayrollCostTrend,
+  useDepartmentPerformance,
+} from '../hooks/useAnalytics';
+import type {
+  WorkforceTrendRange,
+  DeptPerfRange,
+  DepartmentPerformanceRow,
+} from '../types/analytics.types';
 import { RangeSelector } from './RangeSelector';
 
 const DEPT_COLORS = [
@@ -104,6 +129,294 @@ function ActivityRow({ item }: { item: RecentActivityItem }) {
         {formatTime(item.createdAt)}
       </td>
     </tr>
+  );
+}
+
+const TREND_RANGE_OPTIONS: { label: string; value: WorkforceTrendRange }[] = [
+  { label: '6m', value: '6m' },
+  { label: '12m', value: '12m' },
+  { label: '2y', value: '2y' },
+];
+
+const DEPT_PERF_RANGE_OPTIONS: { label: string; value: DeptPerfRange }[] = [
+  { label: '30d', value: '30d' },
+  { label: '90d', value: '90d' },
+];
+
+function RangeToggle<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { label: string; value: T }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={[
+            'rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
+            value === opt.value ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-2',
+          ].join(' ')}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function WorkforceTrendChart() {
+  const [range, setRange] = useState<WorkforceTrendRange>('6m');
+  const { data, isLoading, isError, refetch } = useWorkforceTrend(range);
+
+  return (
+    <SectionCard title="Workforce Trend">
+      <div className="mb-4 flex items-center gap-1">
+        <RangeToggle value={range} options={TREND_RANGE_OPTIONS} onChange={setRange} />
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-64 w-full rounded-md" />
+      ) : isError ? (
+        <ErrorState compact message="Failed to load workforce trend" onRetry={() => refetch()} />
+      ) : !data || data.length === 0 ? (
+        <div className="flex h-64 items-center justify-center text-sm text-fg-muted">
+          No trend data for this period.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={256}>
+          <ComposedChart data={data} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" vertical={false} />
+            <XAxis
+              dataKey="monthLabel"
+              tick={{ fontSize: 11, fill: 'hsl(220 9% 55%)' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: 'hsl(220 9% 55%)' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(0 0% 100%)',
+                border: '1px solid hsl(220 13% 91%)',
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
+            <Legend
+              wrapperStyle={{ fontSize: 12, color: 'hsl(220 9% 38%)' }}
+              iconType="plainline"
+              iconSize={16}
+            />
+            <Bar
+              dataKey="hires"
+              name="Hires"
+              fill="hsl(152 60% 40%)"
+              radius={[3, 3, 0, 0]}
+              barSize={14}
+            />
+            <Bar
+              dataKey="exits"
+              name="Exits"
+              fill="hsl(0 75% 55%)"
+              radius={[3, 3, 0, 0]}
+              barSize={14}
+            />
+            <Line
+              type="monotone"
+              dataKey="headcount"
+              name="Headcount"
+              stroke="hsl(222 80% 52%)"
+              strokeWidth={2}
+              dot={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+    </SectionCard>
+  );
+}
+
+function AttritionChart() {
+  const [range, setRange] = useState<WorkforceTrendRange>('6m');
+  const { data, isLoading, isError, refetch } = useAttritionTrend(range);
+
+  return (
+    <SectionCard title="Attrition Rate">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <RangeToggle value={range} options={TREND_RANGE_OPTIONS} onChange={setRange} />
+        {data && (
+          <span className="text-xs text-fg-muted">
+            Rolling annual: <span className="font-semibold text-fg">{data.rollingAnnualRate}%</span>
+          </span>
+        )}
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-52 w-full rounded-md" />
+      ) : isError ? (
+        <ErrorState compact message="Failed to load attrition data" onRetry={() => refetch()} />
+      ) : !data || data.trend.length === 0 ? (
+        <div className="flex h-52 items-center justify-center text-sm text-fg-muted">
+          No attrition data for this period.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={208}>
+          <LineChart data={data.trend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" vertical={false} />
+            <XAxis
+              dataKey="monthLabel"
+              tick={{ fontSize: 11, fill: 'hsl(220 9% 55%)' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: 'hsl(220 9% 55%)' }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v: number) => `${v}%`}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(0 0% 100%)',
+                border: '1px solid hsl(220 13% 91%)',
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              formatter={(v) => [`${v}%`, 'Rate']}
+            />
+            <Line
+              type="monotone"
+              dataKey="rate"
+              name="Attrition %"
+              stroke="hsl(0 75% 50%)"
+              strokeWidth={2}
+              dot={{ r: 3, fill: 'hsl(0 75% 50%)' }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </SectionCard>
+  );
+}
+
+function PayrollCostChart() {
+  const [range, setRange] = useState<Exclude<WorkforceTrendRange, '2y'>>('6m');
+  const { data, isLoading, isError, refetch } = usePayrollCostTrend(range);
+
+  const chartData = (data ?? []) as unknown as Record<string, unknown>[];
+
+  return (
+    <SectionCard title="Payroll Cost Trend">
+      <div className="mb-4 flex items-center gap-1">
+        <RangeToggle
+          value={range}
+          options={[
+            { label: '6m', value: '6m' as const },
+            { label: '12m', value: '12m' as const },
+          ]}
+          onChange={setRange}
+        />
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-52 w-full rounded-md" />
+      ) : isError ? (
+        <ErrorState compact message="Failed to load payroll cost" onRetry={() => refetch()} />
+      ) : chartData.length === 0 ? (
+        <div className="flex h-52 items-center justify-center text-sm text-fg-muted">
+          No payroll data for this period.
+        </div>
+      ) : (
+        <AreaChart
+          data={chartData}
+          xAxisKey="monthLabel"
+          height={208}
+          series={[
+            { dataKey: 'totalNet', label: 'Net Pay', color: 'hsl(222 80% 52%)' },
+            { dataKey: 'totalGross', label: 'Gross', color: 'hsl(38 92% 50%)' },
+          ]}
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+const DEPT_PERF_COLS: ColumnDef<DepartmentPerformanceRow>[] = [
+  {
+    accessorKey: 'departmentName',
+    header: 'Department',
+    cell: ({ row }) => <span className="font-medium text-fg">{row.original.departmentName}</span>,
+  },
+  {
+    accessorKey: 'headcount',
+    header: 'Headcount',
+    cell: ({ row }) => <span className="tabular-nums text-fg-muted">{row.original.headcount}</span>,
+  },
+  {
+    accessorKey: 'attendanceRate',
+    header: 'Attendance',
+    cell: ({ row }) => {
+      const rate = row.original.attendanceRate;
+      const cls = rate >= 95 ? 'text-success' : rate >= 88 ? 'text-warning' : 'text-danger';
+      return <span className={`tabular-nums font-medium ${cls}`}>{rate.toFixed(1)}%</span>;
+    },
+  },
+  {
+    accessorKey: 'leaveRate',
+    header: 'Leave Rate',
+    cell: ({ row }) => (
+      <span className="tabular-nums text-fg-muted">{row.original.leaveRate.toFixed(1)}%</span>
+    ),
+  },
+  {
+    accessorKey: 'pendingApprovals',
+    header: 'Pending',
+    cell: ({ row }) => {
+      const n = row.original.pendingApprovals;
+      return (
+        <span className={`tabular-nums font-medium ${n > 0 ? 'text-warning' : 'text-fg-muted'}`}>
+          {n}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: 'avgTenureMonths',
+    header: 'Avg Tenure',
+    cell: ({ row }) => {
+      const months = row.original.avgTenureMonths;
+      const label = months >= 12 ? `${(months / 12).toFixed(1)}y` : `${months.toFixed(0)}m`;
+      return <span className="tabular-nums text-fg-muted">{label}</span>;
+    },
+  },
+];
+
+function DeptPerformanceTable() {
+  const [range, setRange] = useState<DeptPerfRange>('30d');
+  const { data, isLoading, isError, refetch } = useDepartmentPerformance(range);
+
+  return (
+    <SectionCard title="Department Performance">
+      <div className="mb-4 flex items-center gap-1">
+        <RangeToggle value={range} options={DEPT_PERF_RANGE_OPTIONS} onChange={setRange} />
+      </div>
+      <DynamicTable
+        columns={DEPT_PERF_COLS}
+        data={data ?? []}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={refetch}
+        emptyTitle="No department data"
+        emptyDescription="No performance data available for the selected period."
+      />
+    </SectionCard>
   );
 }
 
@@ -424,6 +737,22 @@ export function AnalyticsPage() {
             </>
           )}
         </SectionCard>
+
+        {/* Row 5 — Workforce Trend (full width) */}
+        <WorkforceTrendChart />
+
+        {/* Row 6 — Attrition (6-col) + Payroll Cost (6-col) */}
+        <div className="grid gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-6">
+            <AttritionChart />
+          </div>
+          <div className="xl:col-span-6">
+            <PayrollCostChart />
+          </div>
+        </div>
+
+        {/* Row 7 — Department Performance (full width) */}
+        <DeptPerformanceTable />
       </div>
     </div>
   );

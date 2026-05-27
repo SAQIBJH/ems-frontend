@@ -9,6 +9,7 @@ import { payrollGroupHandlers } from './payroll-groups';
 import { payrollEmployeeHandlers } from './payroll-employee';
 import { payrollRunHandlers } from './payroll-runs';
 import { reportsHandlers } from './reports';
+import { analyticsHandlers } from './analytics';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -24,6 +25,10 @@ import { reportsHandlers } from './reports';
 //   DELETE /settings/roles/:key      — delete custom role (Step 46)
 //   All  /payroll/*                  — Phase 2 payroll (not yet built)
 //   All  /reports/*                  — Phase 2 reports (not yet built)
+//   GET  /analytics/workforce-trend  — Phase 2 analytics (MSW)
+//   GET  /analytics/attrition        — Phase 2 analytics (MSW)
+//   GET  /analytics/payroll-cost     — Phase 2 analytics (MSW)
+//   GET  /analytics/department-performance — Phase 2 analytics (MSW)
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
@@ -60,4 +65,5 @@ export const handlers = [
   ...payrollEmployeeHandlers,
   ...payrollRunHandlers,
   ...reportsHandlers,
+  ...analyticsHandlers,
 ];
