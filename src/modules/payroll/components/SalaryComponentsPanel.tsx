@@ -2,11 +2,25 @@
 
 import { useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { CheckIcon, MinusIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+  CheckIcon,
+  MinusIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
@@ -209,30 +223,29 @@ export function SalaryComponentsPanel() {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEdit(row.original);
-            }}
-            aria-label={`Edit ${row.original.name}`}
-          >
-            <PencilIcon className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteTarget(row.original);
-            }}
-            aria-label={`Delete ${row.original.name}`}
-            className="text-danger hover:text-danger hover:bg-danger/10"
-          >
-            <Trash2Icon className="size-3.5" />
-          </Button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-8')}
+              aria-label={`Actions for ${row.original.name}`}
+            >
+              <MoreHorizontalIcon className="size-4" aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                <PencilIcon className="mr-2 size-3.5" aria-hidden />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-danger focus:text-danger"
+                onClick={() => setDeleteTarget(row.original)}
+              >
+                <Trash2Icon className="mr-2 size-3.5" aria-hidden />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },

@@ -4,11 +4,18 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Loader2Icon } from 'lucide-react';
+import { Loader2Icon, MoreHorizontalIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { PermissionWrapper } from '@/shared/guards';
@@ -147,28 +154,40 @@ export function PayrollRunsTab({ onRunPayroll }: { onRunPayroll: () => void }) {
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: '',
       cell: ({ row }) => {
         const run = row.original;
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button variant="outline" size="sm" onClick={() => router.push(`/payroll/${run.id}`)}>
-              View
-            </Button>
-            {run.status === 'REVIEW' && (
-              <PermissionWrapper permission="payroll:approve">
-                <Button
-                  size="sm"
-                  onClick={() => handleApprove(run)}
-                  disabled={approveMutation.isPending}
-                >
-                  {approveMutation.isPending && approveMutation.variables?.id === run.id && (
-                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
-                  )}
-                  Approve
-                </Button>
-              </PermissionWrapper>
-            )}
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-8')}
+                aria-label={`Actions for ${run.periodLabel}`}
+              >
+                <MoreHorizontalIcon className="size-4" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push(`/payroll/${run.id}`)}>
+                  View
+                </DropdownMenuItem>
+                {run.status === 'REVIEW' && (
+                  <PermissionWrapper permission="payroll:approve">
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleApprove(run)}
+                        disabled={approveMutation.isPending}
+                      >
+                        {approveMutation.isPending && approveMutation.variables?.id === run.id && (
+                          <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                        )}
+                        Approve
+                      </DropdownMenuItem>
+                    </>
+                  </PermissionWrapper>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         );
       },

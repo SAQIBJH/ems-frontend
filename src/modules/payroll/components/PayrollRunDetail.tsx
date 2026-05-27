@@ -9,11 +9,12 @@ import {
   ChevronRightIcon,
   DownloadIcon,
   Loader2Icon,
+  MoreHorizontalIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatsCard } from '@/components/data-display/StatsCard';
@@ -281,24 +289,35 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: '',
       cell: ({ row }) => {
         const slip = row.original;
         const canAdjust = run?.status === 'REVIEW' || run?.status === 'APPROVED';
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button variant="outline" size="sm" onClick={() => setSelectedPayslipId(slip.id)}>
-              View
-            </Button>
-            {canAdjust && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setAdjustPayslip({ id: slip.id, name: slip.employeeName })}
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-8')}
+                aria-label={`Actions for ${slip.employeeName}`}
               >
-                Adjust
-              </Button>
-            )}
+                <MoreHorizontalIcon className="size-4" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSelectedPayslipId(slip.id)}>
+                  View payslip
+                </DropdownMenuItem>
+                {canAdjust && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setAdjustPayslip({ id: slip.id, name: slip.employeeName })}
+                    >
+                      Add adjustment
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         );
       },
