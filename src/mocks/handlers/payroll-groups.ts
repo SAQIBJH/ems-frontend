@@ -1,5 +1,10 @@
 import { http, HttpResponse } from 'msw';
-import type { PayGroup, PayScheduleRecord } from '@/modules/payroll/types/payroll.types';
+import type {
+  PayGroup,
+  PayGroupComponentInput,
+  PayScheduleRecord,
+} from '@/modules/payroll/types/payroll.types';
+import { getComponentById } from './payroll-components';
 
 let groups: PayGroup[] = [
   {
@@ -116,6 +121,21 @@ const schedules: PayScheduleRecord[] = [
   },
 ];
 
+function enrichComponents(inputs: Array<PayGroupComponentInput>) {
+  return inputs.map((gc) => {
+    const base = getComponentById(gc.componentId);
+    return {
+      componentId: gc.componentId,
+      componentCode: base?.code ?? gc.componentId,
+      componentName: base?.name ?? gc.componentId,
+      componentType: base?.type ?? 'EARNING',
+      overrideCalculationType: gc.overrideCalculationType ?? null,
+      overrideValue: gc.overrideValue ?? null,
+      overrideFormula: gc.overrideFormula ?? null,
+    };
+  });
+}
+
 let idCounter = 100;
 
 export const payrollGroupHandlers = [
@@ -137,6 +157,7 @@ export const payrollGroupHandlers = [
     const now = new Date().toISOString();
     const created: PayGroup = {
       ...body,
+      components: enrichComponents(body.components as unknown as PayGroupComponentInput[]),
       id: `pg-${++idCounter}`,
       employeeCount: 0,
       createdAt: now,
@@ -159,6 +180,9 @@ export const payrollGroupHandlers = [
     const updated: PayGroup = {
       ...groups[idx],
       ...body,
+      components: body.components
+        ? enrichComponents(body.components as unknown as PayGroupComponentInput[])
+        : groups[idx].components,
       id,
       updatedAt: new Date().toISOString(),
     };

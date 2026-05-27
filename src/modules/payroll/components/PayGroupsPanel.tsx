@@ -293,7 +293,13 @@ export function PayGroupsPanel() {
                           return oa - ob;
                         })
                         .map((gc) => {
-                          const cfg = COMPONENT_TYPE_CONFIG[gc.componentType];
+                          const cfg =
+                            COMPONENT_TYPE_CONFIG[gc.componentType] ??
+                            ({
+                              label: gc.componentType ?? 'Unknown',
+                              color: 'text-fg-muted bg-surface-raised',
+                              icon: '?',
+                            } as (typeof COMPONENT_TYPE_CONFIG)[keyof typeof COMPONENT_TYPE_CONFIG]);
                           const hasOverride =
                             gc.overrideCalculationType !== null ||
                             gc.overrideValue !== null ||

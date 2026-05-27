@@ -134,6 +134,10 @@ let components: SalaryComponent[] = [
 
 let idCounter = 100;
 
+export function getComponentById(id: string) {
+  return components.find((c) => c.id === id);
+}
+
 export const payrollComponentHandlers = [
   http.get('/api/payroll/components', ({ request }) => {
     const url = new URL(request.url);
