@@ -185,11 +185,31 @@ export const payrollComponentHandlers = [
 
   http.delete('/api/payroll/components/:id', ({ params }) => {
     const { id } = params as { id: string };
-    const exists = components.some((c) => c.id === id);
-    if (!exists) {
+    const comp = components.find((c) => c.id === id);
+    if (!comp) {
       return HttpResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Component not found' } },
         { status: 404 },
+      );
+    }
+    // Check if any active component references this code
+    const affectedComponents = components
+      .filter((c) => c.id !== id && c.active)
+      .filter(
+        (c) => c.basisCode === comp.code || (c.formula != null && c.formula.includes(comp.code)),
+      )
+      .map((c) => c.code);
+    if (affectedComponents.length > 0) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'COMPONENT_IN_USE',
+            message: `${comp.code} is referenced by other components`,
+            details: { affectedComponents, affectedPayGroups: [] },
+          },
+        },
+        { status: 400 },
       );
     }
     components = components.filter((c) => c.id !== id);
