@@ -66,7 +66,12 @@ export {
   useMarkPaidPayrollRun,
   useAdjustPayslip,
 } from './hooks/usePayrollRuns';
-export { useEmployeeSalary, useEmployeePayslips, useAssignSalary } from './hooks/useEmployeeSalary';
+export {
+  useEmployeeSalary,
+  useEmployeePayslips,
+  useEmployeePayslip,
+  useAssignSalary,
+} from './hooks/useEmployeeSalary';
 
 // Utils
 export {
@@ -99,3 +104,4 @@ export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';
+export { MyPayslipsPage } from './components/MyPayslipsPage';

@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { cn } from '@/lib/utils';
 
-import { useRunPayslip } from '@/modules/payroll';
+import { useRunPayslip, useEmployeePayslip } from '@/modules/payroll';
 import type { Payslip } from '@/modules/payroll';
 
 function fmtCurrency(amount: number, currency = 'INR'): string {
@@ -23,17 +23,27 @@ function fmtCurrency(amount: number, currency = 'INR'): string {
 interface PayslipDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  runId: string;
   payslipId: string | null;
+  /** HR / run context — provide this OR employeeId, not both. */
+  runId?: string | null;
+  /** Employee self-service context — provide this OR runId, not both. */
+  employeeId?: string | null;
 }
 
-export function PayslipDrawer({ open, onOpenChange, runId, payslipId }: PayslipDrawerProps) {
-  const {
-    data: payslip,
-    isLoading,
-    isError,
-    refetch,
-  } = useRunPayslip(open ? runId : null, open ? payslipId : null);
+export function PayslipDrawer({
+  open,
+  onOpenChange,
+  payslipId,
+  runId,
+  employeeId,
+}: PayslipDrawerProps) {
+  const runQuery = useRunPayslip(open && runId ? runId : null, open && runId ? payslipId : null);
+  const empQuery = useEmployeePayslip(
+    open && employeeId ? employeeId : null,
+    open && employeeId ? payslipId : null,
+  );
+
+  const { data: payslip, isLoading, isError, refetch } = employeeId ? empQuery : runQuery;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

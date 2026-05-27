@@ -24,6 +24,14 @@ export function useEmployeePayslips(
   });
 }
 
+export function useEmployeePayslip(employeeId: string | null, payslipId: string | null) {
+  return useQuery({
+    queryKey: [...PAYSLIPS_KEY, employeeId, 'detail', payslipId],
+    queryFn: () => employeeSalaryApi.getPayslip(employeeId!, payslipId!),
+    enabled: !!(employeeId && payslipId),
+  });
+}
+
 export function useAssignSalary() {
   const qc = useQueryClient();
   return useMutation({
