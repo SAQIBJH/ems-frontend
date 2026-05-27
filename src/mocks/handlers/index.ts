@@ -4,6 +4,10 @@ import { employeeSelfServiceHandlers } from './employee-self-service';
 import { attendanceHandlers } from './attendance';
 import { holidaysHandlers } from './holidays';
 import { permissionsHandlers } from './permissions';
+import { payrollComponentHandlers } from './payroll-components';
+import { payrollGroupHandlers } from './payroll-groups';
+import { payrollEmployeeHandlers } from './payroll-employee';
+import { payrollRunHandlers } from './payroll-runs';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -17,6 +21,7 @@ import { permissionsHandlers } from './permissions';
 //   POST /attendance/regularization/:id/documents — supporting doc upload not yet live
 //   POST /settings/roles             — create custom role (Step 46)
 //   DELETE /settings/roles/:key      — delete custom role (Step 46)
+//   All  /payroll/*                  — Phase 2 payroll (not yet built)
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
@@ -48,4 +53,8 @@ export const handlers = [
   ...attendanceHandlers,
   ...holidaysHandlers,
   ...permissionsHandlers,
+  ...payrollComponentHandlers,
+  ...payrollGroupHandlers,
+  ...payrollEmployeeHandlers,
+  ...payrollRunHandlers,
 ];

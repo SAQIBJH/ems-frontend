@@ -19,6 +19,9 @@ import {
   CreditCardIcon,
   ExternalLinkIcon,
   ReceiptIcon,
+  CircleDollarSignIcon,
+  UsersIcon,
+  CalendarClockIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers';
@@ -91,6 +94,32 @@ const NAV_GROUPS: NavGroup[] = [
         slug: 'attendance-rules',
         icon: ClipboardListIcon,
         roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+      },
+    ],
+  },
+  {
+    label: 'Pay & Compliance',
+    items: [
+      {
+        label: 'Salary Components',
+        slug: 'pay/components',
+        icon: CircleDollarSignIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+        phase2: true,
+      },
+      {
+        label: 'Pay Groups',
+        slug: 'pay/groups',
+        icon: UsersIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+        phase2: true,
+      },
+      {
+        label: 'Pay Schedules',
+        slug: 'pay/schedules',
+        icon: CalendarClockIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+        phase2: true,
       },
     ],
   },

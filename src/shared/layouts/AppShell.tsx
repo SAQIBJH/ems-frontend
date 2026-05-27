@@ -21,6 +21,9 @@ import {
   Moon,
   LogOut,
   User,
+  DollarSign,
+  BarChart2,
+  TrendingUp,
 } from 'lucide-react';
 import { GlobalSearch } from '@/modules/search';
 import { NotificationBell } from '@/modules/notifications';
@@ -56,6 +59,9 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Attendance', href: '/attendance', icon: Clock },
   { label: 'Leave', href: '/leave', icon: CalendarOff },
   { label: 'Holidays', href: '/holidays', icon: Calendar },
+  { label: 'Payroll', href: '/payroll', icon: DollarSign },
+  { label: 'Reports', href: '/reports', icon: BarChart2 },
+  { label: 'Analytics', href: '/analytics', icon: TrendingUp },
   { label: 'Permissions', href: '/permissions', icon: Shield },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
