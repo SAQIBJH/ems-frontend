@@ -85,3 +85,10 @@ export { payGroupSchema } from './validations/pay-group.schema';
 export type { PayGroupFormValues } from './validations/pay-group.schema';
 export { payrollRunSchema } from './validations/payroll-run.schema';
 export type { PayrollRunFormValues } from './validations/payroll-run.schema';
+
+// Components (exported for use in settings pages and elsewhere)
+export { SalaryComponentsPanel } from './components/SalaryComponentsPanel';
+export { SalaryComponentDrawer } from './components/SalaryComponentDrawer';
+export { PayGroupsPanel } from './components/PayGroupsPanel';
+export { PayGroupDrawer } from './components/PayGroupDrawer';
+export { PaySchedulesPanel } from './components/PaySchedulesPanel';
