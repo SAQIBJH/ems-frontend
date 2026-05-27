@@ -8,20 +8,23 @@ import { DEFAULT_REPORT } from '../constants';
 import type { ReportType } from '../types/reports.types';
 
 const panelMap: Record<ReportType, React.LazyExoticComponent<React.ComponentType>> = {
-  'workforce/headcount': lazy(() => import('./panels/HeadcountPanel')),
-  'workforce/turnover': lazy(() => import('./panels/TurnoverPanel')),
-  'workforce/demographics': lazy(() => import('./panels/DemographicsPanel')),
+  // Step 63 — workforce panels (real)
+  'workforce/headcount': lazy(() => import('./HeadcountReport')),
+  'workforce/turnover': lazy(() => import('./TurnoverReport')),
+  'workforce/demographics': lazy(() => import('./DemographicsReport')),
+  // Step 64 — attendance & leave panels (placeholder until next step)
   'attendance/summary': lazy(() => import('./panels/AttendanceSummaryPanel')),
   'attendance/absenteeism': lazy(() => import('./panels/AbsenteeismPanel')),
   'leave/utilization': lazy(() => import('./panels/LeaveUtilizationPanel')),
   'leave/pending': lazy(() => import('./panels/LeavePendingPanel')),
+  // Step 65 — payroll panels (placeholder until next step)
   'payroll/summary': lazy(() => import('./panels/PayrollSummaryPanel')),
   'payroll/ctc-analysis': lazy(() => import('./panels/CtcAnalysisPanel')),
 };
 
 function PanelSkeleton() {
   return (
-    <div className="space-y-4 flex-1">
+    <div className="flex-1 space-y-4">
       <div className="flex items-center justify-between">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-8 w-28" />
