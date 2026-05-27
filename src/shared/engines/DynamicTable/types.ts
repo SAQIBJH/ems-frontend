@@ -18,6 +18,7 @@ export interface DynamicTableProps<TData> {
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: React.ReactNode;
+  emptyIllustration?: React.ReactNode;
   onRowClick?: (row: TData) => void;
   pagination?: DynamicTablePagination;
   onPageChange?: (page: number) => void;

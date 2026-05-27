@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { NoDocumentsIllustration } from '@/components/feedback/illustrations';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
@@ -316,7 +317,7 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
               ? 'Upload an ID proof, contract, or other document.'
               : 'No documents have been uploaded for this employee.'
           }
-          icon={<FileTextIcon className="size-6 text-fg-muted" aria-hidden />}
+          illustration={<NoDocumentsIllustration />}
           action={
             canUpload ? (
               <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">

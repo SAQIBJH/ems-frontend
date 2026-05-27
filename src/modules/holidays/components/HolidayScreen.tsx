@@ -18,6 +18,7 @@ import type { AxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { NoHolidaysIllustration } from '@/components/feedback/illustrations';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { PageHeader } from '@/shared/layouts/PageHeader';
@@ -203,6 +204,7 @@ export function HolidayScreen() {
           <section>
             {holidays.length === 0 ? (
               <EmptyState
+                illustration={<NoHolidaysIllustration />}
                 title="No holidays defined"
                 description={`No holidays have been added for ${year} yet.`}
                 action={

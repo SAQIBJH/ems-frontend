@@ -8,6 +8,7 @@ import { useSearch } from '../hooks/useSearch';
 import type { SearchResult, SearchResultType } from '../types/search.types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { cn } from '@/lib/utils';
+import { NoSearchResultsIllustration } from '@/components/feedback/illustrations';
 
 const TYPE_LABELS: Record<SearchResultType, string> = {
   employee: 'Employees',
@@ -147,9 +148,10 @@ export function GlobalSearch() {
           aria-label="Search results"
         >
           {results.length === 0 ? (
-            <p className="py-6 text-center text-sm text-fg-muted">
-              No results for &ldquo;{debouncedQuery}&rdquo;
-            </p>
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <NoSearchResultsIllustration className="size-12 text-fg-muted" />
+              <p className="text-sm text-fg-muted">No results for &ldquo;{debouncedQuery}&rdquo;</p>
+            </div>
           ) : (
             (Object.keys(grouped) as SearchResultType[]).map((type) => {
               const items = grouped[type]!;

@@ -55,9 +55,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* ── EMS design token color utilities ───────────────────────────────── */
-  /* Surfaces: bg-canvas, bg-surface, bg-surface-2 */
+  /* Surfaces: bg-canvas, bg-surface, bg-surface-raised, bg-surface-2 */
   --color-canvas: var(--bg-canvas);
   --color-surface: var(--bg-surface);
+  --color-surface-raised: var(--bg-surface-raised);
   --color-surface-2: var(--bg-surface-2);
   --color-overlay: var(--bg-overlay);
 

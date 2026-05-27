@@ -52,6 +52,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import { NoDataIllustration } from '@/components/feedback/illustrations';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { useAuth } from '@/providers';
@@ -914,6 +915,7 @@ export function EmployeeTable() {
           isError={isError}
           errorMessage={errorMessage}
           onRetry={() => refetch()}
+          emptyIllustration={<NoDataIllustration />}
           emptyTitle="No employees found"
           emptyDescription={
             hasActiveFilters

@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { CheckIcon, XIcon, InboxIcon } from 'lucide-react';
+import { CheckIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { NoApprovalsIllustration } from '@/components/feedback/illustrations';
 import { useApproveLeaveRequest, useRejectLeaveRequest } from '@/modules/leave';
 import { useApproveRegularization, useDenyRegularization } from '@/modules/attendance';
 import { useManagerApprovals } from '../hooks/useDashboard';
@@ -273,11 +275,12 @@ export function PendingApprovalsPanel() {
             />
           </div>
         ) : totalPending === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 px-5">
-            <InboxIcon className="size-10 text-fg-muted" aria-hidden />
-            <p className="text-sm font-medium text-fg-muted">No pending approvals</p>
-            <p className="text-xs text-fg-subtle">You&apos;re all caught up.</p>
-          </div>
+          <EmptyState
+            illustration={<NoApprovalsIllustration />}
+            title="No pending approvals"
+            description="You're all caught up."
+            className="py-12"
+          />
         ) : (
           <>
             {leaveRequests.map((req) => (

@@ -6,6 +6,7 @@
   /* Surfaces */
   --bg-canvas: hsl(220 14% 98%);
   --bg-surface: hsl(0 0% 100%);
+  --bg-surface-raised: hsl(220 14% 97%); /* slightly elevated card / table header */
   --bg-surface-2: hsl(220 14% 96%);
   --bg-overlay: hsl(220 30% 8%);
 
@@ -63,6 +64,7 @@
   /* Surfaces */
   --bg-canvas: hsl(222 20% 8%);
   --bg-surface: hsl(222 18% 11%);
+  --bg-surface-raised: hsl(222 17% 15%); /* slightly elevated card / table header */
   --bg-surface-2: hsl(222 16% 14%);
   --bg-overlay: hsl(222 30% 4%);
 

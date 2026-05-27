@@ -29,6 +29,7 @@ export function DynamicTable<TData>({
   emptyTitle = 'No results',
   emptyDescription = 'Nothing to show here yet.',
   emptyAction,
+  emptyIllustration,
   onRowClick,
   pagination,
   onPageChange,
@@ -65,7 +66,14 @@ export function DynamicTable<TData>({
   }
 
   if (data.length === 0) {
-    return <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />;
+    return (
+      <EmptyState
+        title={emptyTitle}
+        description={emptyDescription}
+        action={emptyAction}
+        illustration={emptyIllustration}
+      />
+    );
   }
 
   const { page = 1, pages = 1, total = 0, pageSize = 20 } = pagination ?? {};

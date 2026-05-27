@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { NoTeamIllustration } from '@/components/feedback/illustrations';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useDepartmentEmployees } from '../hooks/useDepartments';
@@ -75,6 +76,7 @@ export function DepartmentEmployeesTable({ deptId }: { deptId: string }) {
         <ErrorState compact message="Failed to load employees" onRetry={() => refetch()} />
       ) : employees.length === 0 ? (
         <EmptyState
+          illustration={<NoTeamIllustration />}
           title={debouncedSearch ? 'No results' : 'No employees'}
           description={
             debouncedSearch
