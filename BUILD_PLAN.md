@@ -113,8 +113,8 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 #### Settings restructure (biggest gap from demo)
 
-- [ ] Step 47 — Settings: restructure left nav into 6 groups + sub-routes
-- [ ] Step 48 — Settings: Sessions & devices + Audit log (live APIs)
+- [x] Step 47 — Settings: restructure left nav into 6 groups + sub-routes
+- [x] Step 48 — Settings: Sessions & devices + Audit log (live APIs)
 - [ ] Step 49 — Settings: Branding + Leave types CRUD (MSW)
 - [ ] Step 50 — Settings: Attendance rules + Authentication + Notification prefs (MSW)
 - [ ] Step 51 — Settings: Integrations / Billing placeholders ("Phase 2" cards)
