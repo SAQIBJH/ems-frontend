@@ -133,7 +133,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
 - [x] Step 59 — Payroll: Run payroll flow (initiate → calculate → review)
 - [x] Step 60 — Payroll: Run detail page + payslip viewer
-- [ ] Step 61 — Payroll: Employee self-service payslip history
+- [x] Step 61 — Payroll: Employee self-service payslip history
 - [ ] Step 62 — Reports: Module skeleton + page layout + MSW
 - [ ] Step 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
 - [ ] Step 64 — Reports: Attendance & Leave reports
