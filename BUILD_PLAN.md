@@ -125,6 +125,22 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 53 — Wireframe parity verification walk-through (all 15 screens)
 - [x] Step 54 — Production build + demo redeploy
 
+### PHASE 2 — Payroll, Reports & Analytics
+
+- [ ] Step 55 — Payroll module skeleton: types, MSW, services, hooks, route registration
+- [ ] Step 56 — Settings: Pay & Compliance → Salary Components CRUD
+- [ ] Step 57 — Settings: Pay Groups CRUD (payroll templates)
+- [ ] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
+- [ ] Step 59 — Payroll: Run payroll flow (initiate → calculate → review)
+- [ ] Step 60 — Payroll: Run detail page + payslip viewer
+- [ ] Step 61 — Payroll: Employee self-service payslip history
+- [ ] Step 62 — Reports: Module skeleton + page layout + MSW
+- [ ] Step 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
+- [ ] Step 64 — Reports: Attendance & Leave reports
+- [ ] Step 65 — Reports: Payroll reports + Export
+- [ ] Step 66 — Analytics: Dedicated /analytics page (existing endpoints)
+- [ ] Step 67 — Analytics: Workforce trend + attrition + payroll-cost charts (MSW)
+
 ---
 
 ## Standard Test Gate (applies to every step unless overridden)
@@ -1961,5 +1977,1040 @@ pnpm build
 ```
 
 **Commit:** `chore: phase 1.5 — wireframe-parity build ready for demo`
+
+**STOP.** Wait for "next".
+
+---
+
+# PHASE 2 — Payroll, Reports & Analytics
+
+> **Each step below is self-contained for cold-start resumption.** A fresh
+> Claude session should be able to read one step in full and execute it without
+> external context.
+>
+> **Close protocol for every step:**
+>
+> 1. Run `pnpm typecheck` and `pnpm lint`. Show me the full output.
+> 2. For UI steps, also run `pnpm dev` and confirm the affected route renders
+>    in both light and dark mode with no console errors.
+> 3. Commit with the exact message in the step.
+> 4. **STOP.** Wait for the user to say "next".
+>
+> **Hard rules:**
+>
+> - `docs/phase2api.md` is the authoritative API spec. MSW handlers must match
+>   it exactly. Types must mirror it. Never invent shapes.
+> - `CLAUDE.md §23` describes the global-first payroll design. Read it before
+>   touching any payroll file.
+> - No new state libraries, UI kits, or chart libraries. The only new npm
+>   package permitted in Phase 2 is `expr-eval` (installed in Step 55).
+> - Module barrel discipline (`CLAUDE.md §6`) applies. Other modules import
+>   from `modules/payroll` (via index.ts), not from internal paths.
+> - All four component states (loading, empty, error, success) required on
+>   every data-fetching component.
+> - `pnpm typecheck` and `pnpm lint` must be clean before committing each step.
+
+---
+
+## Progress tracker (Phase 2)
+
+- [x] Step 55 — Payroll module skeleton: types, MSW, services, hooks, route registration
+- [x] Step 56 — Settings: Pay & Compliance → Salary Components CRUD
+- [ ] Step 57 — Settings: Pay Groups CRUD (payroll templates)
+- [ ] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
+- [ ] Step 59 — Payroll: Run payroll flow (initiate → calculate → review)
+- [ ] Step 60 — Payroll: Run detail page + payslip viewer
+- [ ] Step 61 — Payroll: Employee self-service payslip history
+- [ ] Step 62 — Reports: Module skeleton + page layout + MSW
+- [ ] Step 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
+- [ ] Step 64 — Reports: Attendance & Leave reports
+- [ ] Step 65 — Reports: Payroll reports + Export
+- [ ] Step 66 — Analytics: Dedicated /analytics page (existing endpoints)
+- [ ] Step 67 — Analytics: Workforce trend + attrition + payroll-cost charts (MSW)
+
+---
+
+## STEP 55 — Payroll: module skeleton + MSW + route registration
+
+**Goal:** All payroll plumbing in place — types, services, hooks, MSW handlers,
+and route stubs. Zero screens rendered yet. The payroll nav items and settings
+group appear but link to placeholder pages.
+
+**Read first:** `CLAUDE.md §23` (full Phase 2 section); `docs/phase2api.md`
+Domains 1–3; `CLAUDE.md §6` (module anatomy).
+
+**Build:**
+
+1. **Install `expr-eval`:**
+
+   ```bash
+   pnpm add expr-eval
+   pnpm add -D @types/expr-eval
+   ```
+
+2. **AppShell nav** — add three items to `NAV_ITEMS` in
+   `src/shared/layouts/AppShell.tsx` between Holidays and Permissions:
+
+   ```ts
+   { label: 'Payroll',   href: '/payroll',   icon: DollarSign  }
+   { label: 'Reports',   href: '/reports',   icon: BarChart2   }
+   { label: 'Analytics', href: '/analytics', icon: TrendingUp  }
+   ```
+
+   Import the three new Lucide icons at the top of the file.
+
+3. **Route stubs** — create placeholder `page.tsx` files (just
+   `<div>Coming soon</div>` inside `AppShell` layout) for:
+   - `src/app/(dashboard)/payroll/page.tsx`
+   - `src/app/(dashboard)/payroll/[runId]/page.tsx`
+   - `src/app/(dashboard)/payroll/my-payslips/page.tsx`
+   - `src/app/(dashboard)/reports/page.tsx`
+   - `src/app/(dashboard)/analytics/page.tsx`
+
+4. **Settings nav** — add "Pay & Compliance" group to settings left nav. Update
+   `src/modules/settings/constants/index.ts` (wherever the nav groups are
+   defined) with the new group containing: Salary Components
+   (`/settings/pay/components`), Pay Groups (`/settings/pay/groups`), Pay
+   Schedules (`/settings/pay/schedules`). Add placeholder panels for each.
+
+5. **Module folder** — create `src/modules/payroll/` with full anatomy:
+
+   ```
+   src/modules/payroll/
+   ├── components/       (empty for now)
+   ├── hooks/
+   │   ├── usePayrollComponents.ts
+   │   ├── usePayGroups.ts
+   │   ├── usePayrollRuns.ts
+   │   └── useEmployeeSalary.ts
+   ├── services/
+   │   ├── payroll-components.api.ts
+   │   ├── pay-groups.api.ts
+   │   ├── payroll-runs.api.ts
+   │   └── employee-salary.api.ts
+   ├── types/
+   │   └── payroll.types.ts
+   ├── validations/
+   │   ├── salary-component.schema.ts
+   │   ├── pay-group.schema.ts
+   │   └── payroll-run.schema.ts
+   ├── constants/
+   │   └── index.ts
+   ├── utils/
+   │   └── formula.utils.ts
+   └── index.ts
+   ```
+
+6. **Types** (`src/modules/payroll/types/payroll.types.ts`) — define ALL types
+   from `docs/phase2api.md` Appendix A:
+   `SalaryComponent`, `PayGroup`, `PayGroupComponent`, `EmployeeSalary`,
+   `CalculatedComponent`, `SalaryHistory`, `PayrollRun`, `PayrollRunSummary`,
+   `PayrollRunWarning`, `Payslip`, `PayslipLine`, `ComponentType`,
+   `CalculationType`, `PaySchedule`, `PayrollRunStatus`, `PayslipStatus`.
+
+7. **Formula utils** (`src/modules/payroll/utils/formula.utils.ts`):
+
+   ```ts
+   import { Parser } from 'expr-eval';
+   // evaluateFormula(formula: string, variables: Record<string, number>): number | null
+   // validateFormula(formula: string, knownCodes: string[]): { valid: boolean; error?: string }
+   // resolveComponentOrder(components: SalaryComponent[]): SalaryComponent[] (topological sort)
+   // computeComponentBreakdown(components: SalaryComponent[], annualCtc: number): CalculatedComponent[]
+   ```
+
+   These are pure functions — no React, no API calls.
+
+8. **Services** — implement all service methods per `docs/phase2api.md`. Each
+   method unwraps its specific response shape per `CLAUDE.md §4`. Do not write
+   a generic unwrap utility.
+
+9. **Hooks** — React Query hooks for all CRUD operations. Follow the pattern
+   established by `useEmployees.ts` and `useHolidays.ts`:
+   - Query hooks: `usePayrollComponents()`, `usePayGroups()`, `usePayrollRuns(params)`, `usePayrollRun(id)`, `useEmployeeSalary(employeeId)`, `useEmployeePayslips(employeeId, params)`
+   - Mutation hooks: `useCreateComponent()`, `useUpdateComponent()`, `useDeleteComponent()`, `useCreatePayGroup()`, `useUpdatePayGroup()`, `useDeletePayGroup()`, `useAssignSalary()`, `useInitiatePayrollRun()`, `useCalculatePayrollRun()`, `useApprovePayrollRun()`, `useAdjustPayslip()`
+
+10. **MSW handlers** — create these files matching `docs/phase2api.md` exactly:
+    - `src/mocks/handlers/payroll-components.ts` — seed 8 components
+      (BASIC flat, HRA percentage of BASIC, LTA flat, SPECIAL_ALLOW formula,
+      PF deduction percentage, PROF_TAX formula, TDS formula, MEDICAL flat)
+    - `src/mocks/handlers/payroll-groups.ts` — seed 2 groups
+      ("Standard India" with INR/MONTHLY, "US Hourly" with USD/BIWEEKLY)
+    - `src/mocks/handlers/payroll-employee.ts` — salary configs for the 4 seed employees
+    - `src/mocks/handlers/payroll-runs.ts` — 3 past runs (PAID) + 1 DRAFT for current month
+    - Wire all four into `src/mocks/handlers/index.ts`
+
+11. **Constants** (`src/modules/payroll/constants/index.ts`):
+
+    ```ts
+    COMPONENT_TYPE_CONFIG: Record<ComponentType, { label; color; icon }>;
+    CALCULATION_TYPE_CONFIG: Record<CalculationType, { label; description }>;
+    RUN_STATUS_CONFIG: Record<PayrollRunStatus, { label; color }>;
+    ```
+
+12. **Barrel** (`src/modules/payroll/index.ts`) — export all public types, hooks, services.
+
+**Definition of done:**
+
+- `pnpm dev` boots, sidebar shows Payroll / Reports / Analytics nav items.
+- All three routes render (with placeholder text — no crash).
+- Settings → Pay & Compliance group visible with placeholder panels.
+- No TypeScript errors on the new types and services.
+- MSW handlers return the correct shape (verify in browser Network tab).
+
+**Files to create:**
+`src/modules/payroll/**` (full module), 4 MSW handler files,
+`src/app/(dashboard)/payroll/page.tsx`,
+`src/app/(dashboard)/payroll/[runId]/page.tsx`,
+`src/app/(dashboard)/payroll/my-payslips/page.tsx`,
+`src/app/(dashboard)/reports/page.tsx`,
+`src/app/(dashboard)/analytics/page.tsx`.
+
+**Files to modify:**
+`src/shared/layouts/AppShell.tsx` (nav items),
+`src/modules/settings/constants/index.ts` (Pay & Compliance group),
+`src/mocks/handlers/index.ts` (wire new handlers).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus: `pnpm dev` — sidebar shows 3 new items, routes load without crash, no console errors.
+
+**Commit:** `feat(payroll): module skeleton — types, MSW, services, hooks, route stubs`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 56 — Settings: Pay & Compliance → Salary Components CRUD
+
+**Goal:** The core Phase 2 differentiator. HR can create, edit, delete fully
+configurable salary components with live formula preview.
+
+**Read first:** `CLAUDE.md §23` (formula engine + expr-eval); `docs/phase2api.md §1.1` (full component spec, formula language, validation rules).
+
+**Wireframe checklist:**
+
+- [ ] Settings left nav → Pay & Compliance → Salary Components (active state)
+- [ ] DynamicTable: columns Code (mono) / Name / Type (badge) / Calculation / Value preview / Taxable (icon) / Active (toggle) / Actions
+- [ ] Filter bar: [🔍 Search...] [Type ▾] [Active ▾]
+- [ ] [+ Add Component] button (HR only)
+- [ ] Drawer form (right side, `Sheet`) for create/edit — NOT a modal
+- [ ] Form dynamically changes based on `calculationType`: FLAT shows amount input; PERCENTAGE shows % + basis picker; FORMULA shows formula textarea + live preview table
+- [ ] Formula live preview: table showing `{ component: "HRA", formula: "BASIC * 0.4", result: "₹20,000" }` using a sample CTC of ₹12,00,000 with all current components resolved
+- [ ] Inline error on formula field if syntax is invalid (show on blur, not on keystroke)
+- [ ] Reorder handle (drag to change displayOrder) — OR numeric displayOrder input (simpler, prefer this)
+- [ ] Delete confirmation: `ConfirmDialog` for components with no dependents; blocked with toast for components in use
+
+**Build:**
+
+1. **ComponentsPanel** at `src/modules/payroll/components/SalaryComponentsPanel.tsx`:
+   - Uses `usePayrollComponents()` for data.
+   - `DynamicTable` with columns defined above.
+   - "Add Component" button opens `SalaryComponentDrawer` (create mode).
+   - Row actions: Edit (opens drawer in edit mode), Delete (confirm or block).
+
+2. **SalaryComponentDrawer** at `src/modules/payroll/components/SalaryComponentDrawer.tsx`:
+   - `Sheet` sliding in from the right.
+   - Form powered by React Hook Form + Zod (`salary-component.schema.ts`).
+   - Section 1 — Basic info: Name, Code (auto-slugified from name for new components, readonly after creation), Type (EARNING/DEDUCTION/BENEFIT/REIMBURSEMENT), Taxable toggle, Active toggle, Display order, Description.
+   - Section 2 — Calculation: `calculationType` radio group. Conditionally renders:
+     - FLAT: Amount input (number, 2 decimal places, currency symbol prefix from tenant)
+     - PERCENTAGE: Percentage input (0–100) + "Basis" combobox (lists existing component codes + "BASIC" as default)
+     - FORMULA: Formula textarea + syntax reference accordion (shows available variables: component codes + CTC, GROSS, NET) + `FormulaPreviewTable`
+   - Submit: `useCreateComponent()` or `useUpdateComponent()`. Map 422 errors to fields.
+
+3. **FormulaPreviewTable** (sub-component inside the drawer):
+   - Uses `computeComponentBreakdown()` from `formula.utils.ts`.
+   - Sample CTC: ₹12,00,000 / $100,000 (tenant currency).
+   - Evaluates ALL components (including the one being edited, using the current formula field value).
+   - Renders a mini table: Component Code / Name / Type / Monthly Amount.
+   - Updates on formula field change (debounced 300ms).
+   - Shows an error row if formula is invalid instead of crashing.
+
+4. **Zod schema** (`salary-component.schema.ts`):
+   - `code`: uppercase letters, numbers, underscores only, required, max 30
+   - `formula`: custom refine — validates with `validateFormula()` from `formula.utils.ts` when `calculationType === 'FORMULA'`
+   - `value`: required when calculationType is FLAT or PERCENTAGE
+   - `basisCode`: required when calculationType is PERCENTAGE
+
+5. **Wire into settings route** at `src/app/(dashboard)/settings/pay/components/page.tsx`. Replace the placeholder.
+
+6. **Column: "Value preview"** — custom render that calls `computeComponentBreakdown()` inline with sample CTC to show the calculated value for PERCENTAGE and FORMULA types, or the flat amount for FLAT. Shows `—` while loading.
+
+**Definition of done:**
+
+- Create a FLAT component → appears in table with correct badge.
+- Create a PERCENTAGE component → basis picker works, preview shows correct calculation.
+- Create a FORMULA component → live preview updates as formula is typed; invalid formula shows error, not a crash.
+- Edit existing component → form pre-fills correctly; code field is readonly.
+- Delete unused component → confirms and removes. Delete used component → blocked with toast showing dependents.
+- Dark mode verified on drawer.
+
+**Files to create:**
+`src/modules/payroll/components/SalaryComponentsPanel.tsx`,
+`src/modules/payroll/components/SalaryComponentDrawer.tsx`,
+`src/modules/payroll/validations/salary-component.schema.ts`,
+`src/app/(dashboard)/settings/pay/components/page.tsx`.
+
+**Files to modify:**
+`src/modules/payroll/utils/formula.utils.ts` (implement the stubs from Step 55).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → Settings → Pay & Compliance → Salary Components. Create components of each type; verify preview. Light + dark.
+
+**Commit:** `feat(settings): salary components CRUD with live formula preview`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 57 — Settings: Pay Groups CRUD
+
+**Goal:** HR can create named pay group templates that bundle salary components,
+with group-level overrides per component.
+
+**Read first:** `docs/phase2api.md §1.2`; the `PayGroup` and `PayGroupComponent` types from Step 55.
+
+**Wireframe checklist:**
+
+- [ ] Two-panel layout: left = list of pay groups (card list, not full table) / right = detail + component list for selected group
+- [ ] [+ New Pay Group] button in list panel header
+- [ ] Detail panel shows: name, code, currency, pay schedule badge, employee count, description
+- [ ] Component list in detail panel: sortable by displayOrder; each row shows component name, type badge, override indicator (if overridden from default), calculated preview amount
+- [ ] [Edit] button on detail panel opens `PayGroupDrawer` (create/edit)
+- [ ] [Delete] button: blocked if `employeeCount > 0` (show count in error toast)
+- [ ] [Add/Remove components] within detail panel: multi-select from existing components + set override per selected component
+- [ ] Override drawer: when clicking a component in the group, can override its calculationType/value/formula for this group only
+
+**Build:**
+
+1. **PayGroupsPanel** (`src/modules/payroll/components/PayGroupsPanel.tsx`):
+   - Left: `usePayGroups()` list rendered as cards (name, currency, employeeCount, paySchedule badge). Click to select.
+   - Right: selected group detail. Uses `usePayGroups()` data (no separate detail fetch needed if full data is in list).
+   - Uses `useState` for selected group ID.
+
+2. **PayGroupDrawer** (`src/modules/payroll/components/PayGroupDrawer.tsx`):
+   - `Sheet` from right.
+   - Form: Name, Code (slugified from name, readonly after creation), Currency (text input — ISO 4217 code, e.g. "INR"), Pay schedule (MONTHLY / BIWEEKLY / WEEKLY select), Description.
+   - Component selection: `usePayrollComponents()` list with checkboxes. Selected components appear in a drag-sortable list (just use `displayOrder` numeric inputs — no drag library needed).
+   - Per-component override section: expandable row per selected component — shows "Override?" toggle, and if on: override calculationType + value/formula inputs.
+
+3. **Preview column** in the component list: same `computeComponentBreakdown()` utility, using the group's overrides applied on top of component defaults. Sample CTC: 1,200,000.
+
+4. **Wire into route** `src/app/(dashboard)/settings/pay/groups/page.tsx`.
+
+5. **Pay Schedules panel** (simple placeholder for Step 55's stub route) — replace with a basic read-only list of schedules from `usePaySchedules()`. No CRUD needed for demo. Just shows the list from MSW.
+   Route: `src/app/(dashboard)/settings/pay/schedules/page.tsx`.
+
+**Definition of done:**
+
+- Create a pay group → appears in list.
+- Select group → detail panel shows components with calculated preview amounts.
+- Override a component's percentage → preview updates.
+- Delete group with 0 employees → works. Delete with employees → toast shows count.
+
+**Files to create:**
+`src/modules/payroll/components/PayGroupsPanel.tsx`,
+`src/modules/payroll/components/PayGroupDrawer.tsx`,
+`src/modules/payroll/validations/pay-group.schema.ts`,
+`src/app/(dashboard)/settings/pay/groups/page.tsx`,
+`src/app/(dashboard)/settings/pay/schedules/page.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → Settings → Pay Groups → create, select, override. Light + dark.
+
+**Commit:** `feat(settings): pay groups CRUD with component overrides and preview`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 58 — Employee Profile: Compensation tab
+
+**Goal:** HR can view and assign salary configuration to an employee from their
+profile. Live formula breakdown shows what each component calculates to.
+
+**Read first:** `docs/phase2api.md §2.1`; `CLAUDE.md §23` ("Compensation tab"); the `EmployeeSalary` type from Step 55; `src/modules/employees/components/EmployeeProfile.tsx` (tab list location).
+
+**Wireframe checklist:**
+
+- [ ] New tab "Compensation" inserted between "Job" and "Documents" tabs in `EmployeeProfile`
+- [ ] Tab visible to HR_ADMIN and SUPER_ADMIN only (hide for EMPLOYEE and MANAGER viewing another's profile)
+- [ ] Tab content — not-assigned state: `EmptyState` with "No salary config assigned. Assign one to run payroll for this employee." + [Assign Salary] button
+- [ ] Tab content — assigned state:
+  - Summary row: Pay Group name (link to `/settings/pay/groups`) | Annual CTC | Effective from date | [Edit] button
+  - Component breakdown table: Component Name / Type badge / Calculation (how it's computed, shown as text e.g. "40% of BASIC") / Monthly Amount
+  - Totals row: Gross Earnings / Total Deductions / Net Pay
+  - History section: collapsible "Previous salary records" list (effectiveFrom – effectiveTo, CTC, payGroup name)
+  - Bank details section (masked account number): Account Name / Bank / IFSC / masked account number. [Edit bank details] button.
+- [ ] [Assign Salary] / [Edit] opens `SalaryAssignmentDrawer`
+- [ ] `SalaryAssignmentDrawer`: fields = Pay Group (select), Annual CTC (number input), Effective From (date), bank details fields
+
+**Build:**
+
+1. **CompensationTab** (`src/modules/employees/components/CompensationTab.tsx`):
+   - `useEmployeeSalary(employeeId)` for data.
+   - Permission check: show tab only if `user.memberType` is HR_ADMIN or SUPER_ADMIN.
+   - Not-assigned state: `EmptyState` + button.
+   - Assigned state: the layout described in checklist. Component breakdown uses `computeComponentBreakdown()` from `formula.utils.ts` — client-side computation from the salary config's `calculatedComponents` array returned by the API.
+   - "History" section: expandable with `useState`.
+
+2. **SalaryAssignmentDrawer** (`src/modules/employees/components/SalaryAssignmentDrawer.tsx`):
+   - Sheet from right.
+   - Form fields: Pay Group (select — `usePayGroups()` data), Annual CTC (number), Effective From (date picker), Bank Account Name, Bank Account Number, Bank IFSC, Bank Name.
+   - On submit: `useAssignSalary(employeeId)`. On success, invalidate `['employees', 'salary', employeeId]` query.
+
+3. **Wire into EmployeeProfile tabs** — add "Compensation" between "Job" and "Documents" in the `tabs` array. Conditionally render based on role check.
+
+**Definition of done:**
+
+- Login as HR → view employee → Compensation tab visible → shows EmptyState → Assign salary → drawer opens → fill in form → save → breakdown table renders with correct amounts.
+- Login as EMPLOYEE → own profile → Compensation tab NOT visible.
+- Formula-based components (PROF_TAX, SPECIAL_ALLOW) show correct computed amounts.
+
+**Files to create:**
+`src/modules/employees/components/CompensationTab.tsx`,
+`src/modules/employees/components/SalaryAssignmentDrawer.tsx`.
+
+**Files to modify:**
+`src/modules/employees/components/EmployeeProfile.tsx` (add tab + import).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → Employee profile → Compensation tab in both roles. Light + dark.
+
+**Commit:** `feat(employee-profile): compensation tab with salary assignment and breakdown`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 59 — Payroll: Run payroll flow (`/payroll`)
+
+**Goal:** HR can initiate, calculate, and review a payroll run for any period.
+The `/payroll` route becomes the operational payroll screen.
+
+**Read first:** `docs/phase2api.md §3`; `PayrollRun` and `PayrollRunStatus` types; `CLAUDE.md §23` (payroll run status machine).
+
+**Wireframe checklist:**
+
+- [ ] PageHeader: "Payroll" + [Run Payroll] button (HR only)
+- [ ] 2 tabs: "Runs" (default) | "My Payslips" (EMPLOYEE role — redirect to this tab; hidden for HR)
+- [ ] **Runs tab** (HR view):
+  - 4 stats cards: Total Paid (this year) / Last Run Net / Employees on Payroll / Pending Runs
+  - DynamicTable of runs: Period / Status badge / Employees / Gross / Deductions / Net / Processed On / Actions
+  - Status badges: DRAFT=gray, CALCULATING=info (spinner), REVIEW=warning, APPROVED=brand, PAID=success, CANCELLED=danger
+  - Actions per row: View (all statuses), Approve (REVIEW only, SUPER_ADMIN), Mark Paid (APPROVED only)
+- [ ] [Run Payroll] button opens `InitiateRunDialog`
+- [ ] **InitiateRunDialog**: Period picker (month/year — current month pre-selected), "Include all active employees" checkbox (default on), optional pay group filter. [Cancel] [Calculate Payroll]
+- [ ] After initiating: status shows CALCULATING. Auto-poll `usePayrollRun(id)` every 3 seconds until status ≠ CALCULATING. Then show toast "Payroll calculated — review before approving."
+- [ ] Clicking a run row navigates to `/payroll/[runId]`
+
+**Build:**
+
+1. **PayrollScreen** (`src/modules/payroll/components/PayrollScreen.tsx`):
+   - Client component. Tab state via `nuqs` (`?tab=runs|my-payslips`).
+   - Role-aware: HR sees "Runs" tab; EMPLOYEE is redirected to `/payroll/my-payslips`.
+
+2. **PayrollRunsTab** (`src/modules/payroll/components/PayrollRunsTab.tsx`):
+   - `usePayrollRuns(params)` for data. Pass `?year=<currentYear>` default.
+   - 4 `StatsCard`s above the table (computed from run list).
+   - `DynamicTable` with the columns above.
+   - Row click → `router.push('/payroll/' + run.id)`.
+   - "Approve" action → `useApprovePayrollRun()` (SUPER_ADMIN gate via `<PermissionWrapper>`).
+
+3. **InitiateRunDialog** (`src/modules/payroll/components/InitiateRunDialog.tsx`):
+   - Dialog (medium size).
+   - Period: two selects (Month + Year). Validates not in future, not already a PAID run.
+   - On submit: `useInitiatePayrollRun()` → on success immediately call `useCalculatePayrollRun(run.id)`.
+   - After calculating: poll via `refetchInterval: 3000` on `usePayrollRun(id)` until status ≠ CALCULATING. Show inline spinner in the dialog while polling. Navigate to run detail on completion.
+
+4. **`/payroll/page.tsx`** — replace placeholder with `<PayrollScreen />`.
+
+**Definition of done:**
+
+- Runs table shows seed runs with correct status badges.
+- [Run Payroll] opens dialog, fills period, submits → DRAFT run appears in table → CALCULATING spinner → REVIEW (toast fires) → clicking row navigates to detail.
+- HR can see the Runs tab; EMPLOYEE is redirected.
+
+**Files to create:**
+`src/modules/payroll/components/PayrollScreen.tsx`,
+`src/modules/payroll/components/PayrollRunsTab.tsx`,
+`src/modules/payroll/components/InitiateRunDialog.tsx`.
+
+**Files to modify:**
+`src/app/(dashboard)/payroll/page.tsx` (replace placeholder).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → /payroll. Initiate a run, follow status through to REVIEW. Light + dark.
+
+**Commit:** `feat(payroll): run payroll flow — initiate, calculate, review table`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 60 — Payroll: Run detail page + payslip viewer
+
+**Goal:** HR can review all payslips in a run, add one-time adjustments, and
+navigate to individual payslip detail.
+
+**Read first:** `docs/phase2api.md §3.2`; `Payslip` and `PayslipLine` types.
+
+**Wireframe checklist:**
+
+- [ ] PageHeader: "Payroll / June 2024" breadcrumb + status badge inline + [Approve] button (SUPER_ADMIN, REVIEW status only) + [Mark as Paid] button (APPROVED status only)
+- [ ] 4 stats cards: Total Employees / Gross Earnings / Total Deductions / Net Pay
+- [ ] Warning panel: if `run.summary.warnings.length > 0`, show collapsible list ("2 employees skipped — no salary config")
+- [ ] Department summary table: Department / Employees / Net Pay — from `run.summary.byDepartment`
+- [ ] Payslip table (DynamicTable): Employee Code / Name / Department / Present Days / LOP Days / Gross / Deductions / Net / Adjustments indicator / Actions
+- [ ] Row actions: [View payslip] (opens PayslipDrawer), [Add adjustment] (opens AdjustmentDialog)
+- [ ] **PayslipDrawer** (Sheet): full payslip detail — company header, employee info, earnings table, deductions table, one-time additions/deductions, totals row, working days summary
+- [ ] **AdjustmentDialog**: adds one-time addition or deduction. Fields: type (Addition/Deduction), description, amount. Calls `useAdjustPayslip()`. Row in payslip table shows adjustment indicator after save.
+- [ ] [Export Register] button → calls `GET /payroll/runs/:id/export` → CSV download
+
+**Build:**
+
+1. **PayrollRunDetailPage** (`src/modules/payroll/components/PayrollRunDetail.tsx`):
+   - `usePayrollRun(runId)` + `usePayrollRunPayslips(runId, params)`.
+   - 4 stats cards.
+   - `DynamicTable` for payslips.
+   - Export button triggers Blob download (same pattern as employees CSV export).
+
+2. **PayslipDrawer** (`src/modules/payroll/components/PayslipDrawer.tsx`):
+   - Full payslip layout.
+   - Earnings section: table with Name / Amount / Taxable indicator.
+   - Deductions section: table with Name / Amount.
+   - One-time sections (if any).
+   - Totals: Gross / Deductions / **Net Pay** (bold, larger text).
+   - Working days summary bar: Working Days / Present / LOP.
+
+3. **AdjustmentDialog** (`src/modules/payroll/components/AdjustmentDialog.tsx`):
+   - Small dialog.
+   - Type radio (Addition / Deduction), Description input, Amount input.
+   - `useAdjustPayslip(runId, payslipId)`.
+
+4. **`/payroll/[runId]/page.tsx`** — replace placeholder with `<PayrollRunDetail runId={params.runId} />`.
+
+**Definition of done:**
+
+- Navigate to a REVIEW run → see all payslips.
+- Open a payslip → full breakdown renders.
+- Add an adjustment → indicator appears on row, adjustment shows in payslip.
+- Export → CSV downloads.
+- Approve button visible for SUPER_ADMIN on REVIEW status run.
+
+**Files to create:**
+`src/modules/payroll/components/PayrollRunDetail.tsx`,
+`src/modules/payroll/components/PayslipDrawer.tsx`,
+`src/modules/payroll/components/AdjustmentDialog.tsx`.
+
+**Files to modify:**
+`src/app/(dashboard)/payroll/[runId]/page.tsx` (replace placeholder).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → open a seeded PAID run → view payslip detail. Light + dark.
+
+**Commit:** `feat(payroll): run detail page with payslip viewer and adjustments`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 61 — Payroll: Employee self-service payslip history
+
+**Goal:** Employees can view their own past payslips. HR can also browse any
+employee's payslip history via the Compensation tab (added in Step 58).
+
+**Read first:** `docs/phase2api.md §2.2`; `CLAUDE.md §10` (auth & permissions).
+
+**Wireframe checklist:**
+
+- [ ] Route `/payroll/my-payslips` — EMPLOYEE role only (redirect HR to `/payroll`)
+- [ ] PageHeader: "My Payslips"
+- [ ] Year filter: [2024 ▾] (year select, defaults to current year)
+- [ ] Payslip list (card list, not table): Period label / Net Pay (large) / Status badge / [View] button per card
+- [ ] [View] opens `PayslipDrawer` (same component from Step 60 — reuse)
+- [ ] Empty state: "No payslips yet. Once payroll is processed, your payslips will appear here."
+- [ ] PDF download button inside `PayslipDrawer`: `[Download PDF ↓]` — shows a browser-print-based PDF for now (use `window.print()` with a print-only CSS block that formats the payslip). No external PDF library needed.
+
+**Build:**
+
+1. **MyPayslipsPage** (`src/modules/payroll/components/MyPayslipsPage.tsx`):
+   - `useEmployeePayslips(user.employeeId, { year })` for data.
+   - If user is not EMPLOYEE (i.e., HR), redirect to `/payroll`.
+   - Year select using `useState`.
+   - Card list (not DynamicTable — cards feel more personal for self-service).
+   - Reuses `PayslipDrawer` from Step 60.
+
+2. **Print CSS** — add a `@media print` block to `src/app/globals.css`:
+
+   ```css
+   @media print {
+     .no-print {
+       display: none !important;
+     }
+     .payslip-print-root {
+       display: block !important;
+     }
+   }
+   ```
+
+   The `PayslipDrawer` root wraps the payslip content in a div with `className="payslip-print-root"` and adds `className="no-print"` to the close button and action buttons. The [Download PDF] button calls `window.print()`.
+
+3. **`/payroll/my-payslips/page.tsx`** — replace placeholder with `<MyPayslipsPage />`.
+
+**Definition of done:**
+
+- Login as Priya (EMPLOYEE) → /payroll → redirects to /payroll/my-payslips.
+- Payslip cards appear for the current year.
+- Click View → full payslip detail in drawer.
+- Click Download PDF → browser print dialog opens with payslip-formatted layout.
+- Login as HR → /payroll/my-payslips → redirects back to /payroll.
+
+**Files to create:** `src/modules/payroll/components/MyPayslipsPage.tsx`.
+**Files to modify:** `src/app/(dashboard)/payroll/my-payslips/page.tsx`, `src/app/globals.css`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → login as each seed role, verify redirect behavior, verify payslip view + print.
+
+**Commit:** `feat(payroll): employee self-service payslip history with print-to-PDF`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 62 — Reports: Module skeleton + page layout + MSW
+
+**Goal:** All reports plumbing in place — module, types, services, MSW, and the
+page layout with left-nav. Zero actual report data rendered yet (all panels show
+placeholder "loading soon" state).
+
+**Read first:** `docs/phase2api.md §4`; `CLAUDE.md §23` (reports design).
+
+**Build:**
+
+1. **Module folder** `src/modules/reports/` with full anatomy:
+
+   ```
+   src/modules/reports/
+   ├── components/
+   │   ├── ReportsPage.tsx
+   │   ├── ReportsNav.tsx
+   │   └── ReportShell.tsx          # wrapper: filter bar + chart + table + export
+   ├── hooks/
+   │   ├── useWorkforceReports.ts
+   │   ├── useAttendanceReports.ts
+   │   ├── useLeaveReports.ts
+   │   └── usePayrollReports.ts
+   ├── services/
+   │   └── reports.api.ts
+   ├── types/
+   │   └── reports.types.ts
+   ├── constants/
+   │   └── index.ts
+   └── index.ts
+   ```
+
+2. **Types** — define all types from `docs/phase2api.md §4`:
+   `ReportMeta`, `ReportData<TSummary, TChartItem, TTableItem>` (generic),
+   `HeadcountChartItem`, `HeadcountTableItem`, `HeadcountSummary`,
+   `TurnoverSummary`, `TurnoverChartItem`, `TurnoverTableItem`,
+   `DemographicsData`, `AttendanceSummaryItem`, `AbsenteeismChartItem`,
+   `LeaveUtilizationSummary`, `LeaveUtilizationChartItem`, `LeaveUtilizationTableItem`,
+   `PayrollSummaryChartItem`, `PayrollSummaryTableItem`, `CtcAnalysisData`,
+   `ReportExportRequest`.
+
+3. **Services** — one service method per endpoint in `docs/phase2api.md §4`. Each unwraps its specific shape. Include `exportReport(req: ReportExportRequest): Promise<Blob>`.
+
+4. **Hooks** — one hook per report, plus `useExportReport()` mutation.
+
+5. **MSW handlers** — `src/mocks/handlers/reports.ts` with all report endpoints returning realistic fixture data matching the spec shapes. Wire into `src/mocks/handlers/index.ts`.
+
+6. **ReportsPage** (`src/modules/reports/components/ReportsPage.tsx`):
+   - Left nav (`ReportsNav`, w-56, sticky) with 4 sections:
+     ```
+     WORKFORCE
+       Headcount
+       Turnover
+       Demographics
+     ATTENDANCE
+       Monthly Summary
+       Absenteeism Trend
+     LEAVE
+       Utilization
+       Pending Requests
+     PAYROLL
+       Payroll Summary
+       CTC Analysis
+     ```
+   - Right content area (`flex-1`) shows the selected report panel.
+   - Active report tracked in URL via `nuqs` `?report=workforce/headcount` (default).
+   - Each panel is a lazy-loaded component (use `React.lazy` + `<Suspense>` here — each report is its own chunk).
+
+7. **ReportShell** (`src/modules/reports/components/ReportShell.tsx`):
+   - Common wrapper used by every report panel. Props: `title`, `description`, `filterBar` (ReactNode), `chart` (ReactNode), `table` (ReactNode), `onExport` (callback), `isLoading`, `isError`, `onRetry`.
+   - Renders: page title + description + filter bar row + [Export CSV] button (right) + chart section + table section.
+   - Loading state: chart skeleton (h-48) + table skeleton rows.
+   - Error state: `ErrorState` spanning full width.
+
+8. **`/reports/page.tsx`** — replace placeholder with `<ReportsPage />`.
+
+**Definition of done:**
+
+- `/reports` renders left nav + placeholder content for each section.
+- Nav switching updates the URL param and shows the correct panel placeholder.
+- MSW handlers return fixture data (verify in Network tab).
+- No TypeScript errors.
+
+**Files to create:** Full `src/modules/reports/` module + `src/mocks/handlers/reports.ts`.
+**Files to modify:** `src/app/(dashboard)/reports/page.tsx`, `src/mocks/handlers/index.ts`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → /reports. Nav works, no crash. Network tab shows MSW responses.
+
+**Commit:** `feat(reports): module skeleton, page layout, left nav, and MSW handlers`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 63 — Reports: Workforce reports (Headcount + Turnover + Demographics)
+
+**Goal:** Three working workforce report panels replacing placeholders from Step 62.
+
+**Read first:** `docs/phase2api.md §4.1`; `src/shared/engines/ChartEngine/` (use existing wrappers — `BarChart`, `AreaChart`, `LineChart`).
+
+**Build (one panel per report — all in this step):**
+
+**Headcount Report** (`src/modules/reports/components/HeadcountReport.tsx`):
+
+- Filter bar: Date range (start + end month pickers), Department (select, `useDepartments()`).
+- Chart: `BarChart` — x=month, bars for `hires` (success) and `exits` (danger), line for `headcount` (use dual-axis or overlay — choose the cleaner option).
+- Summary cards row: Current Headcount / Net Change / Net Hires / Net Exits.
+- Table: `DynamicTable` with columns from `data.tableData.items`.
+- Export: calls `exportReport({ reportType: 'workforce/headcount', format: 'CSV', filters })`.
+
+**Turnover Report** (`src/modules/reports/components/TurnoverReport.tsx`):
+
+- Filter bar: Date range, Department.
+- Summary cards: Total Exits / Voluntary / Involuntary / Attrition Rate.
+- Chart: `LineChart` — x=month, y=attritionRate.
+- Table: employees who exited in the period.
+
+**Demographics Report** (`src/modules/reports/components/DemographicsReport.tsx`):
+
+- No date range needed — reflects current state.
+- Filter: Department.
+- Three `DonutChart`s side by side: By Employment Type / By Department / By Gender.
+- No table (data is fully in charts).
+
+**Wiring:**
+
+- Update `ReportsPage` to lazy-import and render each component when selected via nav.
+
+**Definition of done:**
+
+- Headcount: filter changes trigger re-fetch; chart + table update; export downloads CSV.
+- Turnover: same.
+- Demographics: three donuts render with correct data from MSW.
+- All three handle loading / empty / error states.
+
+**Files to create:**
+`src/modules/reports/components/HeadcountReport.tsx`,
+`src/modules/reports/components/TurnoverReport.tsx`,
+`src/modules/reports/components/DemographicsReport.tsx`.
+
+**Files to modify:** `src/modules/reports/components/ReportsPage.tsx` (wire lazy imports).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → each of the three reports. Change filters; verify re-fetch. Export CSV.
+
+**Commit:** `feat(reports): workforce reports — headcount, turnover, demographics`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 64 — Reports: Attendance & Leave reports
+
+**Goal:** Four more working report panels — attendance summary, absenteeism,
+leave utilization, and pending requests.
+
+**Read first:** `docs/phase2api.md §4.2`, `§4.3`.
+
+**Build:**
+
+**Attendance Summary Report** (`AttendanceSummaryReport.tsx`):
+
+- Filter bar: Month picker (YYYY-MM), Department.
+- Summary cards: Working Days / Avg Attendance % / Total Present / Total Absent / Total Leave.
+- Table: per-employee rows with attendancePercent column + conditional color (green ≥ 90%, yellow 75–90%, red < 75%).
+- No chart (data is tabular).
+
+**Absenteeism Trend Report** (`AbsenteeismReport.tsx`):
+
+- Filter bar: Date range, Department.
+- Chart: `LineChart` — x=month, y=absenteeismRate.
+- Table: top-N employees by absenteeism rate.
+
+**Leave Utilization Report** (`LeaveUtilizationReport.tsx`):
+
+- Filter bar: Year (select), Department, Leave Type (select, `useLeaveTypes()`).
+- Summary cards: Total Allocated / Total Taken / Total Pending / Utilization Rate.
+- Chart: `BarChart` — one bar group per leave type (allocated vs taken).
+- Table: per-employee leave balance breakdown.
+
+**Pending Leave Report** (`PendingLeaveReport.tsx`):
+
+- No date range (shows current state).
+- Filter: Department, Leave Type.
+- Table only: DynamicTable with employee / leave type / duration / days pending / days in queue (today - appliedAt). Sorted by oldest pending first.
+- Summary: total pending requests count + total pending days.
+
+**Wire into ReportsPage** — lazy import all four.
+
+**Definition of done:** All four panels render, filters work, export works for panels that have it. All four states handled.
+
+**Files to create:** Four report component files.
+**Files to modify:** `src/modules/reports/components/ReportsPage.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → cycle through all four panels; change filters; verify.
+
+**Commit:** `feat(reports): attendance and leave report panels`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 65 — Reports: Payroll reports + Export
+
+**Goal:** Payroll Summary and CTC Analysis reports. Harden the export flow
+across all reports.
+
+**Read first:** `docs/phase2api.md §4.4`, `§4.5`.
+
+**Build:**
+
+**Payroll Summary Report** (`PayrollSummaryReport.tsx`):
+
+- Filter bar: Date range (month granularity), Department.
+- Summary cards: Total Payroll Cost / Avg Monthly / Total Employees / Currency.
+- Chart: `AreaChart` — x=month, y=totalNet (area fill) + `totalGross` (line overlay for comparison).
+- Table: by-department breakdown (DynamicTable).
+- Export: CSV of the table data.
+
+**CTC Analysis Report** (`CtcAnalysisReport.tsx`):
+
+- Filter: Department, As-of date.
+- Three-panel layout: DonutChart (CTC band distribution) + percentile table (P25 / P50 / P75 / P90) + employee CTC table (HR only, masked for non-HR).
+- No export (sensitive data — HR only at UI level; server enforces at API level).
+
+**Export hardening** — ensure every report panel with a table has a working [Export CSV] button that:
+
+1. Calls `exportReport({ reportType, format: 'CSV', filters: currentFilters })`.
+2. Shows loading spinner on the button while downloading.
+3. Triggers `URL.createObjectURL(blob)` download with `Content-Disposition` filename.
+4. Shows `toast.success("Report exported")` on success, `toast.error("Export failed")` on error.
+
+**Wire into ReportsPage** — lazy import both.
+
+**Definition of done:** Both payroll reports render. Export downloads CSV with correct filename. All reports in Steps 63–65 now have working export buttons.
+
+**Files to create:** Two payroll report component files.
+**Files to modify:** `src/modules/reports/components/ReportsPage.tsx`, `ReportShell.tsx` (export button loading state).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → Payroll Summary → change filters → export CSV → verify download.
+
+**Commit:** `feat(reports): payroll summary, CTC analysis, and hardened CSV export`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 66 — Analytics: Dedicated `/analytics` page (existing endpoints)
+
+**Goal:** A full-screen analytics dashboard using the existing live endpoints.
+This is a richer, more filterable version of the dashboard widgets.
+
+**Read first:** `CLAUDE.md §23` (analytics design); `CLAUDE.md §3` (existing live analytics endpoints: `/analytics/summary`, `/analytics/attendance`, `/analytics/headcount-by-department`, `/analytics/recent-activity`, `/analytics/leave-summary`).
+
+**Wireframe checklist:**
+
+- [ ] PageHeader: "Analytics"
+- [ ] Filter bar (sticky below PageHeader): [Date Range: Last 30 days ▾ (7d / 30d / 90d / Custom)] [Department ▾]
+- [ ] Row 1: 4 stats cards with deltas — same as HR dashboard but always visible here; update when date range changes
+- [ ] Row 2: Attendance trend (AreaChart, full width, date range from filter)
+- [ ] Row 3: Headcount by department (DonutChart, 5-col) + Leave summary (BarChart per type, 7-col)
+- [ ] Row 4: Recent Activity table (full width, same as HR dashboard but paginated — [Load more] button)
+- [ ] Custom date range: When "Custom" is selected, show a date range popover with two date pickers; selected range is reflected in all chart queries
+
+**Build:**
+
+1. **AnalyticsPage** (`src/modules/analytics/components/AnalyticsPage.tsx`):
+   - Create new `src/modules/analytics/` module (minimal — just the page component + hook + service + types).
+   - Date range state: `nuqs` param `?range=7d|30d|90d` + custom range stored as `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
+   - Department filter: `?departmentId=`.
+   - Re-uses existing hooks: `useAnalyticsSummary()`, `useAnalyticsAttendance(range)`, `useHeadcountByDepartment()`, `useRecentActivity(limit)`, `useLeaveSummary(range)` from the dashboard module. Pass the filter params.
+   - Passes `departmentId` to the hooks that support it (some endpoints don't — that's fine for now; filter silently has no effect and note this).
+
+2. **RangeSelector component** (`src/modules/analytics/components/RangeSelector.tsx`):
+   - Segmented control: [7d] [30d] [90d] [Custom]. When Custom selected, shows a `Popover` with two `Calendar` date pickers.
+   - On custom range apply → updates URL params.
+
+3. **Analytics-specific layout**: two-column row 3, paginated activity in row 4 (load more via `limit` param incrementing).
+
+4. **`/analytics/page.tsx`** — replace placeholder with `<AnalyticsPage />`.
+
+5. **Module** `src/modules/analytics/index.ts` — export the page component.
+
+**Definition of done:**
+
+- `/analytics` renders all four rows with live endpoint data.
+- Changing the date range re-fetches attendance chart and summary cards.
+- Department filter passes to endpoints that support it.
+- Custom date range popover works and updates charts.
+- Load more in Recent Activity appends rows.
+
+**Files to create:** `src/modules/analytics/` module (minimal anatomy: component, hook reuse, index).
+**Files to modify:** `src/app/(dashboard)/analytics/page.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → /analytics → change range → charts update. Custom range works.
+
+**Commit:** `feat(analytics): dedicated analytics page with range + department filters`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 67 — Analytics: Workforce trend + attrition + payroll-cost charts (MSW)
+
+**Goal:** Three new analytics charts using the new MSW-backed endpoints from
+`docs/phase2api.md §5`.
+
+**Read first:** `docs/phase2api.md §5.1`, `§5.2`, `§5.3`, `§5.4`.
+
+**Wireframe checklist:**
+
+- [ ] Row 5 (new, below existing rows): Workforce Trend chart (LineChart with dual series: headcount + new hires/exits bars — use Recharts ComposedChart wrapper) spanning full width
+- [ ] Row 6: Attrition Rate (LineChart, 6-col) + Payroll Cost Trend (AreaChart, 6-col)
+- [ ] Row 7: Department Performance table (full width) — headcount / attendance rate / leave rate / pending approvals / avg tenure
+
+**Build:**
+
+1. **MSW handlers** (`src/mocks/handlers/analytics.ts` — extend the existing file):
+   - `GET /analytics/workforce-trend?range=` → return 6 months of data.
+   - `GET /analytics/attrition?range=` → return trend + current rate.
+   - `GET /analytics/payroll-cost?range=` → return monthly cost trend.
+   - `GET /analytics/department-performance?range=` → return per-dept metrics.
+
+2. **New hooks** in analytics module:
+   - `useWorkforceTrend(range)`
+   - `useAttritionTrend(range)`
+   - `usePayrollCostTrend(range)`
+   - `useDepartmentPerformance(range)`
+
+3. **New services** in analytics module — each method unwraps its specific shape per `docs/phase2api.md §5`.
+
+4. **New chart components** in `AnalyticsPage.tsx` (or extracted to sub-components):
+   - `WorkforceTrendChart`: Recharts `ComposedChart` with `Bar` for hires/exits + `Line` for headcount. Use `ChartEngine`'s existing Recharts setup for consistent styling.
+   - `AttritionChart`: `LineChart` wrapper.
+   - `PayrollCostChart`: `AreaChart` wrapper.
+   - `DeptPerformanceTable`: `DynamicTable` with conditional cell coloring (attendanceRate: green/yellow/red).
+
+5. Add all four rows to `AnalyticsPage` below the existing content. Pass the same `range` and `departmentId` filter params.
+
+**Definition of done:**
+
+- All four new widgets render with MSW data.
+- Changing the date range filter updates all charts including the new ones.
+- Department Performance table shows conditional color on attendance rate.
+- Light + dark verified.
+
+**Files to create:** 4 MSW endpoints in `analytics.ts`, 4 hooks, 4 service methods.
+**Files to modify:** `src/modules/analytics/components/AnalyticsPage.tsx` (add rows 5–7), `src/mocks/handlers/analytics.ts`, `src/modules/analytics/` (hooks + services + types).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → /analytics → scroll to new rows → verify all four render and respond to filter changes.
+
+**Commit:** `feat(analytics): workforce trend, attrition, payroll-cost, dept-performance charts`
 
 **STOP.** Wait for "next".
