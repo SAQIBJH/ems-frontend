@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { reportsApi } from '../services/reports.api';
 import type { ReportCommonParams, ReportExportRequest } from '../types/reports.types';
 
@@ -36,6 +37,10 @@ export function useExportReport() {
       a.download = `${slug}-report.csv`;
       a.click();
       URL.revokeObjectURL(url);
+      toast.success('Report exported');
+    },
+    onError: () => {
+      toast.error('Export failed. Please try again.');
     },
   });
 }

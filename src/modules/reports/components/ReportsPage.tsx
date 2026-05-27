@@ -8,18 +8,18 @@ import { DEFAULT_REPORT } from '../constants';
 import type { ReportType } from '../types/reports.types';
 
 const panelMap: Record<ReportType, React.LazyExoticComponent<React.ComponentType>> = {
-  // Step 63 — workforce panels (real)
+  // Step 63 — workforce panels
   'workforce/headcount': lazy(() => import('./HeadcountReport')),
   'workforce/turnover': lazy(() => import('./TurnoverReport')),
   'workforce/demographics': lazy(() => import('./DemographicsReport')),
-  // Step 64 — attendance & leave panels (real)
+  // Step 64 — attendance & leave panels
   'attendance/summary': lazy(() => import('./AttendanceSummaryReport')),
   'attendance/absenteeism': lazy(() => import('./AbsenteeismReport')),
   'leave/utilization': lazy(() => import('./LeaveUtilizationReport')),
   'leave/pending': lazy(() => import('./PendingLeaveReport')),
-  // Step 65 — payroll panels (placeholder until next step)
-  'payroll/summary': lazy(() => import('./panels/PayrollSummaryPanel')),
-  'payroll/ctc-analysis': lazy(() => import('./panels/CtcAnalysisPanel')),
+  // Step 65 — payroll panels
+  'payroll/summary': lazy(() => import('./PayrollSummaryReport')),
+  'payroll/ctc-analysis': lazy(() => import('./CtcAnalysisReport')),
 };
 
 function PanelSkeleton() {
