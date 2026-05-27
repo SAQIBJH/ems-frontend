@@ -22,6 +22,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
@@ -38,13 +45,13 @@ import { SalaryComponentDrawer } from './SalaryComponentDrawer';
 
 const SAMPLE_CTC = 1_200_000;
 
-type TypeFilter = 'all' | 'EARNING' | 'DEDUCTION' | 'BENEFIT' | 'REIMBURSEMENT';
-type ActiveFilter = 'all' | 'active' | 'inactive';
+type TypeFilter = 'All Types' | 'EARNING' | 'DEDUCTION' | 'BENEFIT' | 'REIMBURSEMENT';
+type ActiveFilter = 'All Status' | 'active' | 'inactive';
 
 export function SalaryComponentsPanel() {
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('All Types');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('All Status');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<SalaryComponent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SalaryComponent | null>(null);
@@ -67,7 +74,7 @@ export function SalaryComponentsPanel() {
           !c.code.toLowerCase().includes(search.toLowerCase())
         )
           return false;
-        if (typeFilter !== 'all' && c.type !== typeFilter) return false;
+        if (typeFilter !== 'All Types' && c.type !== typeFilter) return false;
         if (activeFilter === 'active' && !c.active) return false;
         if (activeFilter === 'inactive' && c.active) return false;
         return true;
@@ -262,26 +269,28 @@ export function SalaryComponentsPanel() {
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 w-48"
           />
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring/50"
-          >
-            <option value="all">All Types</option>
-            <option value="EARNING">Earning</option>
-            <option value="DEDUCTION">Deduction</option>
-            <option value="BENEFIT">Benefit</option>
-            <option value="REIMBURSEMENT">Reimbursement</option>
-          </select>
-          <select
-            value={activeFilter}
-            onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
-            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring/50"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
+            <SelectTrigger className="h-8 w-[150px] cursor-pointer">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All Types">All Types</SelectItem>
+              <SelectItem value="EARNING">Earning</SelectItem>
+              <SelectItem value="DEDUCTION">Deduction</SelectItem>
+              <SelectItem value="BENEFIT">Benefit</SelectItem>
+              <SelectItem value="REIMBURSEMENT">Reimbursement</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as ActiveFilter)}>
+            <SelectTrigger className="h-8 w-[130px] cursor-pointer">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All Status">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <Button onClick={openAdd} size="default">

@@ -10,6 +10,13 @@ import type { AxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -154,7 +161,7 @@ export function PayGroupDrawer({ open, onOpenChange, group, onSuccess }: PayGrou
   }
 
   function setOverrideCalcType(fieldIdx: number, val: string) {
-    const ct = val === '' ? null : (val as CalculationType);
+    const ct = val === '_default' ? null : (val as CalculationType);
     form.setValue(`components.${fieldIdx}.overrideCalculationType`, ct);
     if (!ct) {
       form.setValue(`components.${fieldIdx}.overrideValue`, null);
@@ -274,17 +281,24 @@ export function PayGroupDrawer({ open, onOpenChange, group, onSuccess }: PayGrou
               {/* Pay Schedule */}
               <div className="space-y-1.5">
                 <Label htmlFor="pg-schedule">Pay Schedule</Label>
-                <select
-                  id="pg-schedule"
-                  {...form.register('paySchedule')}
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring/50"
-                >
-                  {PAY_SCHEDULES.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={form.control}
+                  name="paySchedule"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="pg-schedule" className="w-full cursor-pointer">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAY_SCHEDULES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {form.formState.errors.paySchedule && (
                   <p className="text-xs text-danger">{form.formState.errors.paySchedule.message}</p>
                 )}
@@ -424,18 +438,26 @@ export function PayGroupDrawer({ open, onOpenChange, group, onSuccess }: PayGrou
                             {/* Override calc type */}
                             <div className="space-y-1.5">
                               <Label className="text-xs">Override Calculation Type</Label>
-                              <select
-                                value={watchedComponents[fieldIdx].overrideCalculationType ?? ''}
-                                onChange={(e) => setOverrideCalcType(fieldIdx, e.target.value)}
-                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring/50"
+                              <Select
+                                value={
+                                  watchedComponents[fieldIdx].overrideCalculationType ?? '_default'
+                                }
+                                onValueChange={(v) =>
+                                  setOverrideCalcType(fieldIdx, v ?? '_default')
+                                }
                               >
-                                <option value="">Default (no override)</option>
-                                {(['FLAT', 'PERCENTAGE', 'FORMULA'] as const).map((ct) => (
-                                  <option key={ct} value={ct}>
-                                    {CALCULATION_TYPE_CONFIG[ct].label}
-                                  </option>
-                                ))}
-                              </select>
+                                <SelectTrigger className="h-8 w-full cursor-pointer">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="_default">Default (no override)</SelectItem>
+                                  {(['FLAT', 'PERCENTAGE', 'FORMULA'] as const).map((ct) => (
+                                    <SelectItem key={ct} value={ct}>
+                                      {CALCULATION_TYPE_CONFIG[ct].label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
 
                             {/* Override value for FLAT */}

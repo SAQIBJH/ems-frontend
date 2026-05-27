@@ -10,6 +10,13 @@ import type { AxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -336,17 +343,24 @@ export function SalaryComponentDrawer({
               {/* Type */}
               <div className="space-y-1.5">
                 <Label htmlFor="comp-type">Type</Label>
-                <select
-                  id="comp-type"
-                  {...form.register('type')}
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring/50"
-                >
-                  {COMPONENT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {COMPONENT_TYPE_CONFIG[t].label}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="comp-type" className="w-full cursor-pointer">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COMPONENT_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {COMPONENT_TYPE_CONFIG[t].label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {form.formState.errors.type && (
                   <p className="text-xs text-danger">{form.formState.errors.type.message}</p>
                 )}
@@ -484,18 +498,27 @@ export function SalaryComponentDrawer({
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="comp-basis">Basis Component</Label>
-                    <select
-                      id="comp-basis"
-                      {...form.register('basisCode')}
-                      className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring/50"
-                    >
-                      <option value="">Select component</option>
-                      {earningComponents.map((c) => (
-                        <option key={c.id} value={c.code}>
-                          {c.name} ({c.code})
-                        </option>
-                      ))}
-                    </select>
+                    <Controller
+                      control={form.control}
+                      name="basisCode"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? undefined}
+                          onValueChange={(v) => field.onChange(v || null)}
+                        >
+                          <SelectTrigger id="comp-basis" className="w-full cursor-pointer">
+                            <SelectValue placeholder="Select component" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {earningComponents.map((c) => (
+                              <SelectItem key={c.id} value={c.code}>
+                                {c.name} ({c.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                     {form.formState.errors.basisCode && (
                       <p className="text-xs text-danger">
                         {form.formState.errors.basisCode.message}

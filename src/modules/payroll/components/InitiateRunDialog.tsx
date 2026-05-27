@@ -16,6 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import { useInitiatePayrollRun, useCalculatePayrollRun, payrollRunsApi } from '@/modules/payroll';
 
@@ -38,9 +45,6 @@ const MONTHS = [
 
 const currentYear = new Date().getFullYear();
 const YEARS = [currentYear - 1, currentYear].map(String);
-
-const selectClass =
-  'w-full rounded-md border border-input bg-surface px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 cursor-pointer';
 
 /* ── component ────────────────────────────────────────────────────────────── */
 
@@ -120,30 +124,30 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
           <div className="space-y-1.5">
             <Label>Payroll Period</Label>
             <div className="grid grid-cols-2 gap-3">
-              <select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                disabled={isPending}
-                className={selectClass}
-              >
-                {MONTHS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                disabled={isPending}
-                className={selectClass}
-              >
-                {YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+              <Select value={month} onValueChange={(v) => v && setMonth(v)} disabled={isPending}>
+                <SelectTrigger className="w-full cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={year} onValueChange={(v) => v && setYear(v)} disabled={isPending}>
+                <SelectTrigger className="w-full cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <p className="text-xs text-fg-muted">
               Selected: {MONTHS.find((m) => m.value === month)?.label} {year}
