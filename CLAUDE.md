@@ -800,3 +800,114 @@ without painting ourselves into a corner:
 This is how `CLAUDE.md §3` already handles the live-vs-mocked split — this
 section just formalizes the workflow for net-new endpoints driven from the
 frontend side.
+
+---
+
+## 23. Phase 2 modules — Payroll, Reports, Analytics
+
+> Read this section before working on any Phase 2 step.
+
+### New routes (AppShell sidebar)
+
+Phase 2 adds three top-level routes. Add them to `NAV_ITEMS` in
+`src/shared/layouts/AppShell.tsx` in Step 55 and do not remove them:
+
+```ts
+{ label: 'Payroll',   href: '/payroll',   icon: DollarSign  }
+{ label: 'Reports',   href: '/reports',   icon: BarChart2   }
+{ label: 'Analytics', href: '/analytics', icon: TrendingUp  }
+```
+
+Insert them **between Holidays and Permissions** in the nav list.
+
+### New settings group — Pay & Compliance
+
+Settings left nav gains a fourth group. Insert it between "People" and
+"Security" in `SettingsNav`:
+
+```
+PAY & COMPLIANCE
+  Salary Components     /settings/pay/components
+  Pay Groups            /settings/pay/groups
+  Pay Schedules         /settings/pay/schedules
+```
+
+All three panels are HR_ADMIN / SUPER_ADMIN only.
+
+### Payroll module — global-first design
+
+The payroll module is the primary Phase 2 differentiator. The core design
+principle: **no hardcoded country rules**. Everything is configuration.
+
+**Salary Components** (`SalaryComponent`) are tenant-defined building blocks:
+
+- `type`: EARNING | DEDUCTION | BENEFIT | REIMBURSEMENT
+- `calculationType`: FLAT | PERCENTAGE | FORMULA
+- A formula can reference any other component by its `code` (e.g. `BASIC * 0.4`).
+- Calculation order is resolved by dependency graph (topological sort); cycles
+  are rejected by the API.
+
+**Pay Groups** (`PayGroup`) bundle components into a named template:
+
+- Assigned to employees as their baseline compensation structure.
+- Group-level overrides allow tweaking a single component for all members.
+
+**Employee Salary Config** (`EmployeeSalary`) links an employee to a pay group:
+
+- Stores `annualCtc` — the formula engine derives all component amounts.
+- Salary changes create new history records — never edit in place.
+
+**Payroll Runs** (`PayrollRun`) are period-level processing records:
+
+- Status machine: DRAFT → CALCULATING → REVIEW → APPROVED → PAID.
+- HR adjusts individual payslips (one-time bonuses/deductions) before approving.
+
+**Client-side formula preview** (in Salary Components CRUD):
+
+- Use the `expr-eval` npm package (safe, no `eval()`, 5 kB gzipped) for
+  in-browser formula evaluation.
+- Show a live preview table as HR types a formula: sample CTC of 1,200,000
+  with all existing component values pre-filled.
+- Validate formula syntax on blur; show inline error if invalid.
+
+### Reports module — on-demand computation
+
+All report endpoints are computed server-side on request. The frontend:
+
+- Passes filter params (date range, department, etc.) via query string.
+- Receives `{ meta, summary, chartData, tableData }` per endpoint.
+- Renders chart from `chartData` using `ChartEngine` wrappers.
+- Renders table from `tableData` using `DynamicTable`.
+- Export button calls `POST /reports/export` and triggers a browser CSV download.
+
+### Analytics module — dedicated page
+
+`/analytics` is a full-screen analytics dashboard separate from the
+dashboard widgets. It uses the existing live analytics endpoints plus four
+new MSW-backed ones (see `docs/phase2api.md` §5).
+
+### API spec source of truth
+
+`docs/phase2api.md` is the authoritative spec for all Phase 2 endpoints.
+All MSW handlers must match it exactly. All TypeScript types must mirror it.
+
+### Formula evaluator — install once
+
+In Step 55, add to `package.json`:
+
+```
+pnpm add expr-eval
+```
+
+`expr-eval` is the **only** new dependency permitted for Phase 2. Do not add
+chart libs, state libs, or UI kits. `ChartEngine` already wraps Recharts for
+all chart types needed (AreaChart, BarChart, DonutChart, LineChart).
+
+### Employee profile — Compensation tab (added in Step 58)
+
+A new "Compensation" tab is added to `EmployeeProfile.tsx` between "Job" and
+"Documents". It is visible to HR_ADMIN and SUPER_ADMIN only. Shows:
+
+- Assigned pay group + CTC
+- Live formula-evaluated component breakdown (client-side)
+- Salary history timeline

@@ -213,7 +213,7 @@ export const payrollComponentHandlers = [
             details: { affectedComponents, affectedPayGroups: [] },
           },
         },
-        { status: 400 },
+        { status: 409 },
       );
     }
     components = components.filter((c) => c.id !== id);

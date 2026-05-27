@@ -87,7 +87,7 @@ export function SettingsScreen() {
         </aside>
 
         {/* Content panel */}
-        <main className="flex-1 overflow-auto p-6 max-w-2xl">
+        <main className="flex-1 overflow-auto p-6">
           {active === 'company-profile' && <CompanyProfilePanel />}
           {active === 'email-templates' && <EmailTemplatesPanel />}
         </main>

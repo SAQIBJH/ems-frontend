@@ -11,7 +11,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <SettingsNav />
-        <main className="flex-1 overflow-auto p-6 max-w-2xl">{children}</main>
+        <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>
   );
