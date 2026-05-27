@@ -1,7 +1,5 @@
-import { SettingsScreen } from '@/modules/settings';
-
-export const metadata = { title: 'Settings' };
+import { redirect } from 'next/navigation';
 
 export default function SettingsPage() {
-  return <SettingsScreen />;
+  redirect('/settings/company-profile');
 }
