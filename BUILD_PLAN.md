@@ -127,10 +127,10 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 
 ### PHASE 2 — Payroll, Reports & Analytics
 
-- [ ] Step 55 — Payroll module skeleton: types, MSW, services, hooks, route registration
-- [ ] Step 56 — Settings: Pay & Compliance → Salary Components CRUD
-- [ ] Step 57 — Settings: Pay Groups CRUD (payroll templates)
-- [ ] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
+- [x] Step 55 — Payroll module skeleton: types, MSW, services, hooks, route registration
+- [x] Step 56 — Settings: Pay & Compliance → Salary Components CRUD
+- [x] Step 57 — Settings: Pay Groups CRUD (payroll templates)
+- [x] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
 - [ ] Step 59 — Payroll: Run payroll flow (initiate → calculate → review)
 - [ ] Step 60 — Payroll: Run detail page + payslip viewer
 - [ ] Step 61 — Payroll: Employee self-service payslip history
@@ -2017,7 +2017,7 @@ pnpm build
 - [x] Step 55 — Payroll module skeleton: types, MSW, services, hooks, route registration
 - [x] Step 56 — Settings: Pay & Compliance → Salary Components CRUD
 - [x] Step 57 — Settings: Pay Groups CRUD (payroll templates)
-- [ ] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
+- [x] Step 58 — Employee Profile: Compensation tab (salary assignment + live preview)
 - [ ] Step 59 — Payroll: Run payroll flow (initiate → calculate → review)
 - [ ] Step 60 — Payroll: Run detail page + payslip viewer
 - [ ] Step 61 — Payroll: Employee self-service payslip history
