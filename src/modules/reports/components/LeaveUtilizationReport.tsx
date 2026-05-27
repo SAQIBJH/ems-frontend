@@ -106,12 +106,19 @@ export default function LeaveUtilizationReport() {
           ))}
         </SelectContent>
       </Select>
-      <Select value={deptId} onValueChange={(v) => setDeptId(v ?? '')}>
+      <Select
+        value={deptId || '_all'}
+        onValueChange={(v) => setDeptId(v === '_all' ? '' : (v ?? ''))}
+      >
         <SelectTrigger className="h-8 w-48 text-sm">
-          <SelectValue placeholder="All departments" />
+          <SelectValue>
+            {(v: string) =>
+              v === '_all' ? 'All departments' : (flatDepts.find((d) => d.id === v)?.name ?? v)
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All departments</SelectItem>
+          <SelectItem value="_all">All departments</SelectItem>
           {flatDepts.map((d) => (
             <SelectItem key={d.id} value={d.id}>
               {d.name}
@@ -119,12 +126,19 @@ export default function LeaveUtilizationReport() {
           ))}
         </SelectContent>
       </Select>
-      <Select value={leaveTypeId} onValueChange={(v) => setLeaveTypeId(v ?? '')}>
+      <Select
+        value={leaveTypeId || '_all'}
+        onValueChange={(v) => setLeaveTypeId(v === '_all' ? '' : (v ?? ''))}
+      >
         <SelectTrigger className="h-8 w-44 text-sm">
-          <SelectValue placeholder="All leave types" />
+          <SelectValue>
+            {(v: string) =>
+              v === '_all' ? 'All leave types' : (leaveTypes.find((lt) => lt.id === v)?.name ?? v)
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All leave types</SelectItem>
+          <SelectItem value="_all">All leave types</SelectItem>
           {leaveTypes.map((lt) => (
             <SelectItem key={lt.id} value={lt.id}>
               {lt.name}

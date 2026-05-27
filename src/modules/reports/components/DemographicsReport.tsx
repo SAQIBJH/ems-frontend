@@ -47,12 +47,19 @@ export default function DemographicsReport() {
 
   const filterBar = (
     <div className="flex flex-wrap items-center gap-3">
-      <Select value={deptId} onValueChange={(v) => setDeptId(v ?? '')}>
+      <Select
+        value={deptId || '_all'}
+        onValueChange={(v) => setDeptId(v === '_all' ? '' : (v ?? ''))}
+      >
         <SelectTrigger className="h-8 w-48 text-sm">
-          <SelectValue placeholder="All departments" />
+          <SelectValue>
+            {(v: string) =>
+              v === '_all' ? 'All departments' : (flatDepts.find((d) => d.id === v)?.name ?? v)
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All departments</SelectItem>
+          <SelectItem value="_all">All departments</SelectItem>
           {flatDepts.map((d) => (
             <SelectItem key={d.id} value={d.id}>
               {d.name}
