@@ -1,7 +1,10 @@
-export default function PayrollRunPage() {
-  return (
-    <div className="flex items-center justify-center h-64 text-fg-subtle text-sm">
-      Payroll run detail — coming soon
-    </div>
-  );
+import { PayrollRunDetail } from '@/modules/payroll/components/PayrollRunDetail';
+
+interface Props {
+  params: Promise<{ runId: string }>;
+}
+
+export default async function PayrollRunPage({ params }: Props) {
+  const { runId } = await params;
+  return <PayrollRunDetail runId={runId} />;
 }

@@ -63,6 +63,22 @@ export function useApprovePayrollRun() {
   });
 }
 
+export function useMarkPaidPayrollRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      paidAt,
+      paymentReference,
+    }: {
+      id: string;
+      paidAt: string;
+      paymentReference: string;
+    }) => payrollRunsApi.markPaid(id, { paidAt, paymentReference }),
+    onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: [...RUNS_KEY, id] }),
+  });
+}
+
 export function useAdjustPayslip() {
   const qc = useQueryClient();
   return useMutation({
