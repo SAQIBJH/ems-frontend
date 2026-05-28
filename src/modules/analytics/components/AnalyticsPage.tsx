@@ -424,10 +424,8 @@ export function AnalyticsPage() {
   const [range, setRange] = useQueryState('range', parseAsString.withDefault('30d'));
   const [from, setFrom] = useQueryState('from', parseAsString.withDefault(''));
   const [to, setTo] = useQueryState('to', parseAsString.withDefault(''));
-  const [departmentId, setDepartmentId] = useQueryState(
-    'departmentId',
-    parseAsString.withDefault(''),
-  );
+  // useState keeps Select controlled value in sync (nuqs async setters cause flicker)
+  const [departmentId, setDepartmentId] = useState('');
   const [activityLimit, setActivityLimit] = useState(10);
 
   const { data: departments = [] } = useDepartments();
@@ -521,8 +519,8 @@ export function AnalyticsPage() {
         onRangeChange={(r) => {
           void setRange(r);
           if (r !== 'custom') {
-            void setFrom('');
-            void setTo('');
+            if (from) void setFrom('');
+            if (to) void setTo('');
           }
         }}
         onCustomRange={(f, t) => {
@@ -533,7 +531,7 @@ export function AnalyticsPage() {
       />
       <Select
         value={departmentId || '_all'}
-        onValueChange={(v) => void setDepartmentId(v === '_all' ? '' : (v ?? ''))}
+        onValueChange={(v) => setDepartmentId(v === '_all' ? '' : (v ?? ''))}
       >
         <SelectTrigger className="h-8 w-48 text-sm">
           <SelectValue>
