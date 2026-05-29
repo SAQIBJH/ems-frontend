@@ -1156,7 +1156,9 @@ Each activity item has:
 
 ### `PATCH /settings/email-templates/:type`
 
-**Body:** `{ "subject": "...", "body": "..." }`
+**Body:** `{ "subject": "...", "body": "...", "fromAddressOverride": "sender@co.com" | null }`
+
+> **Note:** `fromAddressOverride` is a planned frontend-driven extension. The live backend currently ignores this field; it will be stored once the backend ships support. The frontend type has `fromAddressOverride?: string | null` and the edit dialog already sends the value.
 
 ---
 

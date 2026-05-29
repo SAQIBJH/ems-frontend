@@ -1403,6 +1403,7 @@ When an endpoint goes live, delete the corresponding MSW handler:
 | `GET /analytics/department-performance`    | `src/mocks/handlers/analytics.ts`             |
 | `GET/PATCH /settings/integrations/email`   | `src/mocks/handlers/settings-integrations.ts` |
 | `POST /settings/integrations/email/test`   | `src/mocks/handlers/settings-integrations.ts` |
+| `GET /settings/integrations/email/stats`   | `src/mocks/handlers/settings-integrations.ts` |
 | `GET/PATCH /settings/integrations/storage` | `src/mocks/handlers/settings-integrations.ts` |
 | `POST /settings/integrations/storage/test` | `src/mocks/handlers/settings-integrations.ts` |
 | `GET/POST /settings/webhooks`              | `src/mocks/handlers/settings-integrations.ts` |
@@ -1531,6 +1532,34 @@ Config must be saved before testing (i.e. provider is not `null`).
 
 - `400 EMAIL_NOT_CONFIGURED` — no provider saved yet.
 - `502 EMAIL_DELIVERY_FAILED` — provider rejected the request (wrong API key, SMTP refused, etc.).
+
+---
+
+#### `GET /api/v1/settings/integrations/email/stats`
+
+Returns delivery analytics for the last 30 days. **MSW-backed** — no backend yet.
+
+**Roles:** SUPER_ADMIN
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "sent": 247,
+    "delivered": 241,
+    "opened": 183,
+    "bounced": 6,
+    "complained": 1,
+    "deliveryRate": 97.6,
+    "openRate": 75.9,
+    "period": "last_30_days"
+  }
+}
+```
+
+**TypeScript type:** `EmailDeliveryStats` in `src/modules/settings/types/settings.types.ts`
 
 ---
 
