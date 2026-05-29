@@ -19,6 +19,8 @@ import type {
   LeaveTypeUpdateInput,
   NotificationPrefs,
   NotificationPrefsUpdateInput,
+  StorageIntegration,
+  StorageIntegrationUpdateInput,
   TenantSettings,
   TenantSettingsUpdateInput,
 } from '../types/settings.types';
@@ -228,6 +230,36 @@ export const settingsApi = {
     const { data } = await apiClient.get<{ data: EmailDeliveryStats }>(
       '/settings/integrations/email/stats',
     );
+    return data.data;
+  },
+
+  // ── Phase 2.5: Storage Integration ───────────────────────────────────────
+
+  getStorageIntegration: async (): Promise<StorageIntegration> => {
+    const { data } = await apiClient.get<{ data: StorageIntegration }>(
+      '/settings/integrations/storage',
+    );
+    return data.data;
+  },
+
+  updateStorageIntegration: async (
+    input: StorageIntegrationUpdateInput,
+  ): Promise<StorageIntegration> => {
+    const { data } = await apiClient.patch<{ data: StorageIntegration }>(
+      '/settings/integrations/storage',
+      input,
+    );
+    return data.data;
+  },
+
+  testStorageIntegration: async (): Promise<{
+    provider: string;
+    bucket: string;
+    latencyMs: number;
+  }> => {
+    const { data } = await apiClient.post<{
+      data: { provider: string; bucket: string; latencyMs: number };
+    }>('/settings/integrations/storage/test', {});
     return data.data;
   },
 };

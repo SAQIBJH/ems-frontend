@@ -173,6 +173,55 @@ export interface EmailIntegrationUpdateInput {
   };
 }
 
+// ── Storage Integration (Phase 2.5 — MSW-backed) ─────────────────────────────
+
+export type StorageProvider = 's3' | 'gcs' | 'azure';
+export type DocumentType = 'EMPLOYEE_RECORD' | 'PAYSLIP' | 'CONTRACT' | 'ID_PROOF' | 'OTHER';
+export type VirusScanProvider = 'clamav' | 'cloudmind';
+
+export interface StorageIntegrationConfig {
+  bucket: string | null;
+  region: string | null;
+  accessKeyId: string | null;
+  projectId: string | null;
+  accountName: string | null;
+  containerName: string | null;
+  versioningEnabled: boolean;
+  presignedUrlTtlSeconds: number;
+}
+
+export interface RetentionPolicy {
+  documentType: DocumentType;
+  retentionDays: number;
+  autoDeletionEnabled: boolean;
+}
+
+export interface VirusScanConfig {
+  enabled: boolean;
+  provider: VirusScanProvider | null;
+  webhookUrl: string | null;
+}
+
+export interface StorageIntegration {
+  provider: StorageProvider | null;
+  status: IntegrationStatus;
+  lastTestedAt: string | null;
+  config: StorageIntegrationConfig;
+  retentionPolicies: RetentionPolicy[];
+  virusScan: VirusScanConfig;
+}
+
+export interface StorageIntegrationUpdateInput {
+  provider: StorageProvider;
+  config: Partial<StorageIntegrationConfig> & {
+    secretAccessKey?: string;
+    serviceAccountJson?: string;
+    connectionString?: string;
+  };
+  retentionPolicies?: Partial<RetentionPolicy>[];
+  virusScan?: Partial<VirusScanConfig>;
+}
+
 export interface EmailDeliveryStats {
   sent: number;
   delivered: number;

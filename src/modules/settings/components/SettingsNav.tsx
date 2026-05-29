@@ -177,7 +177,6 @@ const NAV_GROUPS: NavGroup[] = [
         slug: 'integration-storage',
         icon: PlugIcon,
         roles: ['SUPER_ADMIN'],
-        phase2: true,
       },
       {
         label: 'Webhooks',

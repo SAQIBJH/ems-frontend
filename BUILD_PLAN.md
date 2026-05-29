@@ -144,7 +144,7 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 ### PHASE 2.5 — Settings: Integrations & Billing (functional screens)
 
 - [x] Step 68 — Settings: Email Integration panel (provider config + test send)
-- [ ] Step 69 — Settings: Storage Integration panel (provider config + retention rules + test)
+- [x] Step 69 — Settings: Storage Integration panel (provider config + retention rules + test)
 - [ ] Step 70 — Settings: Webhooks panel (full CRUD + delivery log)
 - [ ] Step 71 — Settings: Plan & Subscription panel (current plan + usage + plan comparison)
 - [ ] Step 72 — Settings: Invoices panel (invoice table + CSV export)

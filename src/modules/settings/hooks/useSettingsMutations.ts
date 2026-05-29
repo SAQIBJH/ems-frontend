@@ -9,6 +9,7 @@ import type {
   LeaveTypeCreateInput,
   LeaveTypeUpdateInput,
   NotificationPrefsUpdateInput,
+  StorageIntegrationUpdateInput,
   TenantSettingsUpdateInput,
 } from '../types/settings.types';
 
@@ -118,5 +119,26 @@ export function useUpdateEmailIntegration() {
 export function useTestEmailIntegration() {
   return useMutation({
     mutationFn: (to: string) => settingsApi.testEmailIntegration(to),
+  });
+}
+
+export function useUpdateStorageIntegration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StorageIntegrationUpdateInput) =>
+      settingsApi.updateStorageIntegration(input),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['settings', 'integrations', 'storage'], updated);
+    },
+  });
+}
+
+export function useTestStorageIntegration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => settingsApi.testStorageIntegration(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'integrations', 'storage'] });
+    },
   });
 }

@@ -1565,13 +1565,14 @@ Returns delivery analytics for the last 30 days. **MSW-backed** — no backend y
 
 ### 7.2 Storage Integration
 
-Connect a cloud storage bucket for employee documents, payslips, and assets.
+Connect a cloud storage bucket for employee documents, payslips, and assets — with versioning, access-controlled pre-signed URLs, configurable retention/auto-deletion per document type, and optional virus scanning on upload.
 
 #### Enums
 
 ```ts
 type StorageProvider = 's3' | 'gcs' | 'azure';
 type DocumentType = 'EMPLOYEE_RECORD' | 'PAYSLIP' | 'CONTRACT' | 'ID_PROOF' | 'OTHER';
+type VirusScanProvider = 'clamav' | 'cloudmind';
 ```
 
 #### `GET /api/v1/settings/integrations/storage`
@@ -1593,18 +1594,30 @@ type DocumentType = 'EMPLOYEE_RECORD' | 'PAYSLIP' | 'CONTRACT' | 'ID_PROOF' | 'O
       "accessKeyId": null,
       "projectId": null,
       "accountName": null,
-      "containerName": null
+      "containerName": null,
+      "versioningEnabled": false,
+      "presignedUrlTtlSeconds": 3600
     },
     "retentionPolicies": [
-      { "documentType": "EMPLOYEE_RECORD", "retentionDays": 2555 },
-      { "documentType": "PAYSLIP", "retentionDays": 2555 },
-      { "documentType": "CONTRACT", "retentionDays": 2555 },
-      { "documentType": "ID_PROOF", "retentionDays": 730 },
-      { "documentType": "OTHER", "retentionDays": 365 }
-    ]
+      { "documentType": "EMPLOYEE_RECORD", "retentionDays": 2555, "autoDeletionEnabled": false },
+      { "documentType": "PAYSLIP", "retentionDays": 2555, "autoDeletionEnabled": false },
+      { "documentType": "CONTRACT", "retentionDays": 2555, "autoDeletionEnabled": false },
+      { "documentType": "ID_PROOF", "retentionDays": 730, "autoDeletionEnabled": false },
+      { "documentType": "OTHER", "retentionDays": 365, "autoDeletionEnabled": false }
+    ],
+    "virusScan": {
+      "enabled": false,
+      "provider": null,
+      "webhookUrl": null
+    }
   }
 }
 ```
+
+**Config field notes:**
+
+- `versioningEnabled` — when `true`, every upload creates a new version; prior versions are retained for the full retention period.
+- `presignedUrlTtlSeconds` — lifetime of access-controlled pre-signed download URLs (default 3600 = 1 hour). Files are never exposed via public URLs.
 
 ---
 
@@ -1621,21 +1634,35 @@ type DocumentType = 'EMPLOYEE_RECORD' | 'PAYSLIP' | 'CONTRACT' | 'ID_PROOF' | 'O
     "bucket": "acme-ems-documents",
     "region": "ap-south-1",
     "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
-    "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "versioningEnabled": true,
+    "presignedUrlTtlSeconds": 1800
   },
-  "retentionPolicies": [{ "documentType": "PAYSLIP", "retentionDays": 1825 }]
+  "retentionPolicies": [
+    { "documentType": "PAYSLIP", "retentionDays": 1825, "autoDeletionEnabled": true }
+  ],
+  "virusScan": {
+    "enabled": true,
+    "provider": "clamav",
+    "webhookUrl": "https://acme.example.com/api/webhooks/storage/scan-result"
+  }
 }
 ```
 
-Provider-specific `config` fields:
+Provider-specific required `config` fields:
 
-| Provider | Required config fields                               |
+| Provider | Required fields                                      |
 | -------- | ---------------------------------------------------- |
 | `s3`     | `bucket`, `region`, `accessKeyId`, `secretAccessKey` |
 | `gcs`    | `bucket`, `projectId`, `serviceAccountJson`          |
 | `azure`  | `accountName`, `containerName`, `connectionString`   |
 
+`versioningEnabled` and `presignedUrlTtlSeconds` apply to all providers.
+
 `retentionPolicies` is optional — only the supplied document types are updated.
+`autoDeletionEnabled: true` means files older than `retentionDays` are permanently deleted by a nightly job.
+
+`virusScan` is optional — omitting it leaves the current scan config unchanged.
 
 **Response:** Same shape as GET (secrets redacted).
 
@@ -1643,7 +1670,7 @@ Provider-specific `config` fields:
 
 #### `POST /api/v1/settings/integrations/storage/test`
 
-Tests connectivity to the configured bucket by performing a small read operation.
+Tests connectivity to the configured bucket by performing a small read/write probe.
 
 **Roles:** SUPER_ADMIN
 
