@@ -194,7 +194,6 @@ const NAV_GROUPS: NavGroup[] = [
         slug: 'billing-plan',
         icon: CreditCardIcon,
         roles: ['SUPER_ADMIN'],
-        phase2: true,
       },
       {
         label: 'Invoices',
