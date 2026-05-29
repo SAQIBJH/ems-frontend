@@ -11,6 +11,8 @@ import type {
   NotificationPrefsUpdateInput,
   StorageIntegrationUpdateInput,
   TenantSettingsUpdateInput,
+  WebhookCreateInput,
+  WebhookUpdateInput,
 } from '../types/settings.types';
 
 export function useUpdateTenantSettings() {
@@ -139,6 +141,48 @@ export function useTestStorageIntegration() {
     mutationFn: () => settingsApi.testStorageIntegration(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['settings', 'integrations', 'storage'] });
+    },
+  });
+}
+
+export function useCreateWebhook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: WebhookCreateInput) => settingsApi.createWebhook(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
+    },
+  });
+}
+
+export function useUpdateWebhook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: WebhookUpdateInput }) =>
+      settingsApi.updateWebhook(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
+    },
+  });
+}
+
+export function useDeleteWebhook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => settingsApi.deleteWebhook(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
+    },
+  });
+}
+
+export function useTestWebhook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => settingsApi.testWebhook(id),
+    onSuccess: (_result, id) => {
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks', id, 'deliveries'] });
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] });
     },
   });
 }

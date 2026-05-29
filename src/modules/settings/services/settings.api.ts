@@ -23,6 +23,10 @@ import type {
   StorageIntegrationUpdateInput,
   TenantSettings,
   TenantSettingsUpdateInput,
+  Webhook,
+  WebhookCreateInput,
+  WebhookDeliveriesResponse,
+  WebhookUpdateInput,
 } from '../types/settings.types';
 
 export const settingsApi = {
@@ -261,5 +265,63 @@ export const settingsApi = {
       data: { provider: string; bucket: string; latencyMs: number };
     }>('/settings/integrations/storage/test', {});
     return data.data;
+  },
+
+  // ── Phase 2.5: Webhooks ───────────────────────────────────────────────────
+
+  getWebhooks: async (): Promise<Webhook[]> => {
+    const { data } = await apiClient.get<{ data: Webhook[] }>('/settings/webhooks');
+    return data.data;
+  },
+
+  createWebhook: async (input: WebhookCreateInput): Promise<Webhook> => {
+    const { data } = await apiClient.post<{ data: Webhook }>('/settings/webhooks', input);
+    return data.data;
+  },
+
+  updateWebhook: async (id: string, input: WebhookUpdateInput): Promise<Webhook> => {
+    const { data } = await apiClient.patch<{ data: Webhook }>(`/settings/webhooks/${id}`, input);
+    return data.data;
+  },
+
+  deleteWebhook: async (id: string): Promise<void> => {
+    await apiClient.delete(`/settings/webhooks/${id}`);
+  },
+
+  getWebhookDeliveries: async (
+    id: string,
+    page = 1,
+    limit = 20,
+  ): Promise<WebhookDeliveriesResponse> => {
+    const { data } = await apiClient.get<{ data: WebhookDeliveriesResponse }>(
+      `/settings/webhooks/${id}/deliveries`,
+      { params: { page, limit } },
+    );
+    return data.data;
+  },
+
+  testWebhook: async (
+    id: string,
+  ): Promise<{
+    id: string;
+    event: string;
+    responseStatus: number;
+    success: boolean;
+    durationMs: number;
+    timestamp: string;
+  }> => {
+    const { data } = await apiClient.post<{
+      data: {
+        delivery: {
+          id: string;
+          event: string;
+          responseStatus: number;
+          success: boolean;
+          durationMs: number;
+          timestamp: string;
+        };
+      };
+    }>(`/settings/webhooks/${id}/test`, {});
+    return data.data.delivery;
   },
 };

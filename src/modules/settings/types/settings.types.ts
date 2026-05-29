@@ -222,6 +222,82 @@ export interface StorageIntegrationUpdateInput {
   virusScan?: Partial<VirusScanConfig>;
 }
 
+// ── Webhooks (Phase 2.5 — MSW-backed) ────────────────────────────────────────
+
+export type WebhookEvent =
+  | 'EMPLOYEE_CREATED'
+  | 'EMPLOYEE_UPDATED'
+  | 'EMPLOYEE_TERMINATED'
+  | 'LEAVE_REQUESTED'
+  | 'LEAVE_APPROVED'
+  | 'LEAVE_REJECTED'
+  | 'LEAVE_WITHDRAWN'
+  | 'ATTENDANCE_REGULARIZED'
+  | 'ATTENDANCE_REGULARIZATION_APPROVED'
+  | 'ATTENDANCE_REGULARIZATION_DENIED'
+  | 'DEPARTMENT_CREATED'
+  | 'DEPARTMENT_UPDATED'
+  | 'DEPARTMENT_DELETED'
+  | 'PAYROLL_RUN_APPROVED'
+  | 'PAYSLIP_GENERATED';
+
+export type WebhookStatus = 'active' | 'disabled';
+
+export interface WebhookLastDelivery {
+  timestamp: string;
+  statusCode: number;
+  success: boolean;
+  durationMs: number;
+}
+
+export interface Webhook {
+  id: string;
+  url: string;
+  description: string | null;
+  events: WebhookEvent[];
+  status: WebhookStatus;
+  secret: string;
+  lastDelivery: WebhookLastDelivery | null;
+  createdAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  event: string;
+  url: string;
+  requestBody: string;
+  responseStatus: number | null;
+  responseBody: string | null;
+  durationMs: number | null;
+  success: boolean;
+  timestamp: string;
+}
+
+export interface WebhookDeliveriesResponse {
+  deliveries: WebhookDelivery[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface WebhookCreateInput {
+  url: string;
+  events: WebhookEvent[];
+  description?: string;
+  active: boolean;
+}
+
+export interface WebhookUpdateInput {
+  url?: string;
+  events?: WebhookEvent[];
+  description?: string;
+  active?: boolean;
+}
+
 export interface EmailDeliveryStats {
   sent: number;
   delivered: number;

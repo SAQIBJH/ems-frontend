@@ -8,6 +8,11 @@ import type {
   StorageIntegration,
   StorageIntegrationUpdateInput,
   VirusScanConfig,
+  Webhook,
+  WebhookCreateInput,
+  WebhookDelivery,
+  WebhookEvent,
+  WebhookUpdateInput,
 } from '@/modules/settings/types/settings.types';
 
 // ── Static fixtures ───────────────────────────────────────────────────────────
@@ -65,6 +70,73 @@ let storageIntegration: StorageIntegration = {
   ],
   virusScan: { enabled: false, provider: null, webhookUrl: null },
 };
+
+let webhooks: Webhook[] = [
+  {
+    id: 'wh_01',
+    url: 'https://hooks.example.com/ems',
+    description: 'Slack notifications',
+    events: ['EMPLOYEE_CREATED', 'LEAVE_APPROVED'] as WebhookEvent[],
+    status: 'active',
+    secret: '••••••••a3f9',
+    lastDelivery: {
+      timestamp: '2026-05-20T14:32:00.000Z',
+      statusCode: 200,
+      success: true,
+      durationMs: 87,
+    },
+    createdAt: '2026-04-10T09:00:00.000Z',
+  },
+];
+
+const deliveriesStore: Record<string, WebhookDelivery[]> = {
+  wh_01: [
+    {
+      id: 'del_01',
+      webhookId: 'wh_01',
+      event: 'LEAVE_APPROVED',
+      url: 'https://hooks.example.com/ems',
+      requestBody: '{"event":"LEAVE_APPROVED","data":{"employeeId":"emp_01"}}',
+      responseStatus: 200,
+      responseBody: '{"ok":true}',
+      durationMs: 87,
+      success: true,
+      timestamp: '2026-05-20T14:32:00.000Z',
+    },
+    {
+      id: 'del_02',
+      webhookId: 'wh_01',
+      event: 'EMPLOYEE_CREATED',
+      url: 'https://hooks.example.com/ems',
+      requestBody: '{"event":"EMPLOYEE_CREATED","data":{"employeeId":"emp_42"}}',
+      responseStatus: 200,
+      responseBody: '{"ok":true}',
+      durationMs: 112,
+      success: true,
+      timestamp: '2026-05-19T10:15:00.000Z',
+    },
+    {
+      id: 'del_03',
+      webhookId: 'wh_01',
+      event: 'LEAVE_REJECTED',
+      url: 'https://hooks.example.com/ems',
+      requestBody: '{"event":"LEAVE_REJECTED","data":{"employeeId":"emp_07"}}',
+      responseStatus: 503,
+      responseBody: 'Service Unavailable',
+      durationMs: 5002,
+      success: false,
+      timestamp: '2026-05-18T08:00:00.000Z',
+    },
+  ],
+};
+
+function generateId(prefix: string) {
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function generateSecret() {
+  return `whsec_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -226,6 +298,167 @@ export const settingsIntegrationHandlers = [
         provider: storageIntegration.provider,
         bucket: storageIntegration.config.bucket ?? '',
         latencyMs: Math.floor(Math.random() * 200) + 80,
+      },
+    });
+  }),
+
+  // GET /settings/webhooks
+  http.get('/api/settings/webhooks', () => {
+    return HttpResponse.json({ success: true, data: webhooks });
+  }),
+
+  // POST /settings/webhooks
+  http.post('/api/settings/webhooks', async ({ request }) => {
+    const body = (await request.json()) as WebhookCreateInput;
+
+    if (!body.url?.startsWith('https://')) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'URL must use HTTPS' } },
+        { status: 422 },
+      );
+    }
+    if (!body.events || body.events.length === 0) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Select at least one event' },
+        },
+        { status: 422 },
+      );
+    }
+
+    const secret = generateSecret();
+    const newWebhook: Webhook = {
+      id: generateId('wh'),
+      url: body.url,
+      description: body.description ?? null,
+      events: body.events,
+      status: body.active ? 'active' : 'disabled',
+      secret,
+      lastDelivery: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    webhooks = [...webhooks, newWebhook];
+    deliveriesStore[newWebhook.id] = [];
+
+    return HttpResponse.json({ success: true, data: newWebhook }, { status: 201 });
+  }),
+
+  // PATCH /settings/webhooks/:id
+  http.patch('/api/settings/webhooks/:id', async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json()) as WebhookUpdateInput;
+    const idx = webhooks.findIndex((w) => w.id === id);
+
+    if (idx < 0) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'WEBHOOK_NOT_FOUND', message: 'Webhook not found' } },
+        { status: 404 },
+      );
+    }
+
+    webhooks[idx] = {
+      ...webhooks[idx],
+      ...(body.url !== undefined && { url: body.url }),
+      ...(body.events !== undefined && { events: body.events }),
+      ...(body.description !== undefined && { description: body.description ?? null }),
+      ...(body.active !== undefined && { status: body.active ? 'active' : 'disabled' }),
+    };
+
+    return HttpResponse.json({ success: true, data: webhooks[idx] });
+  }),
+
+  // DELETE /settings/webhooks/:id
+  http.delete('/api/settings/webhooks/:id', ({ params }) => {
+    const { id } = params as { id: string };
+    const idx = webhooks.findIndex((w) => w.id === id);
+
+    if (idx < 0) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'WEBHOOK_NOT_FOUND', message: 'Webhook not found' } },
+        { status: 404 },
+      );
+    }
+
+    webhooks = webhooks.filter((w) => w.id !== id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // GET /settings/webhooks/:id/deliveries
+  http.get('/api/settings/webhooks/:id/deliveries', ({ params, request }) => {
+    const { id } = params as { id: string };
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page') ?? '1');
+    const limit = Number(url.searchParams.get('limit') ?? '20');
+
+    const all = deliveriesStore[id] ?? [];
+    const start = (page - 1) * limit;
+    const items = all.slice(start, start + limit);
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        deliveries: items,
+        pagination: { page, limit, total: all.length, totalPages: Math.ceil(all.length / limit) },
+      },
+    });
+  }),
+
+  // POST /settings/webhooks/:id/test
+  http.post('/api/settings/webhooks/:id/test', ({ params }) => {
+    const { id } = params as { id: string };
+    const wh = webhooks.find((w) => w.id === id);
+
+    if (!wh) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'WEBHOOK_NOT_FOUND', message: 'Webhook not found' } },
+        { status: 404 },
+      );
+    }
+
+    const durationMs = Math.floor(Math.random() * 200) + 60;
+    const delivery: WebhookDelivery = {
+      id: generateId('del'),
+      webhookId: id,
+      event: 'PING',
+      url: wh.url,
+      requestBody: '{"event":"PING"}',
+      responseStatus: 200,
+      responseBody: '{"ok":true}',
+      durationMs,
+      success: true,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (!deliveriesStore[id]) deliveriesStore[id] = [];
+    deliveriesStore[id] = [delivery, ...deliveriesStore[id]];
+
+    // Update lastDelivery on the webhook
+    const idx = webhooks.findIndex((w) => w.id === id);
+    if (idx >= 0) {
+      webhooks[idx] = {
+        ...webhooks[idx],
+        lastDelivery: {
+          timestamp: delivery.timestamp,
+          statusCode: 200,
+          success: true,
+          durationMs,
+        },
+      };
+    }
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        delivery: {
+          id: delivery.id,
+          event: delivery.event,
+          responseStatus: 200,
+          success: true,
+          durationMs,
+          timestamp: delivery.timestamp,
+        },
       },
     });
   }),

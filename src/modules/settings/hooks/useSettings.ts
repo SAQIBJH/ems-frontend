@@ -89,3 +89,20 @@ export function useStorageIntegration() {
     staleTime: 5 * 60_000,
   });
 }
+
+export function useWebhooks() {
+  return useQuery({
+    queryKey: ['settings', 'webhooks'],
+    queryFn: settingsApi.getWebhooks,
+    staleTime: 30_000,
+  });
+}
+
+export function useWebhookDeliveries(id: string | null, page = 1) {
+  return useQuery({
+    queryKey: ['settings', 'webhooks', id, 'deliveries', page],
+    queryFn: () => settingsApi.getWebhookDeliveries(id!, page),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+}
