@@ -53,6 +53,7 @@ export interface EmailTemplate {
   type: EmailTemplateType;
   subject: string;
   body: string;
+  fromAddressOverride?: string | null;
 }
 
 export interface EmailTemplatesData {
@@ -62,6 +63,7 @@ export interface EmailTemplatesData {
 export interface EmailTemplateUpdateInput {
   subject: string;
   body: string;
+  fromAddressOverride?: string | null;
 }
 
 /** Branding — snake_case (settings domain convention). */
@@ -169,4 +171,15 @@ export interface EmailIntegrationUpdateInput {
     secretAccessKey?: string;
     password?: string;
   };
+}
+
+export interface EmailDeliveryStats {
+  sent: number;
+  delivered: number;
+  opened: number;
+  bounced: number;
+  complained: number;
+  deliveryRate: number;
+  openRate: number;
+  period: 'last_30_days';
 }

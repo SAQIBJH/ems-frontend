@@ -55,12 +55,23 @@ function EditTemplateDialog({ template, open, onOpenChange }: EditDialogProps) {
   const mutation = useUpdateEmailTemplate();
   const form = useForm<EmailTemplateFormValues>({
     resolver: zodResolver(emailTemplateSchema),
-    defaultValues: { subject: template.subject, body: template.body },
+    defaultValues: {
+      subject: template.subject,
+      body: template.body,
+      fromAddressOverride: template.fromAddressOverride ?? '',
+    },
   });
 
   function onSubmit(values: EmailTemplateFormValues) {
     mutation.mutate(
-      { type: template.type as EmailTemplateType, input: values },
+      {
+        type: template.type as EmailTemplateType,
+        input: {
+          subject: values.subject,
+          body: values.body,
+          fromAddressOverride: values.fromAddressOverride || null,
+        },
+      },
       {
         onSuccess: () => {
           toast.success('Email template saved');
@@ -100,6 +111,23 @@ function EditTemplateDialog({ template, open, onOpenChange }: EditDialogProps) {
             {form.formState.errors.body && (
               <p className="text-xs text-danger">{form.formState.errors.body.message}</p>
             )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="fromAddressOverride">From address override</Label>
+            <Input
+              id="fromAddressOverride"
+              type="email"
+              {...form.register('fromAddressOverride')}
+              placeholder="Leave blank to use global from address"
+            />
+            {form.formState.errors.fromAddressOverride && (
+              <p className="text-xs text-danger">
+                {form.formState.errors.fromAddressOverride.message}
+              </p>
+            )}
+            <p className="text-xs text-fg-muted">
+              Override the sender address for this template only.
+            </p>
           </div>
           <DialogFooter>
             <Button

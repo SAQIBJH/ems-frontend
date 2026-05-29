@@ -12,6 +12,7 @@ export type TenantSettingsFormValues = z.infer<typeof tenantSettingsSchema>;
 export const emailTemplateSchema = z.object({
   subject: z.string().min(1, 'Subject is required'),
   body: z.string().min(1, 'Body is required'),
+  fromAddressOverride: z.string().email('Must be a valid email').or(z.literal('')).optional(),
 });
 
 export type EmailTemplateFormValues = z.infer<typeof emailTemplateSchema>;

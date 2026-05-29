@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
-import { MailIcon, EyeIcon, EyeOffIcon, SendIcon } from 'lucide-react';
+import { MailIcon, EyeIcon, EyeOffIcon, SendIcon, CopyIcon, CheckIcon } from 'lucide-react';
 import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import type { ApiError } from '@/types/api';
 
-import { useEmailIntegration } from '../hooks/useSettings';
+import { useEmailIntegration, useEmailDeliveryStats } from '../hooks/useSettings';
 import { useUpdateEmailIntegration, useTestEmailIntegration } from '../hooks/useSettingsMutations';
-import type { EmailProvider, IntegrationStatus, SmtpEncryption } from '../types/settings.types';
+import type {
+  EmailDeliveryStats,
+  EmailProvider,
+  IntegrationStatus,
+  SmtpEncryption,
+} from '../types/settings.types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -182,6 +187,86 @@ function PasswordInput({
   );
 }
 
+// ── Delivery stats row ────────────────────────────────────────────────────────
+
+function DeliveryStatsRow({ stats }: { stats: EmailDeliveryStats | undefined }) {
+  const items = [
+    { label: 'Sent', value: stats?.sent ?? '—', sub: null },
+    {
+      label: 'Delivered',
+      value: stats?.delivered ?? '—',
+      sub: stats ? `${stats.deliveryRate}%` : null,
+    },
+    {
+      label: 'Opened',
+      value: stats?.opened ?? '—',
+      sub: stats ? `${stats.openRate}%` : null,
+    },
+    { label: 'Bounced', value: stats?.bounced ?? '—', sub: null },
+  ] as const;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {items.map(({ label, value, sub }) => (
+        <div
+          key={label}
+          className="rounded-lg border border-subtle bg-surface-raised/40 p-3 space-y-0.5"
+        >
+          <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-fg-disabled">
+            {label}
+          </p>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-xl font-semibold text-fg tabular-nums">{value}</span>
+            {sub && <span className="text-xs text-fg-muted">{sub}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Bounce webhook info box ───────────────────────────────────────────────────
+
+function BounceWebhookBox() {
+  const [copied, setCopied] = useState(false);
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? '';
+  const url = `${base}/api/webhooks/email/bounce`;
+
+  function handleCopy() {
+    void navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface-raised/40 p-4 space-y-2">
+      <p className="text-xs font-semibold text-fg">Bounce &amp; complaint webhook</p>
+      <p className="text-xs text-fg-muted">
+        Register this URL in your email provider&apos;s dashboard to enable automatic bounce and
+        complaint suppression.
+      </p>
+      <div className="flex items-center gap-2 mt-1">
+        <code className="flex-1 text-xs bg-surface border border-subtle rounded px-2.5 py-1.5 text-fg-subtle truncate">
+          {url}
+        </code>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="shrink-0 p-1.5 rounded-md border border-subtle bg-surface hover:bg-surface-raised transition-colors text-fg-muted hover:text-fg"
+          aria-label="Copy webhook URL"
+        >
+          {copied ? (
+            <CheckIcon className="size-3.5 text-success" />
+          ) : (
+            <CopyIcon className="size-3.5" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Loading skeleton ──────────────────────────────────────────────────────────
 
 function EmailIntegrationSkeleton() {
@@ -274,6 +359,7 @@ function TestEmailDialog({
 
 export function EmailIntegrationPanel() {
   const { data, isLoading, isError, refetch } = useEmailIntegration();
+  const { data: stats } = useEmailDeliveryStats();
   const updateMutation = useUpdateEmailIntegration();
   const [status, setStatus] = useState<IntegrationStatus>('unconfigured');
   const [lastTestedAt, setLastTestedAt] = useState<string | null>(null);
@@ -418,6 +504,9 @@ export function EmailIntegrationPanel() {
           Configure the transactional email provider for outbound notifications.
         </p>
       </div>
+
+      {/* Delivery stats — last 30 days */}
+      <DeliveryStatsRow stats={stats} />
 
       {/* Provider picker */}
       <div className="space-y-2">
@@ -578,6 +667,9 @@ export function EmailIntegrationPanel() {
             {errors.fromName && <p className="text-xs text-danger">{errors.fromName.message}</p>}
           </div>
         </div>
+
+        {/* Bounce webhook */}
+        <BounceWebhookBox />
 
         {/* Status + action row */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-subtle">

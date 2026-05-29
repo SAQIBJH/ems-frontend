@@ -1,9 +1,23 @@
 import { http, HttpResponse } from 'msw';
 
 import type {
+  EmailDeliveryStats,
   EmailIntegration,
   EmailIntegrationUpdateInput,
 } from '@/modules/settings/types/settings.types';
+
+// ── Static fixtures ───────────────────────────────────────────────────────────
+
+const emailDeliveryStats: EmailDeliveryStats = {
+  sent: 247,
+  delivered: 241,
+  opened: 183,
+  bounced: 6,
+  complained: 1,
+  deliveryRate: 97.6,
+  openRate: 75.9,
+  period: 'last_30_days',
+};
 
 // ── In-memory state ──────────────────────────────────────────────────────────
 
@@ -38,6 +52,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 export const settingsIntegrationHandlers = [
+  // GET /settings/integrations/email/stats
+  http.get('/api/settings/integrations/email/stats', () => {
+    return HttpResponse.json({ success: true, data: emailDeliveryStats });
+  }),
+
   // GET /settings/integrations/email
   http.get('/api/settings/integrations/email', () => {
     return HttpResponse.json({ success: true, data: emailIntegration });

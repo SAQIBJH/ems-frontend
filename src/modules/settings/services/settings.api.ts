@@ -7,6 +7,7 @@ import type {
   AuthSettings,
   AuthSettingsUpdateInput,
   BrandingSettings,
+  EmailDeliveryStats,
   EmailIntegration,
   EmailIntegrationUpdateInput,
   EmailTemplate,
@@ -219,6 +220,13 @@ export const settingsApi = {
     const { data } = await apiClient.post<{ data: { messageId: string; sentAt: string } }>(
       '/settings/integrations/email/test',
       { to },
+    );
+    return data.data;
+  },
+
+  getEmailDeliveryStats: async (): Promise<EmailDeliveryStats> => {
+    const { data } = await apiClient.get<{ data: EmailDeliveryStats }>(
+      '/settings/integrations/email/stats',
     );
     return data.data;
   },

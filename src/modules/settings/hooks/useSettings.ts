@@ -73,3 +73,11 @@ export function useEmailIntegration() {
     staleTime: 5 * 60_000,
   });
 }
+
+export function useEmailDeliveryStats() {
+  return useQuery({
+    queryKey: ['settings', 'integrations', 'email', 'stats'],
+    queryFn: settingsApi.getEmailDeliveryStats,
+    staleTime: 5 * 60_000,
+  });
+}
