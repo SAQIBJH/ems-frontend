@@ -65,3 +65,11 @@ export function useNotificationPrefs() {
     staleTime: 60_000,
   });
 }
+
+export function useEmailIntegration() {
+  return useQuery({
+    queryKey: ['settings', 'integrations', 'email'],
+    queryFn: settingsApi.getEmailIntegration,
+    staleTime: 5 * 60_000,
+  });
+}

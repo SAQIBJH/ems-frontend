@@ -3,6 +3,7 @@ import { settingsApi } from '../services/settings.api';
 import type {
   AttendanceRulesUpdateInput,
   AuthSettingsUpdateInput,
+  EmailIntegrationUpdateInput,
   EmailTemplateType,
   EmailTemplateUpdateInput,
   LeaveTypeCreateInput,
@@ -101,5 +102,21 @@ export function useUpdateNotificationPrefs() {
     onSuccess: (updated) => {
       queryClient.setQueryData(['settings', 'notification-prefs'], updated);
     },
+  });
+}
+
+export function useUpdateEmailIntegration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: EmailIntegrationUpdateInput) => settingsApi.updateEmailIntegration(input),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['settings', 'integrations', 'email'], updated);
+    },
+  });
+}
+
+export function useTestEmailIntegration() {
+  return useMutation({
+    mutationFn: (to: string) => settingsApi.testEmailIntegration(to),
   });
 }

@@ -171,7 +171,6 @@ const NAV_GROUPS: NavGroup[] = [
         slug: 'integration-email',
         icon: PlugIcon,
         roles: ['SUPER_ADMIN'],
-        phase2: true,
       },
       {
         label: 'Storage',

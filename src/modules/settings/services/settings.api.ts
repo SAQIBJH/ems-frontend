@@ -7,6 +7,8 @@ import type {
   AuthSettings,
   AuthSettingsUpdateInput,
   BrandingSettings,
+  EmailIntegration,
+  EmailIntegrationUpdateInput,
   EmailTemplate,
   EmailTemplatesData,
   EmailTemplateType,
@@ -192,6 +194,31 @@ export const settingsApi = {
     const { data } = await apiClient.patch<{ data: NotificationPrefs }>(
       '/settings/notifications/preferences',
       input,
+    );
+    return data.data;
+  },
+
+  // ── Phase 2.5: Email Integration ──────────────────────────────────────────
+
+  getEmailIntegration: async (): Promise<EmailIntegration> => {
+    const { data } = await apiClient.get<{ data: EmailIntegration }>(
+      '/settings/integrations/email',
+    );
+    return data.data;
+  },
+
+  updateEmailIntegration: async (input: EmailIntegrationUpdateInput): Promise<EmailIntegration> => {
+    const { data } = await apiClient.patch<{ data: EmailIntegration }>(
+      '/settings/integrations/email',
+      input,
+    );
+    return data.data;
+  },
+
+  testEmailIntegration: async (to: string): Promise<{ messageId: string; sentAt: string }> => {
+    const { data } = await apiClient.post<{ data: { messageId: string; sentAt: string } }>(
+      '/settings/integrations/email/test',
+      { to },
     );
     return data.data;
   },

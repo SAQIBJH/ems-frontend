@@ -1389,15 +1389,667 @@ type AnalyticsRange = '7d' | '30d' | '90d' | '6m' | '12m' | '2y';
 
 When an endpoint goes live, delete the corresponding MSW handler:
 
-| Endpoint                                | MSW handler file                           |
-| --------------------------------------- | ------------------------------------------ |
-| All `/payroll/components/*`             | `src/mocks/handlers/payroll-components.ts` |
-| All `/payroll/groups/*`                 | `src/mocks/handlers/payroll-groups.ts`     |
-| All `/payroll/schedules`                | `src/mocks/handlers/payroll-groups.ts`     |
-| All `/payroll/employees/:id/salary*`    | `src/mocks/handlers/payroll-employee.ts`   |
-| All `/payroll/runs/*`                   | `src/mocks/handlers/payroll-runs.ts`       |
-| All `/reports/*`                        | `src/mocks/handlers/reports.ts`            |
-| `GET /analytics/workforce-trend`        | `src/mocks/handlers/analytics.ts`          |
-| `GET /analytics/attrition`              | `src/mocks/handlers/analytics.ts`          |
-| `GET /analytics/payroll-cost`           | `src/mocks/handlers/analytics.ts`          |
-| `GET /analytics/department-performance` | `src/mocks/handlers/analytics.ts`          |
+| Endpoint                                   | MSW handler file                              |
+| ------------------------------------------ | --------------------------------------------- |
+| All `/payroll/components/*`                | `src/mocks/handlers/payroll-components.ts`    |
+| All `/payroll/groups/*`                    | `src/mocks/handlers/payroll-groups.ts`        |
+| All `/payroll/schedules`                   | `src/mocks/handlers/payroll-groups.ts`        |
+| All `/payroll/employees/:id/salary*`       | `src/mocks/handlers/payroll-employee.ts`      |
+| All `/payroll/runs/*`                      | `src/mocks/handlers/payroll-runs.ts`          |
+| All `/reports/*`                           | `src/mocks/handlers/reports.ts`               |
+| `GET /analytics/workforce-trend`           | `src/mocks/handlers/analytics.ts`             |
+| `GET /analytics/attrition`                 | `src/mocks/handlers/analytics.ts`             |
+| `GET /analytics/payroll-cost`              | `src/mocks/handlers/analytics.ts`             |
+| `GET /analytics/department-performance`    | `src/mocks/handlers/analytics.ts`             |
+| `GET/PATCH /settings/integrations/email`   | `src/mocks/handlers/settings-integrations.ts` |
+| `POST /settings/integrations/email/test`   | `src/mocks/handlers/settings-integrations.ts` |
+| `GET/PATCH /settings/integrations/storage` | `src/mocks/handlers/settings-integrations.ts` |
+| `POST /settings/integrations/storage/test` | `src/mocks/handlers/settings-integrations.ts` |
+| `GET/POST /settings/webhooks`              | `src/mocks/handlers/settings-integrations.ts` |
+| `PATCH/DELETE /settings/webhooks/:id`      | `src/mocks/handlers/settings-integrations.ts` |
+| `GET /settings/webhooks/:id/deliveries`    | `src/mocks/handlers/settings-integrations.ts` |
+| `POST /settings/webhooks/:id/test`         | `src/mocks/handlers/settings-integrations.ts` |
+| `GET /billing/subscription`                | `src/mocks/handlers/billing.ts`               |
+| `GET /billing/plans`                       | `src/mocks/handlers/billing.ts`               |
+| `GET /billing/invoices`                    | `src/mocks/handlers/billing.ts`               |
+
+---
+
+## Domain 7 — Settings: Integrations
+
+> **Role guard:** All endpoints in this domain are SUPER_ADMIN only.
+> All fields use `camelCase` (consistent with payroll/analytics domains).
+
+---
+
+### 7.1 Email Integration
+
+Configure the transactional email provider. The backend redacts secret values
+(API keys, passwords) in GET responses — they are returned as `"••••••••xxxx"`
+showing only the last 4 characters.
+
+#### Enums
+
+```ts
+type EmailProvider = 'resend' | 'sendgrid' | 'ses' | 'smtp';
+type IntegrationStatus = 'connected' | 'error' | 'unconfigured';
+type SmtpEncryption = 'tls' | 'starttls' | 'none';
+```
+
+#### `GET /api/v1/settings/integrations/email`
+
+**Roles:** SUPER_ADMIN
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "provider": "resend",
+    "fromAddress": "noreply@acme.com",
+    "fromName": "Acme HR",
+    "status": "connected",
+    "lastTestedAt": "2026-05-20T14:32:00.000Z",
+    "config": {
+      "apiKey": "••••••••4f2a",
+      "region": null,
+      "accessKeyId": null,
+      "host": null,
+      "port": null,
+      "username": null,
+      "encryption": null
+    }
+  }
+}
+```
+
+When `provider` is `null`, `status` is `"unconfigured"` and all `config` fields are `null`.
+
+---
+
+#### `PATCH /api/v1/settings/integrations/email`
+
+**Roles:** SUPER_ADMIN
+
+**Request body:**
+
+```json
+{
+  "provider": "resend",
+  "fromAddress": "noreply@acme.com",
+  "fromName": "Acme HR",
+  "config": {
+    "apiKey": "re_live_xxxxxxxxxxxx"
+  }
+}
+```
+
+Provider-specific `config` fields:
+
+| Provider   | Required config fields                                                         |
+| ---------- | ------------------------------------------------------------------------------ |
+| `resend`   | `apiKey`                                                                       |
+| `sendgrid` | `apiKey`                                                                       |
+| `ses`      | `accessKeyId`, `secretAccessKey`, `region`                                     |
+| `smtp`     | `host`, `port`, `username`, `password`, `encryption` (`tls`/`starttls`/`none`) |
+
+**Response:** Same shape as GET (with secrets redacted).
+
+**Errors:**
+
+- `422` — missing required config field for the selected provider.
+
+---
+
+#### `POST /api/v1/settings/integrations/email/test`
+
+Sends a test email to the provided address using the currently saved config.
+Config must be saved before testing (i.e. provider is not `null`).
+
+**Roles:** SUPER_ADMIN
+
+**Request body:**
+
+```json
+{ "to": "admin@acme.com" }
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "messageId": "msg_01JA2B3C4D5E6F7G8H",
+    "sentAt": "2026-05-20T14:35:00.000Z"
+  }
+}
+```
+
+**Errors:**
+
+- `400 EMAIL_NOT_CONFIGURED` — no provider saved yet.
+- `502 EMAIL_DELIVERY_FAILED` — provider rejected the request (wrong API key, SMTP refused, etc.).
+
+---
+
+### 7.2 Storage Integration
+
+Connect a cloud storage bucket for employee documents, payslips, and assets.
+
+#### Enums
+
+```ts
+type StorageProvider = 's3' | 'gcs' | 'azure';
+type DocumentType = 'EMPLOYEE_RECORD' | 'PAYSLIP' | 'CONTRACT' | 'ID_PROOF' | 'OTHER';
+```
+
+#### `GET /api/v1/settings/integrations/storage`
+
+**Roles:** SUPER_ADMIN
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "provider": null,
+    "status": "unconfigured",
+    "lastTestedAt": null,
+    "config": {
+      "bucket": null,
+      "region": null,
+      "accessKeyId": null,
+      "projectId": null,
+      "accountName": null,
+      "containerName": null
+    },
+    "retentionPolicies": [
+      { "documentType": "EMPLOYEE_RECORD", "retentionDays": 2555 },
+      { "documentType": "PAYSLIP", "retentionDays": 2555 },
+      { "documentType": "CONTRACT", "retentionDays": 2555 },
+      { "documentType": "ID_PROOF", "retentionDays": 730 },
+      { "documentType": "OTHER", "retentionDays": 365 }
+    ]
+  }
+}
+```
+
+---
+
+#### `PATCH /api/v1/settings/integrations/storage`
+
+**Roles:** SUPER_ADMIN
+
+**Request body:**
+
+```json
+{
+  "provider": "s3",
+  "config": {
+    "bucket": "acme-ems-documents",
+    "region": "ap-south-1",
+    "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
+    "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  },
+  "retentionPolicies": [{ "documentType": "PAYSLIP", "retentionDays": 1825 }]
+}
+```
+
+Provider-specific `config` fields:
+
+| Provider | Required config fields                               |
+| -------- | ---------------------------------------------------- |
+| `s3`     | `bucket`, `region`, `accessKeyId`, `secretAccessKey` |
+| `gcs`    | `bucket`, `projectId`, `serviceAccountJson`          |
+| `azure`  | `accountName`, `containerName`, `connectionString`   |
+
+`retentionPolicies` is optional — only the supplied document types are updated.
+
+**Response:** Same shape as GET (secrets redacted).
+
+---
+
+#### `POST /api/v1/settings/integrations/storage/test`
+
+Tests connectivity to the configured bucket by performing a small read operation.
+
+**Roles:** SUPER_ADMIN
+
+**Request body:** `{}` (empty — uses saved config)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "provider": "s3",
+    "bucket": "acme-ems-documents",
+    "latencyMs": 142
+  }
+}
+```
+
+**Errors:**
+
+- `400 STORAGE_NOT_CONFIGURED` — no provider saved yet.
+- `502 STORAGE_CONNECTION_FAILED` — bucket unreachable, wrong credentials, or permissions denied.
+
+---
+
+### 7.3 Webhooks
+
+Register HTTP endpoints that receive real-time event payloads via POST.
+
+#### Enums
+
+```ts
+type WebhookEvent =
+  | 'EMPLOYEE_CREATED'
+  | 'EMPLOYEE_UPDATED'
+  | 'EMPLOYEE_TERMINATED'
+  | 'LEAVE_REQUESTED'
+  | 'LEAVE_APPROVED'
+  | 'LEAVE_REJECTED'
+  | 'LEAVE_WITHDRAWN'
+  | 'ATTENDANCE_REGULARIZED'
+  | 'ATTENDANCE_REGULARIZATION_APPROVED'
+  | 'ATTENDANCE_REGULARIZATION_DENIED'
+  | 'DEPARTMENT_CREATED'
+  | 'DEPARTMENT_UPDATED'
+  | 'DEPARTMENT_DELETED'
+  | 'PAYROLL_RUN_APPROVED'
+  | 'PAYSLIP_GENERATED';
+
+type WebhookStatus = 'active' | 'disabled';
+
+interface WebhookLastDelivery {
+  timestamp: string;
+  statusCode: number;
+  success: boolean;
+  durationMs: number;
+}
+```
+
+#### `GET /api/v1/settings/webhooks`
+
+**Roles:** SUPER_ADMIN
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "wh_01JA2B3C4D",
+      "url": "https://hooks.example.com/ems",
+      "description": "Slack notifications",
+      "events": ["EMPLOYEE_CREATED", "LEAVE_APPROVED"],
+      "status": "active",
+      "secret": "••••••••a3f9",
+      "lastDelivery": {
+        "timestamp": "2026-05-20T14:32:00.000Z",
+        "statusCode": 200,
+        "success": true,
+        "durationMs": 87
+      },
+      "createdAt": "2026-04-10T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+The `secret` is always redacted in list/detail responses. It is shown **once** — in the create response body.
+
+---
+
+#### `POST /api/v1/settings/webhooks`
+
+**Roles:** SUPER_ADMIN
+
+**Request body:**
+
+```json
+{
+  "url": "https://hooks.example.com/ems",
+  "events": ["EMPLOYEE_CREATED", "LEAVE_APPROVED"],
+  "description": "Slack notifications",
+  "active": true
+}
+```
+
+`secret` is auto-generated server-side. It is returned **in this response only** — it cannot be retrieved again.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wh_01JA2B3C4D",
+    "url": "https://hooks.example.com/ems",
+    "description": "Slack notifications",
+    "events": ["EMPLOYEE_CREATED", "LEAVE_APPROVED"],
+    "status": "active",
+    "secret": "whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "lastDelivery": null,
+    "createdAt": "2026-05-20T14:00:00.000Z"
+  }
+}
+```
+
+**Errors:**
+
+- `422` — invalid URL scheme (must be `https://`), or empty `events` array.
+
+---
+
+#### `PATCH /api/v1/settings/webhooks/:id`
+
+**Roles:** SUPER_ADMIN
+
+**Request body (all optional):**
+
+```json
+{
+  "url": "https://hooks.example.com/ems-v2",
+  "events": ["EMPLOYEE_CREATED"],
+  "description": "Updated description",
+  "active": false
+}
+```
+
+**Response:** Same shape as the item in the GET list (secret redacted).
+
+**Errors:** `404 WEBHOOK_NOT_FOUND`.
+
+---
+
+#### `DELETE /api/v1/settings/webhooks/:id`
+
+**Roles:** SUPER_ADMIN
+
+**Response:** `204 No Content`
+
+**Errors:** `404 WEBHOOK_NOT_FOUND`.
+
+---
+
+#### `GET /api/v1/settings/webhooks/:id/deliveries`
+
+Returns the 50 most recent delivery attempts for this webhook.
+
+**Roles:** SUPER_ADMIN
+
+**Query params:** `?page=1&limit=20`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "deliveries": [
+      {
+        "id": "del_01JA2B3C4D",
+        "webhookId": "wh_01JA2B3C4D",
+        "event": "LEAVE_APPROVED",
+        "url": "https://hooks.example.com/ems",
+        "requestBody": "{\"event\":\"LEAVE_APPROVED\",\"data\":{...}}",
+        "responseStatus": 200,
+        "responseBody": "{\"ok\":true}",
+        "durationMs": 87,
+        "success": true,
+        "timestamp": "2026-05-20T14:32:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 47,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+---
+
+#### `POST /api/v1/settings/webhooks/:id/test`
+
+Sends a synthetic `PING` event to the endpoint to verify connectivity.
+
+**Roles:** SUPER_ADMIN
+
+**Request body:** `{}` (empty)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "delivery": {
+      "id": "del_01JA2B3C4D",
+      "event": "PING",
+      "responseStatus": 200,
+      "success": true,
+      "durationMs": 143,
+      "timestamp": "2026-05-20T14:40:00.000Z"
+    }
+  }
+}
+```
+
+**Errors:**
+
+- `404 WEBHOOK_NOT_FOUND`.
+- `502 WEBHOOK_DELIVERY_FAILED` — endpoint returned non-2xx or timed out.
+
+---
+
+## Domain 8 — Billing
+
+> **Role guard:** All endpoints in this domain are SUPER_ADMIN only.
+> Monetary values are JavaScript numbers (no string formatting).
+> File size values are in bytes (JavaScript numbers).
+
+---
+
+### 8.1 Subscription / Plan
+
+#### Plan codes
+
+```ts
+type PlanCode = 'starter' | 'professional' | 'enterprise';
+type PlanInterval = 'monthly' | 'annual';
+type SubscriptionStatus = 'active' | 'trialing' | 'cancelled' | 'past_due';
+```
+
+#### `GET /api/v1/billing/subscription`
+
+Returns the tenant's current subscription state including usage metrics.
+
+**Roles:** SUPER_ADMIN
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "plan": {
+      "code": "professional",
+      "name": "Professional",
+      "price": 999,
+      "currency": "INR",
+      "interval": "monthly"
+    },
+    "status": "active",
+    "seats": {
+      "total": 50,
+      "used": 25,
+      "available": 25
+    },
+    "usage": {
+      "apiCalls": { "used": 12450, "limit": 50000 },
+      "storage": { "usedBytes": 4509715456, "limitBytes": 21474836480 }
+    },
+    "modules": {
+      "payroll": true,
+      "recruitment": false,
+      "performance": false
+    },
+    "currentPeriod": {
+      "start": "2026-05-01T00:00:00.000Z",
+      "end": "2026-05-31T23:59:59.000Z"
+    },
+    "nextRenewalDate": "2026-06-01T00:00:00.000Z",
+    "trialEndsAt": null
+  }
+}
+```
+
+During trial: `status` is `"trialing"`, `trialEndsAt` is a date string.
+
+---
+
+#### `GET /api/v1/billing/plans`
+
+Returns all available plans for comparison display.
+
+**Roles:** SUPER_ADMIN
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "code": "starter",
+      "name": "Starter",
+      "price": 499,
+      "currency": "INR",
+      "interval": "monthly",
+      "seatsIncluded": 10,
+      "recommended": false,
+      "features": [
+        "Core HR modules",
+        "Employee directory",
+        "Attendance & Leave",
+        "10 seats included"
+      ],
+      "modules": {
+        "payroll": false,
+        "recruitment": false,
+        "performance": false
+      }
+    },
+    {
+      "code": "professional",
+      "name": "Professional",
+      "price": 999,
+      "currency": "INR",
+      "interval": "monthly",
+      "seatsIncluded": 50,
+      "recommended": true,
+      "features": [
+        "Everything in Starter",
+        "Payroll module",
+        "Reports & Analytics",
+        "50 seats included",
+        "Priority support"
+      ],
+      "modules": {
+        "payroll": true,
+        "recruitment": false,
+        "performance": false
+      }
+    },
+    {
+      "code": "enterprise",
+      "name": "Enterprise",
+      "price": null,
+      "currency": "INR",
+      "interval": "monthly",
+      "seatsIncluded": null,
+      "recommended": false,
+      "features": [
+        "Everything in Professional",
+        "Recruitment module",
+        "Performance management",
+        "Unlimited seats",
+        "Dedicated support",
+        "Custom integrations",
+        "SLA guarantee"
+      ],
+      "modules": {
+        "payroll": true,
+        "recruitment": true,
+        "performance": true
+      }
+    }
+  ]
+}
+```
+
+`price: null` and `seatsIncluded: null` on Enterprise means "contact sales".
+
+---
+
+### 8.2 Invoices
+
+#### Enums
+
+```ts
+type InvoiceStatus = 'paid' | 'pending' | 'failed' | 'void';
+```
+
+#### `GET /api/v1/billing/invoices`
+
+**Roles:** SUPER_ADMIN
+
+**Query params:** `?page=1&limit=20`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "invoices": [
+      {
+        "id": "inv_01JA2B3C4D",
+        "number": "INV-2026-005",
+        "description": "Professional Plan — May 2026",
+        "date": "2026-05-01T00:00:00.000Z",
+        "dueDate": "2026-05-07T00:00:00.000Z",
+        "period": {
+          "start": "2026-05-01T00:00:00.000Z",
+          "end": "2026-05-31T23:59:59.000Z"
+        },
+        "amount": 999,
+        "currency": "INR",
+        "status": "paid",
+        "downloadUrl": "https://billing.example.com/invoices/inv_01JA2B3C4D.pdf"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 5,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+`downloadUrl` is a short-lived signed URL (valid 15 minutes). The frontend opens it in a new tab — no file upload/download logic needed on the frontend.
+
+MSW returns `"#"` as `downloadUrl` since real PDF generation is not possible in the mock.
+| `GET /analytics/department-performance` | `src/mocks/handlers/analytics.ts` |

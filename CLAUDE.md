@@ -190,11 +190,27 @@ GET    /api/v1/search?q=&type=&page=&limit=
 ### What still needs MSW
 
 The backend team shipped all previously-mocked endpoints as of 2026-05-26.
-Only **two** endpoints remain unimplemented on the backend and are still
-served by MSW (see `docs/BACKEND_API_REQUESTS.md` §1 and §8 for shapes):
+The following endpoints remain unimplemented on the backend and are still
+served by MSW:
+
+**Auth / Holidays (original MSW set):**
 
 - **`POST /auth/otp/initiate`** — MFA challenge initiation
 - **`POST /holidays/import`** (+ preview + commit) — `.ics` file import flow
+
+**Phase 2 — Payroll, Reports & Analytics** (see `docs/phase2api.md` Domains 1–6):
+
+- All `/payroll/*` endpoints
+- All `/reports/*` endpoints
+- `GET /analytics/workforce-trend`, `/analytics/attrition`, `/analytics/payroll-cost`, `/analytics/department-performance`
+
+**Phase 2.5 — Settings: Integrations & Billing** (see `docs/phase2api.md` Domains 7–8):
+
+- `GET /settings/integrations/email`, `PATCH /settings/integrations/email`, `POST /settings/integrations/email/test`
+- `GET /settings/integrations/storage`, `PATCH /settings/integrations/storage`, `POST /settings/integrations/storage/test`
+- `GET /settings/webhooks`, `POST /settings/webhooks`, `PATCH /settings/webhooks/:id`, `DELETE /settings/webhooks/:id`, `GET /settings/webhooks/:id/deliveries`, `POST /settings/webhooks/:id/test`
+- `GET /billing/subscription`, `GET /billing/plans`
+- `GET /billing/invoices`
 
 All other requests pass through MSW unmatched → BFF → real Render backend.
 
@@ -911,3 +927,52 @@ A new "Compensation" tab is added to `EmployeeProfile.tsx` between "Job" and
 - Assigned pay group + CTC
 - Live formula-evaluated component breakdown (client-side)
 - Salary history timeline
+
+---
+
+## 24. Phase 2.5 — Settings: Integrations & Billing
+
+> Read this section before working on Steps 68–72.
+
+These steps replace `Phase2Panel` placeholders in the Settings section with
+fully functional screens. All endpoints are MSW-backed — no backend exists yet.
+The API contract is in `docs/phase2api.md` Domains 7 and 8.
+
+### Screens being built
+
+| Step | Route                            | Screen              | Role        |
+| ---- | -------------------------------- | ------------------- | ----------- |
+| 68   | `/settings/integration-email`    | Email Integration   | SUPER_ADMIN |
+| 69   | `/settings/integration-storage`  | Storage Integration | SUPER_ADMIN |
+| 70   | `/settings/integration-webhooks` | Webhooks            | SUPER_ADMIN |
+| 71   | `/settings/billing-plan`         | Plan & Subscription | SUPER_ADMIN |
+| 72   | `/settings/billing-invoices`     | Invoices            | SUPER_ADMIN |
+
+### MSW handler files
+
+- `src/mocks/handlers/settings-integrations.ts` — email, storage, webhooks (Steps 68–70)
+- `src/mocks/handlers/billing.ts` — subscription, plans, invoices (Steps 71–72)
+
+Both must be registered in `src/mocks/handlers/index.ts`.
+
+### Settings Nav
+
+After each step, remove `phase2: true` from the corresponding item in
+`src/modules/settings/components/SettingsNav.tsx`. The "P2" badge on a nav item
+signals an unbuilt placeholder — once the screen is functional, the badge must go.
+
+### No new top-level routes
+
+These are settings sub-routes. No changes to `AppShell.tsx` NAV_ITEMS.
+
+### No new dependencies
+
+All functionality is built with existing dependencies. CSV export is done
+client-side with `Blob` + `URL.createObjectURL`. No PDF generation — the
+invoice download link opens a server-provided URL in a new tab.
+
+### Billing actions are read-only
+
+Upgrade/manage-seats/contact-sales actions show an info toast:
+`"Contact your account manager to change your plan."` — no actual billing
+integration is wired up. These screens are information dashboards only.

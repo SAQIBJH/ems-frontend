@@ -10,6 +10,8 @@ import { payrollEmployeeHandlers } from './payroll-employee';
 import { payrollRunHandlers } from './payroll-runs';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
+// Phase 2.5 — Settings: Integrations & Billing
+import { settingsIntegrationHandlers } from './settings-integrations';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -66,4 +68,5 @@ export const handlers = [
   ...payrollRunHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,
+  ...settingsIntegrationHandlers,
 ];

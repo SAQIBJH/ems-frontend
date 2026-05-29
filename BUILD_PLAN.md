@@ -141,6 +141,14 @@ Mark each step as you complete it (change `[ ]` to `[x]`):
 - [x] Step 66 — Analytics: Dedicated /analytics page (existing endpoints)
 - [x] Step 67 — Analytics: Workforce trend + attrition + payroll-cost charts (MSW)
 
+### PHASE 2.5 — Settings: Integrations & Billing (functional screens)
+
+- [x] Step 68 — Settings: Email Integration panel (provider config + test send)
+- [ ] Step 69 — Settings: Storage Integration panel (provider config + retention rules + test)
+- [ ] Step 70 — Settings: Webhooks panel (full CRUD + delivery log)
+- [ ] Step 71 — Settings: Plan & Subscription panel (current plan + usage + plan comparison)
+- [ ] Step 72 — Settings: Invoices panel (invoice table + CSV export)
+
 ---
 
 ## Standard Test Gate (applies to every step unless overridden)
@@ -3012,5 +3020,561 @@ pnpm lint
 Plus `pnpm dev` → /analytics → scroll to new rows → verify all four render and respond to filter changes.
 
 **Commit:** `feat(analytics): workforce trend, attrition, payroll-cost, dept-performance charts`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 68 — Settings: Email Integration panel
+
+**Goal:** Replace the Phase2Panel placeholder at `/settings/integration-email` with a
+functional provider-configuration form backed by MSW. SUPER_ADMIN only. No backend
+endpoint exists yet — all requests are served by `src/mocks/handlers/settings-integrations.ts`.
+
+**Read first:** `docs/phase2api.md §7.1` for the full API contract.
+
+**Acceptance criteria:**
+
+- [ ] `SettingsNav` item "Email" in Integrations group: `phase2: true` badge **removed**
+- [ ] Provider picker (radio/tab group): **Resend · SendGrid · AWS SES · Custom SMTP**; selecting a different provider swaps the form fields below
+- [ ] **Resend / SendGrid form**: API Key (password input + show/hide toggle) · From Address · From Name
+- [ ] **AWS SES form**: Access Key ID · Secret Access Key (password + toggle) · AWS Region (select: us-east-1, ap-south-1, eu-west-1, us-west-2) · From Address · From Name
+- [ ] **Custom SMTP form**: Host · Port (number) · Username · Password (password + toggle) · Encryption (select: TLS / STARTTLS / None) · From Address · From Name
+- [ ] Connection status pill below the form: `Not configured` (grey) / `Connected` (green) / `Error` (red) — loaded from GET, updated after successful save
+- [ ] Last tested timestamp shown when `lastTestedAt` is not null
+- [ ] **[Save Configuration]** button: calls `PATCH`, shows spinner while pending, toast on success/error, updates status pill
+- [ ] **[Send test email]** button (disabled if `status === 'unconfigured'`): opens a small Dialog with a "To" email input + [Send] button; calls `POST /test`; toast `"Test email sent to <address>"` on success, toast error on `502`
+- [ ] Loading skeleton (3 field rows)
+- [ ] Error state with retry
+
+**Build:**
+
+1. **MSW handler** — create `src/mocks/handlers/settings-integrations.ts`:
+   - `GET /settings/integrations/email` → return mock with `provider: 'resend'`, `status: 'connected'`, `lastTestedAt: <ISO>`, `config.apiKey: '••••••••4f2a'`, `fromAddress: 'noreply@acme.com'`, `fromName: 'Acme HR'`
+   - `PATCH /settings/integrations/email` → merge body into in-memory state, return updated object (redact full secret → show last 4 chars only)
+   - `POST /settings/integrations/email/test` → if body.to is valid email, return `{ messageId: 'msg_mock_01', sentAt: new Date().toISOString() }`; otherwise return 422
+   - Export `settingsIntegrationHandlers`
+
+2. **Register handler** — add `import { settingsIntegrationHandlers }` and spread into `handlers` array in `src/mocks/handlers/index.ts`. Add comment noting these are Phase 2.5 settings endpoints.
+
+3. **Types** — in `src/modules/settings/types/settings.types.ts` add:
+
+   ```ts
+   export type EmailProvider = 'resend' | 'sendgrid' | 'ses' | 'smtp';
+   export type IntegrationStatus = 'connected' | 'error' | 'unconfigured';
+   export type SmtpEncryption = 'tls' | 'starttls' | 'none';
+
+   export interface EmailIntegrationConfig {
+     apiKey: string | null;
+     region: string | null;
+     accessKeyId: string | null;
+     host: string | null;
+     port: number | null;
+     username: string | null;
+     encryption: SmtpEncryption | null;
+   }
+
+   export interface EmailIntegration {
+     provider: EmailProvider | null;
+     fromAddress: string;
+     fromName: string;
+     status: IntegrationStatus;
+     lastTestedAt: string | null;
+     config: EmailIntegrationConfig;
+   }
+
+   export interface EmailIntegrationUpdateInput {
+     provider: EmailProvider;
+     fromAddress: string;
+     fromName: string;
+     config: Partial<EmailIntegrationConfig> & { secretAccessKey?: string; password?: string };
+   }
+   ```
+
+4. **Service** — add to `src/modules/settings/services/settings.api.ts`:
+
+   ```ts
+   getEmailIntegration: async (): Promise<EmailIntegration> => { ... }
+   updateEmailIntegration: async (input: EmailIntegrationUpdateInput): Promise<EmailIntegration> => { ... }
+   testEmailIntegration: async (to: string): Promise<{ messageId: string; sentAt: string }> => { ... }
+   ```
+
+5. **Hooks** — add `useEmailIntegration()` to `useSettings.ts` and `useUpdateEmailIntegration()` / `useTestEmailIntegration()` to `useSettingsMutations.ts`. Query key: `['settings', 'integrations', 'email']`.
+
+6. **Component** — create `src/modules/settings/components/EmailIntegrationPanel.tsx`:
+   - `'use client'` — form is interactive
+   - Use `useEmailIntegration()` for initial data; pre-fill form on load
+   - `providerWatch` state drives conditional field rendering (use `useWatch` from RHF)
+   - Password fields use `<Input type="password">` with a show/hide toggle button (`EyeIcon`/`EyeOffIcon`)
+   - Status pill rendered as `<Badge variant="outline">` with appropriate color class
+   - Test email dialog uses `useState` for open/to value; mutation on submit
+   - All four component states: loading skeleton, error+retry, empty (unconfigured — show prompt to select provider), configured form
+   - Zod schema per provider (discriminated union or superRefine based on `provider` value)
+
+7. **Page** — replace `Phase2Panel` in `src/app/(dashboard)/settings/integration-email/page.tsx`:
+
+   ```tsx
+   import { EmailIntegrationPanel } from '@/modules/settings/components/EmailIntegrationPanel';
+   export const metadata = { title: 'Email Integration — Settings' };
+   export default function IntegrationEmailPage() {
+     return <EmailIntegrationPanel />;
+   }
+   ```
+
+8. **Nav badge** — in `src/modules/settings/components/SettingsNav.tsx`, remove `phase2: true` from the `{ label: 'Email', slug: 'integration-email' }` item.
+
+**Definition of done:**
+
+- `/settings/integration-email` renders the provider form (not Phase2Panel).
+- Switching provider tab/radio swaps field set instantly.
+- Save calls PATCH; status pill updates to `Connected` on success.
+- Test email button opens dialog; [Send] calls POST /test; success toast appears.
+- No "P2" badge on the Settings nav item.
+- Loading skeleton visible on first load.
+- Light + dark modes verified.
+- TypeScript strict + ESLint clean.
+
+**Files to create:** `src/mocks/handlers/settings-integrations.ts`, `src/modules/settings/components/EmailIntegrationPanel.tsx`
+**Files to modify:** `src/mocks/handlers/index.ts`, `src/modules/settings/types/settings.types.ts`, `src/modules/settings/services/settings.api.ts`, `src/modules/settings/hooks/useSettings.ts`, `src/modules/settings/hooks/useSettingsMutations.ts`, `src/app/(dashboard)/settings/integration-email/page.tsx`, `src/modules/settings/components/SettingsNav.tsx`
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → `/settings/integration-email` → verify provider tabs switch form fields → Save → status updates → Test email dialog opens and toasts.
+
+**Commit:** `feat(settings): email integration panel — provider config + test send`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 69 — Settings: Storage Integration panel
+
+**Goal:** Replace the Phase2Panel placeholder at `/settings/integration-storage` with a
+functional cloud-storage configuration form. Extends `settings-integrations.ts` MSW handler
+(created in Step 68). SUPER_ADMIN only.
+
+**Read first:** `docs/phase2api.md §7.2`.
+
+**Acceptance criteria:**
+
+- [ ] `SettingsNav` item "Storage" in Integrations group: `phase2: true` badge **removed**
+- [ ] Provider picker: **AWS S3 · Google Cloud Storage · Azure Blob**
+- [ ] **AWS S3 form**: Bucket Name · Region (select: common AWS regions) · Access Key ID · Secret Access Key (password + toggle)
+- [ ] **Google Cloud Storage form**: Bucket Name · Project ID · Service Account JSON (textarea, monospace font, placeholder shows expected JSON structure)
+- [ ] **Azure Blob form**: Account Name · Container Name · Connection String (password + toggle)
+- [ ] Connection status pill (same design as Step 68)
+- [ ] **[Test Connection]** button: calls `POST /settings/integrations/storage/test`; displays result inline below button — `Latency: 142 ms · Bucket: acme-ems-documents` on success, error message on `502`
+- [ ] **[Save Configuration]** button: calls `PATCH`, toast on success/error
+- [ ] **Retention Policies** section (below provider form, always visible):
+  - Table: Document Type | Retention (days) [editable number input per row]
+  - Rows: Employee Records · Payslips · Contracts · ID Proof · Other
+  - **[Save Policies]** button: calls `PATCH` with only `retentionPolicies` in body
+- [ ] Loading skeleton; error state with retry
+
+**Build:**
+
+1. **MSW handler** — add to `src/mocks/handlers/settings-integrations.ts`:
+   - `GET /settings/integrations/storage` → return `{ provider: null, status: 'unconfigured', lastTestedAt: null, config: { all null }, retentionPolicies: [default 5 rows] }`
+   - `PATCH /settings/integrations/storage` → merge and return updated object
+   - `POST /settings/integrations/storage/test` → if provider is saved, return `{ provider, bucket: config.bucket ?? config.accountName ?? config.bucket, latencyMs: 142 }`; if unconfigured, return `400`
+
+2. **Types** — add to `settings.types.ts`:
+
+   ```ts
+   export type StorageProvider = 's3' | 'gcs' | 'azure';
+   export type DocumentType = 'EMPLOYEE_RECORD' | 'PAYSLIP' | 'CONTRACT' | 'ID_PROOF' | 'OTHER';
+
+   export interface RetentionPolicy {
+     documentType: DocumentType;
+     retentionDays: number;
+   }
+
+   export interface StorageIntegrationConfig {
+     bucket: string | null;
+     region: string | null;
+     accessKeyId: string | null;
+     projectId: string | null;
+     accountName: string | null;
+     containerName: string | null;
+   }
+
+   export interface StorageIntegration {
+     provider: StorageProvider | null;
+     status: IntegrationStatus;
+     lastTestedAt: string | null;
+     config: StorageIntegrationConfig;
+     retentionPolicies: RetentionPolicy[];
+   }
+
+   export interface StorageIntegrationUpdateInput {
+     provider?: StorageProvider;
+     config?: Partial<StorageIntegrationConfig> & {
+       secretAccessKey?: string;
+       serviceAccountJson?: string;
+       connectionString?: string;
+     };
+     retentionPolicies?: RetentionPolicy[];
+   }
+
+   export interface StorageTestResult {
+     provider: StorageProvider;
+     bucket: string;
+     latencyMs: number;
+   }
+   ```
+
+3. **Service** — add `getStorageIntegration`, `updateStorageIntegration`, `testStorageIntegration` to `settings.api.ts`.
+
+4. **Hooks** — `useStorageIntegration()`, `useUpdateStorageIntegration()`, `useTestStorageIntegration()`. Query key: `['settings', 'integrations', 'storage']`.
+
+5. **Component** — `src/modules/settings/components/StorageIntegrationPanel.tsx`:
+   - Two separate RHF forms: one for provider config, one for retention policies (separate Save buttons)
+   - Test connection result stored in local `useState`; cleared on provider change
+   - `DOCUMENT_TYPE_LABELS` constant: `{ EMPLOYEE_RECORD: 'Employee Records', PAYSLIP: 'Payslips', ... }`
+   - Retention policy inputs: `<Input type="number" min={1} max={36500} />` per row
+   - All four component states
+
+6. **Page** — replace Phase2Panel in `src/app/(dashboard)/settings/integration-storage/page.tsx`.
+
+7. **Nav badge** — remove `phase2: true` from the Storage nav item in `SettingsNav.tsx`.
+
+**Files to create:** `src/modules/settings/components/StorageIntegrationPanel.tsx`
+**Files to modify:** `src/mocks/handlers/settings-integrations.ts`, `settings.types.ts`, `settings.api.ts`, `useSettings.ts`, `useSettingsMutations.ts`, `src/app/(dashboard)/settings/integration-storage/page.tsx`, `SettingsNav.tsx`
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → `/settings/integration-storage` → switch providers → Test Connection → inline result → Save policies → toast.
+
+**Commit:** `feat(settings): storage integration panel — provider config + retention policies`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 70 — Settings: Webhooks panel
+
+**Goal:** Replace the Phase2Panel placeholder at `/settings/integration-webhooks` with a
+full webhook manager: list, create, edit, delete, delivery log, and test delivery.
+SUPER_ADMIN only. Extends `settings-integrations.ts` MSW handler.
+
+**Read first:** `docs/phase2api.md §7.3`.
+
+**Acceptance criteria:**
+
+- [ ] `SettingsNav` item "Webhooks" in Integrations group: `phase2: true` badge **removed**
+- [ ] **Header row**: title "Webhooks" + description line + `[+ Add Webhook]` button (right-aligned)
+- [ ] **Table columns**: URL (truncated with tooltip) · Events (first event + `+N more` badge) · Status (Active / Disabled badge) · Last delivery (relative time + status dot) · Actions menu
+- [ ] **Actions menu per row** (DropdownMenu): Edit · View delivery log · Test delivery · separator · Delete
+- [ ] **Add/Edit — Sheet drawer** (right side, 480 px wide):
+  - URL field (required, must start with `https://`)
+  - Description field (optional, 100 char max)
+  - Events — multi-select checkboxes grouped by domain:
+    ```
+    Employees:   EMPLOYEE_CREATED, EMPLOYEE_UPDATED, EMPLOYEE_TERMINATED
+    Leave:       LEAVE_REQUESTED, LEAVE_APPROVED, LEAVE_REJECTED, LEAVE_WITHDRAWN
+    Attendance:  ATTENDANCE_REGULARIZED, ATTENDANCE_REGULARIZATION_APPROVED, ATTENDANCE_REGULARIZATION_DENIED
+    Departments: DEPARTMENT_CREATED, DEPARTMENT_UPDATED, DEPARTMENT_DELETED
+    Payroll:     PAYROLL_RUN_APPROVED, PAYSLIP_GENERATED
+    ```
+  - Active toggle (default: true on create)
+  - On **create success**: show a one-time-secret banner inside the Sheet: `"Copy your webhook secret — it won't be shown again"` with the secret value in a monospace box and a copy button
+  - [Save] button; spinner while pending
+- [ ] **Delivery log — nested Sheet** (opens from Actions menu):
+  - Title: `Delivery log — <url>`
+  - Table: Event · Response · Duration · Timestamp · [Replay] button
+  - Response shown as status code badge (200 = green, 4xx = orange, 5xx = red)
+  - Pagination (20 per page)
+  - Empty state if no deliveries yet
+- [ ] **Test delivery**: calls `POST /settings/webhooks/:id/test`; toast with result status code and duration
+- [ ] **Delete**: `ConfirmDialog` — "Delete webhook?" with URL shown; calls DELETE; toast + row removed
+- [ ] **Empty state**: `EmptyState` title "No webhooks yet" description "Register an HTTPS endpoint to start receiving real-time event notifications." + [+ Add Webhook] action button
+- [ ] Loading skeleton (3 table row skeletons); error state with retry
+
+**Build:**
+
+1. **MSW handler** — add to `settings-integrations.ts`:
+   - In-memory `let webhooks: Webhook[] = [/* 1 seed item */]`
+   - `GET /settings/webhooks` → return `{ success: true, data: webhooks }`
+   - `POST /settings/webhooks` → push new item (generate ID, generate secret `whsec_<random32>`), return item with full secret
+   - `PATCH /settings/webhooks/:id` → merge, return updated item (secret redacted)
+   - `DELETE /settings/webhooks/:id` → filter out, return 204
+   - `GET /settings/webhooks/:id/deliveries` → return 10 mock delivery rows with mixed success/failure statuses
+   - `POST /settings/webhooks/:id/test` → return `{ delivery: { id, event: 'PING', responseStatus: 200, success: true, durationMs: 98, timestamp: now } }`
+
+2. **Types** — add to `settings.types.ts`:
+
+   ```ts
+   export type WebhookEvent = 'EMPLOYEE_CREATED' | 'EMPLOYEE_UPDATED' | ... (all 15 events)
+   export type WebhookStatus = 'active' | 'disabled';
+
+   export interface WebhookLastDelivery {
+     timestamp: string; statusCode: number; success: boolean; durationMs: number;
+   }
+   export interface Webhook {
+     id: string; url: string; description: string | null;
+     events: WebhookEvent[]; status: WebhookStatus;
+     secret: string; lastDelivery: WebhookLastDelivery | null; createdAt: string;
+   }
+   export interface WebhookCreateInput {
+     url: string; events: WebhookEvent[]; description?: string; active?: boolean;
+   }
+   export type WebhookUpdateInput = Partial<WebhookCreateInput>;
+
+   export interface WebhookDelivery {
+     id: string; webhookId: string; event: string; url: string;
+     requestBody: string; responseStatus: number; responseBody: string;
+     durationMs: number; success: boolean; timestamp: string;
+   }
+   export interface WebhookDeliveriesResponse {
+     deliveries: WebhookDelivery[];
+     pagination: { page: number; limit: number; total: number; totalPages: number };
+   }
+   ```
+
+3. **Constants** — add `WEBHOOK_EVENTS` grouped constant and `WEBHOOK_EVENT_LABELS` map to `src/modules/settings/constants/index.ts` (or new `webhook.constants.ts`).
+
+4. **Service** — add `getWebhooks`, `createWebhook`, `updateWebhook`, `deleteWebhook`, `getWebhookDeliveries`, `testWebhookDelivery` to `settings.api.ts`.
+
+5. **Hooks** — `useWebhooks()`, `useWebhookDeliveries(id)`, `useCreateWebhook()`, `useUpdateWebhook()`, `useDeleteWebhook()`, `useTestWebhookDelivery()`. Query keys: `['settings', 'webhooks']`, `['settings', 'webhooks', id, 'deliveries']`.
+
+6. **Component** — `src/modules/settings/components/WebhooksPanel.tsx`:
+   - Two Sheets managed with `useState`: `drawerMode: 'add' | 'edit' | null`, `deliveryLogTarget: Webhook | null`
+   - One-time-secret state: `newSecret: string | null` — shown in post-create banner inside the Sheet; cleared when Sheet closes
+   - Use `DynamicTable` for the webhook list
+   - Delivery log Sheet fetches `useWebhookDeliveries(id)` lazily when `deliveryLogTarget` is set
+   - URL validation in Zod: `z.string().url().startsWith('https://')`
+   - Zod `events` field: `z.array(z.enum([...all events])).min(1, 'Select at least one event')`
+   - All four component states
+
+7. **Page** — replace Phase2Panel in `src/app/(dashboard)/settings/integration-webhooks/page.tsx`.
+
+8. **Nav badge** — remove `phase2: true` from Webhooks nav item.
+
+**Files to create:** `src/modules/settings/components/WebhooksPanel.tsx`
+**Files to modify:** `settings-integrations.ts`, `settings.types.ts`, `settings.api.ts`, `useSettings.ts`, `useSettingsMutations.ts`, `src/modules/settings/constants/` (add webhook event constants), `src/app/(dashboard)/settings/integration-webhooks/page.tsx`, `SettingsNav.tsx`
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → `/settings/integration-webhooks` → Add webhook → see table row → Actions → View delivery log → test delivery toast.
+
+**Commit:** `feat(settings): webhooks panel — CRUD, delivery log, test delivery`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 71 — Settings: Plan & Subscription panel
+
+**Goal:** Replace the Phase2Panel placeholder at `/settings/billing-plan` with a functional
+subscription dashboard showing the tenant's current plan, seat/usage metrics, and a plan
+comparison grid. SUPER_ADMIN only. New MSW handler file `billing.ts`.
+
+**Read first:** `docs/phase2api.md §8.1`.
+
+**Acceptance criteria:**
+
+- [ ] `SettingsNav` item "Plan" in Billing group: `phase2: true` badge **removed**
+- [ ] **Current Plan card** (top section):
+  - Plan name + status badge (Active / Trialing / Cancelled)
+  - Price line: `₹999 / month` (Enterprise shows `Custom pricing — contact sales`)
+  - Seats: progress bar `25 / 50 seats used` with label `25 available`
+  - Renewal line: `Renews 1 Jun 2026` (or trial end date if trialing)
+  - Active modules row: `Payroll ✓ · Recruitment — · Performance —` (checkmark = active, dash = inactive)
+- [ ] **Usage section** (two horizontal progress bars):
+  - API Calls: `12,450 / 50,000 this month` with percentage bar
+  - Storage: `4.2 GB / 20 GB` with percentage bar (format bytes to human-readable)
+- [ ] **Available Plans grid** (3 cards: Starter / Professional / Enterprise):
+  - Current plan card has distinct highlight border (brand color)
+  - Each card shows: plan name · price · seats included · features list (checkmarks)
+  - Enterprise card shows "Contact sales" button instead of price; others show "Upgrade" or "Current plan" (disabled)
+  - Recommended plan has a "Recommended" badge
+- [ ] Loading skeleton (plan card + 2 usage bars + 3 plan cards); error state with retry
+- [ ] No interactive seat management or actual billing actions (those require payment integration); [Manage seats] and [Upgrade] buttons show a toast: `"Contact your account manager to change your plan."`
+
+**Build:**
+
+1. **MSW handler** — create `src/mocks/handlers/billing.ts`:
+   - `GET /billing/subscription` → return the `data` shape from `docs/phase2api.md §8.1`
+   - `GET /billing/plans` → return 3-plan array from `docs/phase2api.md §8.1`
+   - Export `billingHandlers`
+
+2. **Register** — import `billingHandlers` in `src/mocks/handlers/index.ts` and spread into `handlers`.
+
+3. **Types** — add to `settings.types.ts`:
+
+   ```ts
+   export type PlanCode = 'starter' | 'professional' | 'enterprise';
+   export type PlanInterval = 'monthly' | 'annual';
+   export type SubscriptionStatus = 'active' | 'trialing' | 'cancelled' | 'past_due';
+
+   export interface BillingPlan {
+     code: PlanCode;
+     name: string;
+     price: number | null;
+     currency: string;
+     interval: PlanInterval;
+     seatsIncluded: number | null;
+     recommended: boolean;
+     features: string[];
+     modules: { payroll: boolean; recruitment: boolean; performance: boolean };
+   }
+
+   export interface BillingSubscription {
+     plan: {
+       code: PlanCode;
+       name: string;
+       price: number;
+       currency: string;
+       interval: PlanInterval;
+     };
+     status: SubscriptionStatus;
+     seats: { total: number; used: number; available: number };
+     usage: {
+       apiCalls: { used: number; limit: number };
+       storage: { usedBytes: number; limitBytes: number };
+     };
+     modules: { payroll: boolean; recruitment: boolean; performance: boolean };
+     currentPeriod: { start: string; end: string };
+     nextRenewalDate: string;
+     trialEndsAt: string | null;
+   }
+   ```
+
+4. **Service** — add `getBillingSubscription` and `getBillingPlans` to `settings.api.ts`.
+   - `getBillingSubscription: async (): Promise<BillingSubscription>`
+   - `getBillingPlans: async (): Promise<BillingPlan[]>`
+
+5. **Hooks** — `useBillingSubscription()` and `useBillingPlans()` in `useSettings.ts`. Query keys: `['billing', 'subscription']`, `['billing', 'plans']`.
+
+6. **Utility** — add `formatBytes(bytes: number): string` helper in `src/modules/settings/utils/` — returns `"4.2 GB"`, `"512 MB"`, etc.
+
+7. **Component** — `src/modules/settings/components/PlanPanel.tsx`:
+   - `'use client'`
+   - Uses `useBillingSubscription()` and `useBillingPlans()` in parallel (`Promise.all` — both are independent)
+   - Progress bar component (inline, reusable within this file): `<ProgressBar value={pct} />` using a plain `<div>` with width style — no external dependency
+   - `formatDate(iso)` for renewal date using `date-fns format`
+   - Plan card grid: `grid grid-cols-1 md:grid-cols-3 gap-4`
+   - Enterprise card: `price === null` → show "Custom pricing" + "Contact sales" button
+   - [Manage seats] and [Upgrade] → `toast.info('Contact your account manager to change your plan.')`
+   - All four component states (loading: skeleton matching card layout; error: retry; empty: unlikely but handle; success: full UI)
+
+8. **Page** — replace Phase2Panel in `src/app/(dashboard)/settings/billing-plan/page.tsx`.
+
+9. **Nav badge** — remove `phase2: true` from "Plan" nav item in `SettingsNav.tsx`.
+
+**Files to create:** `src/mocks/handlers/billing.ts`, `src/modules/settings/components/PlanPanel.tsx`, `src/modules/settings/utils/formatBytes.ts`
+**Files to modify:** `src/mocks/handlers/index.ts`, `settings.types.ts`, `settings.api.ts`, `useSettings.ts`, `src/app/(dashboard)/settings/billing-plan/page.tsx`, `SettingsNav.tsx`
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → `/settings/billing-plan` → verify current plan card, usage bars, plan comparison grid → Upgrade button shows toast.
+
+**Commit:** `feat(settings): plan & subscription panel — current plan, usage, plan comparison`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 72 — Settings: Invoices panel
+
+**Goal:** Replace the Phase2Panel placeholder at `/settings/billing-invoices` with a
+functional invoice list — paginated table with status badges, PDF download, and CSV export.
+SUPER_ADMIN only. Extends `billing.ts` MSW handler (created in Step 71).
+
+**Read first:** `docs/phase2api.md §8.2`.
+
+**Acceptance criteria:**
+
+- [ ] `SettingsNav` item "Invoices" in Billing group: `phase2: true` badge **removed**
+- [ ] **Header row**: title "Invoices" + `[Export CSV]` button (right, SUPER_ADMIN only)
+- [ ] **Table columns**: Invoice # (mono font) · Description · Date · Amount (right-aligned, formatted `₹999`) · Status · Download
+- [ ] **Status badges**: `Paid` (success/green) · `Pending` (warning/yellow) · `Failed` (danger/red) · `Void` (muted)
+- [ ] **Download column**: `[PDF ↓]` button — opens `downloadUrl` in a new tab (`window.open(url, '_blank')`); disabled + tooltip `"Not available"` when `downloadUrl === '#'` (MSW) or status is `void`
+- [ ] **Export CSV** button: triggers a browser download of a CSV generated client-side from the full invoice list (all pages pre-fetched or first page); filename `invoices-<YYYY-MM-DD>.csv`; columns: Invoice#, Description, Date, Amount, Status
+- [ ] Pagination (20 per page, standard prev/next controls)
+- [ ] **Empty state**: title "No invoices yet" description "Your first invoice will appear after the first billing cycle." (no action button)
+- [ ] Loading skeleton (5 table row skeletons); error state with retry
+
+**Build:**
+
+1. **MSW handler** — add to `src/mocks/handlers/billing.ts`:
+   - `GET /billing/invoices` → return 5 mock invoices with statuses: `paid, paid, paid, paid, pending`; newest first; pagination `{ page:1, limit:20, total:5, totalPages:1 }`
+   - Each invoice's `downloadUrl` set to `"#"` (MSW limitation)
+
+2. **Types** — add to `settings.types.ts`:
+
+   ```ts
+   export type InvoiceStatus = 'paid' | 'pending' | 'failed' | 'void';
+
+   export interface Invoice {
+     id: string;
+     number: string;
+     description: string;
+     date: string;
+     dueDate: string;
+     period: { start: string; end: string };
+     amount: number;
+     currency: string;
+     status: InvoiceStatus;
+     downloadUrl: string;
+   }
+
+   export interface InvoicesResponse {
+     invoices: Invoice[];
+     pagination: { page: number; limit: number; total: number; totalPages: number };
+   }
+   ```
+
+3. **Service** — add `getInvoices(params: { page?: number; limit?: number }): Promise<InvoicesResponse>` to `settings.api.ts`.
+
+4. **Hooks** — `useInvoices(page: number)` in `useSettings.ts`. Query key: `['billing', 'invoices', page]`. `keepPreviousData: true` for smooth pagination.
+
+5. **Component** — `src/modules/settings/components/InvoicesPanel.tsx`:
+   - `'use client'`
+   - Pagination state: `useState<number>(1)`
+   - `INVOICE_STATUS_BADGE` map: `{ paid: 'success', pending: 'warning', failed: 'destructive', void: 'secondary' }` — maps to `<Badge variant=...>` or colored `<span>`
+   - Currency formatter: `new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })` — renders `₹999`
+   - Date formatter: `format(parseISO(date), 'd MMM yyyy')` from `date-fns`
+   - CSV export: build string in-memory from `invoices` array; `URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))` → create anchor → click → revoke URL; no server round-trip
+   - Download button: `<a href={invoice.downloadUrl} target="_blank" rel="noopener noreferrer">` wrapped in `<Button variant="ghost" size="sm">`; disabled if `downloadUrl === '#'` or `status === 'void'`
+   - All four component states
+
+6. **Page** — replace Phase2Panel in `src/app/(dashboard)/settings/billing-invoices/page.tsx`.
+
+7. **Nav badge** — remove `phase2: true` from "Invoices" nav item in `SettingsNav.tsx`.
+
+**Files to create:** `src/modules/settings/components/InvoicesPanel.tsx`
+**Files to modify:** `src/mocks/handlers/billing.ts`, `settings.types.ts`, `settings.api.ts`, `useSettings.ts`, `src/app/(dashboard)/settings/billing-invoices/page.tsx`, `SettingsNav.tsx`
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status badges, pagination controls → Export CSV → file downloads → PDF button disabled (MSW `#` URL).
+
+**Commit:** `feat(settings): invoices panel — invoice table, status badges, CSV export`
 
 **STOP.** Wait for "next".

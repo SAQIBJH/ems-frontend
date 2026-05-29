@@ -135,3 +135,38 @@ export interface NotificationPrefs {
 }
 
 export type NotificationPrefsUpdateInput = Partial<NotificationPrefs>;
+
+// ── Email Integration (Phase 2.5 — MSW-backed) ────────────────────────────────
+
+export type EmailProvider = 'resend' | 'sendgrid' | 'ses' | 'smtp';
+export type IntegrationStatus = 'connected' | 'error' | 'unconfigured';
+export type SmtpEncryption = 'tls' | 'starttls' | 'none';
+
+export interface EmailIntegrationConfig {
+  apiKey: string | null;
+  region: string | null;
+  accessKeyId: string | null;
+  host: string | null;
+  port: number | null;
+  username: string | null;
+  encryption: SmtpEncryption | null;
+}
+
+export interface EmailIntegration {
+  provider: EmailProvider | null;
+  fromAddress: string;
+  fromName: string;
+  status: IntegrationStatus;
+  lastTestedAt: string | null;
+  config: EmailIntegrationConfig;
+}
+
+export interface EmailIntegrationUpdateInput {
+  provider: EmailProvider;
+  fromAddress: string;
+  fromName: string;
+  config: Partial<EmailIntegrationConfig> & {
+    secretAccessKey?: string;
+    password?: string;
+  };
+}
