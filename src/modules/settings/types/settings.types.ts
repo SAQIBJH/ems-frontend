@@ -298,6 +298,73 @@ export interface WebhookUpdateInput {
   active?: boolean;
 }
 
+// ── Billing (Phase 2.5 — MSW-backed) ─────────────────────────────────────────
+
+export type PlanCode = 'starter' | 'professional' | 'enterprise';
+export type PlanInterval = 'monthly' | 'annual';
+export type SubscriptionStatus = 'active' | 'trialing' | 'cancelled' | 'past_due';
+
+export interface BillingPlanSummary {
+  code: PlanCode;
+  name: string;
+  price: number;
+  currency: string;
+  interval: PlanInterval;
+}
+
+export interface BillingSubscription {
+  plan: BillingPlanSummary;
+  status: SubscriptionStatus;
+  seats: { total: number; used: number; available: number };
+  usage: {
+    apiCalls: { used: number; limit: number };
+    storage: { usedBytes: number; limitBytes: number };
+  };
+  modules: { payroll: boolean; recruitment: boolean; performance: boolean };
+  currentPeriod: { start: string; end: string };
+  nextRenewalDate: string;
+  trialEndsAt: string | null;
+}
+
+export interface BillingPlan {
+  code: PlanCode;
+  name: string;
+  price: number | null;
+  currency: string;
+  interval: PlanInterval;
+  seatsIncluded: number | null;
+  recommended: boolean;
+  features: string[];
+  modules: { payroll: boolean; recruitment: boolean; performance: boolean };
+}
+
+// ── Billing Invoices (Phase 2.5 — MSW-backed) ────────────────────────────────
+
+export type InvoiceStatus = 'paid' | 'pending' | 'failed' | 'void';
+
+export interface Invoice {
+  id: string;
+  number: string;
+  description: string;
+  date: string;
+  dueDate: string;
+  period: { start: string; end: string };
+  amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  downloadUrl: string;
+}
+
+export interface InvoicesResponse {
+  invoices: Invoice[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface EmailDeliveryStats {
   sent: number;
   delivered: number;

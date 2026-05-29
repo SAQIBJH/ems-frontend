@@ -6,6 +6,8 @@ import type {
   AuditLogsResponse,
   AuthSettings,
   AuthSettingsUpdateInput,
+  BillingPlan,
+  BillingSubscription,
   BrandingSettings,
   EmailDeliveryStats,
   EmailIntegration,
@@ -14,6 +16,7 @@ import type {
   EmailTemplatesData,
   EmailTemplateType,
   EmailTemplateUpdateInput,
+  InvoicesResponse,
   LeaveType,
   LeaveTypeCreateInput,
   LeaveTypeUpdateInput,
@@ -323,5 +326,24 @@ export const settingsApi = {
       };
     }>(`/settings/webhooks/${id}/test`, {});
     return data.data.delivery;
+  },
+
+  // ── Phase 2.5: Billing ────────────────────────────────────────────────────
+
+  getSubscription: async (): Promise<BillingSubscription> => {
+    const { data } = await apiClient.get<{ data: BillingSubscription }>('/billing/subscription');
+    return data.data;
+  },
+
+  getPlans: async (): Promise<BillingPlan[]> => {
+    const { data } = await apiClient.get<{ data: BillingPlan[] }>('/billing/plans');
+    return data.data;
+  },
+
+  getInvoices: async (page = 1, limit = 20): Promise<InvoicesResponse> => {
+    const { data } = await apiClient.get<{ data: InvoicesResponse }>('/billing/invoices', {
+      params: { page, limit },
+    });
+    return data.data;
   },
 };

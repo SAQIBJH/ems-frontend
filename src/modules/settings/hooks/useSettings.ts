@@ -106,3 +106,27 @@ export function useWebhookDeliveries(id: string | null, page = 1) {
     staleTime: 30_000,
   });
 }
+
+export function useSubscription() {
+  return useQuery({
+    queryKey: ['billing', 'subscription'],
+    queryFn: settingsApi.getSubscription,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function usePlans() {
+  return useQuery({
+    queryKey: ['billing', 'plans'],
+    queryFn: settingsApi.getPlans,
+    staleTime: 30 * 60_000,
+  });
+}
+
+export function useInvoices(page = 1) {
+  return useQuery({
+    queryKey: ['billing', 'invoices', page],
+    queryFn: () => settingsApi.getInvoices(page),
+    staleTime: 5 * 60_000,
+  });
+}

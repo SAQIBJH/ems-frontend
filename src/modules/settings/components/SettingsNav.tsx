@@ -200,7 +200,6 @@ const NAV_GROUPS: NavGroup[] = [
         slug: 'billing-invoices',
         icon: ReceiptIcon,
         roles: ['SUPER_ADMIN'],
-        phase2: true,
       },
     ],
   },
