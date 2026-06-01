@@ -3590,7 +3590,7 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 ## Progress tracker (Phase 3)
 
 - [x] Step 73 — Token audit: align tokens.css with UI kit exactly
-- [ ] Step 74 — Typography: Inter variable + JetBrains Mono, .text-\* utility classes
+- [x] Step 74 — Typography: Inter variable + JetBrains Mono, .text-\* utility classes
 - [ ] Step 75 — AppShell sidebar: exact widths, logo mark, active state, collapse toggle
 - [ ] Step 76 — Topbar: frosted glass, search bar style, kbd chips, notification dot
 - [ ] Step 77 — PageHeader: frosted glass, breadcrumb chevron, title sizing
