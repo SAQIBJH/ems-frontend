@@ -1,0 +1,513 @@
+/* App shell — frame styles for the ui_kits/ems-app prototype */
+
+.ems-shell {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+.ems-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+.ems-sidebar-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.ems-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ems-sidebar-toggle {
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font: 500 14px/20px var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.nav-item:hover {
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+.nav-item.active {
+  background: var(--brand-50);
+  color: var(--brand-500);
+}
+.nav-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Collapsed sidebar — nav items center the icon, hide label via React */
+.ems-sidebar[style*='width: 64px'] .nav-item {
+  justify-content: center;
+  padding: 10px;
+}
+
+/* ── Topbar ────────────────────────────────────────────────────────────── */
+.ems-topbar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  background: hsla(0, 0%, 100%, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+[data-theme='dark'] .ems-topbar {
+  background: hsla(222, 18%, 11%, 0.8);
+}
+
+.ems-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-surface-2);
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+  max-width: 480px;
+  margin: 0 auto;
+  transition: border-color 120ms;
+}
+.ems-search:hover {
+  border-color: var(--border-default);
+}
+.ems-search svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+}
+
+/* ── Main area ─────────────────────────────────────────────────────────── */
+.ems-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ems-main-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── PageHeader ────────────────────────────────────────────────────────── */
+.ems-pageheader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  background: hsla(220, 14%, 98%, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+[data-theme='dark'] .ems-pageheader {
+  background: hsla(222, 20%, 8%, 0.95);
+}
+
+/* ── Common page wrapper ───────────────────────────────────────────────── */
+.ems-page {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Section card (used in dashboards) ─────────────────────────────────── */
+.section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+.section-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.section-card-head .title {
+  font: 500 14px/20px var(--font-sans);
+  color: var(--text-primary);
+}
+.section-card-body {
+  padding: 20px;
+}
+
+/* ── Toolbar / filter row ─────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Recruitment pipeline board (kanban) ──────────────────────────────── */
+.recruit-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.recruit-col {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+.recruit-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 10px;
+}
+.recruit-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+.recruit-card:hover {
+  border-color: var(--border-default);
+  background: var(--bg-surface-2);
+}
+.annc-channel:hover {
+  background: var(--bg-surface-2) !important;
+}
+@media (max-width: 1100px) {
+  .recruit-board {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(220px, 1fr);
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+}
+
+/* ── Tabs (employee profile) ──────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tab {
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.tab:hover {
+  color: var(--text-primary);
+}
+.tab.active {
+  color: var(--brand-500);
+  border-bottom-color: var(--brand-500);
+}
+
+/* ── Attendance day cells (calendar) ──────────────────────────────────── */
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cal-head {
+  font: 500 11px/14px var(--font-sans);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 8px;
+  text-align: center;
+}
+.cal-day {
+  aspect-ratio: 1;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 400 12px/16px var(--font-sans);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition:
+    border-color 120ms,
+    background 120ms;
+}
+.cal-day:hover {
+  border-color: var(--border-default);
+  background: var(--bg-surface-2);
+}
+.cal-day.out {
+  color: var(--text-disabled);
+  background: transparent;
+  cursor: default;
+}
+.cal-day.today {
+  border-color: var(--brand-500);
+  border-width: 1.5px;
+}
+.cal-day .num {
+  font: 600 13px/18px var(--font-sans);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.cal-day.out .num {
+  color: var(--text-disabled);
+}
+.cal-day .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  margin-top: auto;
+}
+.cal-day .status-pill {
+  display: inline-block;
+  font: 500 10px/14px var(--font-sans);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  margin-top: auto;
+  align-self: flex-start;
+}
+.status-present {
+  background: hsla(152, 60%, 40%, 0.12);
+  color: var(--success-500);
+}
+.status-absent {
+  background: hsla(0, 75%, 50%, 0.12);
+  color: var(--danger-500);
+}
+.status-leave {
+  background: hsla(38, 92%, 50%, 0.16);
+  color: hsl(38 80% 38%);
+}
+.status-wfh {
+  background: hsla(210, 90%, 50%, 0.12);
+  color: var(--info-500);
+}
+.status-weekend {
+  background: var(--bg-surface-2);
+  color: var(--text-tertiary);
+}
+.status-holiday {
+  background: hsla(280, 60%, 55%, 0.12);
+  color: hsl(280 60% 50%);
+}
+
+/* ── Mini bar (chart placeholder) ──────────────────────────────────────── */
+.minibar {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 200px;
+}
+.minibar > div {
+  flex: 1;
+  background: var(--brand-500);
+  border-radius: 4px 4px 0 0;
+  opacity: 0.85;
+  transition: opacity 120ms;
+}
+.minibar > div:hover {
+  opacity: 1;
+}
+
+/* ── Donut chart placeholder ───────────────────────────────────────────── */
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.donut-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-secondary);
+}
+.donut-legend .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Permission matrix cell ───────────────────────────────────────────── */
+.perm-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font: 500 12px/16px var(--font-sans);
+  cursor: pointer;
+  transition: transform 60ms;
+}
+.perm-cell:hover {
+  transform: scale(1.04);
+}
+.perm-cell:active {
+  transform: scale(0.96);
+}
+
+/* ── Settings ─────────────────────────────────────────────────────────── */
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+}
+.settings-nav-section {
+  font: 500 11px/14px var(--font-sans);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 12px 6px;
+}
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+}
+.settings-nav-item svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.settings-nav-item:hover {
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+  transition:
+    background 120ms,
+    color 120ms;
+}
+.settings-nav-item.active {
+  background: var(--brand-50);
+  color: var(--brand-500);
+  font-weight: 500;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.form-row:last-child {
+  border-bottom: none;
+}
+.form-row-label {
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+.form-row-help {
+  font: 400 12px/18px var(--font-sans);
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.form-row-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+}
+
+/* ── Department tree row ──────────────────────────────────────────────── */
+.dept-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.dept-row:hover {
+  background: var(--bg-surface-2);
+  transition: background 120ms;
+}
+
+/* ── Activity log ──────────────────────────────────────────────────────── */
+.activity-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: 400 13px/18px var(--font-sans);
+}
+.activity-table th {
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-secondary);
+  padding: 0 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.activity-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.activity-table tr:last-child td {
+  border-bottom: none;
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Empty state</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); margin: 0; }
+  * { box-sizing: border-box; }
+  
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font:500 14px/20px var(--font-sans); border-radius:8px; border:1px solid transparent; padding:0 16px; height:36px; cursor:pointer; transition:background-color 120ms, border-color 120ms, color 120ms, transform 60ms; white-space:nowrap; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-color: var(--focus-ring); }
+.btn-default { background: var(--brand-500); color: var(--text-on-primary); }
+.btn-default:hover { background: var(--brand-600); }
+.btn-outline { background: var(--bg-surface); border-color: var(--border-default); color: var(--text-primary); }
+.btn-outline:hover { background: var(--bg-surface-2); }
+.btn-secondary { background: var(--bg-surface-2); color: var(--text-primary); }
+.btn-secondary:hover { background: hsl(220 14% 92%); }
+.btn-ghost { background: transparent; color: var(--text-primary); }
+.btn-ghost:hover { background: var(--bg-surface-2); }
+.btn-destructive { background: hsla(0, 75%, 50%, 0.10); color: var(--danger-500); }
+.btn-destructive:hover { background: hsla(0, 75%, 50%, 0.18); }
+.btn-link { color: var(--brand-500); background: transparent; text-decoration: none; padding: 0; height: auto; }
+.btn-link:hover { text-decoration: underline; }
+.btn-xs { height:28px; padding:0 10px; font-size:12px; gap:6px; border-radius:6px; }
+.btn-sm { height:32px; padding:0 12px; font-size:13px; gap:8px; border-radius:8px; }
+.btn-lg { height:40px; padding:0 20px; }
+.btn[disabled], .btn[aria-disabled="true"] { opacity:0.5; pointer-events:none; }
+.btn svg { width:14px; height:14px; flex-shrink:0; }
+
+</style>
+</head>
+<body>
+
+<div style="border:1px solid var(--border-subtle);border-radius:12px;background:var(--bg-surface);padding:28px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;">
+  <svg viewBox="0 0 64 64" fill="none" style="width:56px;height:56px;color:var(--text-tertiary);">
+  <rect x="10" y="8" width="44" height="48" rx="3" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="10" y="8" width="44" height="13" rx="3" fill="currentColor" fill-opacity="0.1"/>
+  <line x1="10" y1="21" x2="54" y2="21" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.4"/>
+  <line x1="18" y1="32" x2="46" y2="32" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.25" stroke-linecap="round" stroke-dasharray="5 3"/>
+  <line x1="18" y1="41" x2="40" y2="41" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.2" stroke-linecap="round" stroke-dasharray="5 3"/>
+  <line x1="18" y1="50" x2="44" y2="50" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15" stroke-linecap="round" stroke-dasharray="5 3"/>
+</svg>
+  <div style="margin-top:4px;">
+    <div style="font:500 14px/20px var(--font-sans);color:var(--text-primary);">No employees yet</div>
+    <div style="font:400 13px/18px var(--font-sans);color:var(--text-secondary);margin-top:2px;">Add your first employee to start building the directory.</div>
+  </div>
+  <button class="btn btn-default btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add Employee</button>
+</div>
+
+</body>
+</html>

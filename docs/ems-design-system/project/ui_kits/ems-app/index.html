@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EMS — UI Kit</title>
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="shell.css" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body style="background-color: rgb(118, 128, 138)">
+  <div id="root"></div>
+
+  <!-- Components: load order matters (Icons → UIPrimitives → AppShell → screens → App) -->
+  <script type="text/babel" src="Icons.jsx"></script>
+  <script type="text/babel" src="UIPrimitives.jsx"></script>
+  <script type="text/babel" src="AppShell.jsx"></script>
+  <script type="text/babel" src="LoginScreen.jsx"></script>
+  <script type="text/babel" src="HRDashboard.jsx"></script>
+  <script type="text/babel" src="EmployeesScreen.jsx"></script>
+  <script type="text/babel" src="EmployeeProfileScreen.jsx"></script>
+  <script type="text/babel" src="AttendanceScreen.jsx"></script>
+  <script type="text/babel" src="DepartmentsScreen.jsx"></script>
+  <script type="text/babel" src="LeaveScreen.jsx"></script>
+  <script type="text/babel" src="HolidaysScreen.jsx"></script>
+  <script type="text/babel" src="PermissionsScreen.jsx"></script>
+  <script type="text/babel" src="SettingsScreen.jsx"></script>
+  <script type="text/babel" src="PayrollScreen.jsx"></script>
+  <script type="text/babel" src="RecruitmentScreen.jsx"></script>
+  <script type="text/babel" src="PerformanceScreen.jsx"></script>
+  <script type="text/babel" src="AssetsScreen.jsx"></script>
+  <script type="text/babel" src="ReportsScreen.jsx"></script>
+  <script type="text/babel" src="AnnouncementsScreen.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    const STORAGE_KEY = 'ems-uikit-state';
+
+    function App() {
+      const saved = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; } })();
+      const [auth, setAuth] = React.useState(saved.auth ?? true);
+      const [user, setUser] = React.useState(saved.user ?? { name: 'Aman Khanna', email: 'aman@acme.test' });
+      const [route, setRoute] = React.useState(saved.route ?? 'dashboard');
+      const [openEmployee, setOpenEmployee] = React.useState(saved.openEmployee ?? null);
+      const [dark, setDark] = React.useState(saved.dark ?? false);
+
+      React.useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ auth, user, route, openEmployee, dark }));
+      }, [auth, user, route, openEmployee, dark]);
+
+      React.useEffect(() => {
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      }, [dark]);
+
+      if (!auth) {
+        return <window.LoginScreen onLogin={(u) => { setUser(u); setAuth(true); setRoute('dashboard'); }} />;
+      }
+
+      let screen;
+      if (openEmployee) {
+        screen = <window.EmployeeProfileScreen employee={openEmployee} onBack={() => setOpenEmployee(null)} />;
+      } else if (route === 'dashboard') {
+        screen = <window.HRDashboard onNavigate={setRoute} />;
+      } else if (route === 'employees') {
+        screen = <window.EmployeesScreen onOpenEmployee={setOpenEmployee} />;
+      } else if (route === 'attendance') {
+        screen = <window.AttendanceScreen />;
+      } else if (route === 'departments') {
+        screen = <window.DepartmentsScreen />;
+      } else if (route === 'leave') {
+        screen = <window.LeaveScreen />;
+      } else if (route === 'holidays') {
+        screen = <window.HolidaysScreen />;
+      } else if (route === 'permissions') {
+        screen = <window.PermissionsScreen />;
+      } else if (route === 'settings') {
+        screen = <window.SettingsScreen />;
+      } else if (route === 'payroll') {
+        screen = <window.PayrollScreen />;
+      } else if (route === 'recruitment') {
+        screen = <window.RecruitmentScreen />;
+      } else if (route === 'performance') {
+        screen = <window.PerformanceScreen />;
+      } else if (route === 'assets') {
+        screen = <window.AssetsScreen />;
+      } else if (route === 'reports') {
+        screen = <window.ReportsScreen />;
+      } else if (route === 'announcements') {
+        screen = <window.AnnouncementsScreen />;
+      } else {
+        const route_label = route[0].toUpperCase() + route.slice(1);
+        screen = (
+          <>
+            <window.PageHeader title={route_label} breadcrumbs={[{ label: route_label }]} />
+            <div className="ems-page">
+              <window.UI.EmptyState
+                illustration={
+                  <svg viewBox="0 0 64 64" width="64" height="64" fill="none" style={{ color: 'var(--text-tertiary)' }}>
+                    <rect x="10" y="8" width="44" height="48" rx="3" fill="currentColor" fillOpacity="0.06" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.5"/>
+                    <rect x="10" y="8" width="44" height="13" rx="3" fill="currentColor" fillOpacity="0.1"/>
+                    <line x1="18" y1="32" x2="46" y2="32" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.25" strokeLinecap="round" strokeDasharray="5 3"/>
+                    <line x1="18" y1="41" x2="40" y2="41" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.2" strokeLinecap="round" strokeDasharray="5 3"/>
+                  </svg>
+                }
+                title={`${route_label} module`}
+                description="UI kit scope covers Dashboard, Employees, Attendance, and Login. Other modules use the same shell + primitives."
+              />
+            </div>
+          </>
+        );
+      }
+
+      return (
+        <window.AppShell
+          activeKey={route}
+          onNavigate={(k) => { setRoute(k); setOpenEmployee(null); }}
+          dark={dark}
+          onToggleDark={() => setDark((d) => !d)}
+          user={user}
+        >
+          {screen}
+        </window.AppShell>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

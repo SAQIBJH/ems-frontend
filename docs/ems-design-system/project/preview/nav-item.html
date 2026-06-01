@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Nav item</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); margin: 0; }
+  * { box-sizing: border-box; }
+  
+.nav { display:flex; flex-direction:column; gap:2px; padding:8px; border:1px solid var(--border-subtle); border-radius:12px; background:var(--bg-surface); width:240px; }
+.nav-item { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:8px; font:500 14px/20px var(--font-sans); color:var(--text-secondary); cursor:pointer; transition: background-color 120ms, color 120ms; }
+.nav-item:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+.nav-item.active { background: var(--brand-50); color: var(--brand-500); }
+.nav-item svg { width:16px; height:16px; flex-shrink:0; }
+
+</style>
+</head>
+<body>
+
+<div style="display:flex;gap:24px;align-items:flex-start;">
+  <div class="nav">
+    <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Employees</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v8h4M18 9h2a2 2 0 0 1 2 2v11h-4M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>Departments</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Attendance</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.18 4.18A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.83-1.18"/><path d="M21 15.5V6a2 2 0 0 0-2-2H9.5M16 2v4M3 10h7M21 10h-5.5M2 2l20 20"/></svg>Leave</div>
+  </div>
+  <div style="font:400 12px/18px var(--font-sans);color:var(--text-tertiary);max-width:280px;padding-top:8px;">
+    <strong style="color:var(--text-primary);">Active state:</strong> brand-50 tint + text-brand. No left-border accent. Hover: surface-2.
+  </div>
+</div>
+
+</body>
+</html>

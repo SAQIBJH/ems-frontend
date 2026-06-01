@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Leave-type colors</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); margin: 0; }
+  * { box-sizing: border-box; }
+  
+</style>
+</head>
+<body>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-casual);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Casual</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">Flexible time off</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-casual) 14%, transparent);color:var(--leave-casual);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Casual</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-sick);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Sick</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">Recovery / illness</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-sick) 14%, transparent);color:var(--leave-sick);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Sick</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-earned);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Earned</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">Accrued, banked</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-earned) 14%, transparent);color:var(--leave-earned);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Earned</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-parental);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Parental</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">Long, planned</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-parental) 14%, transparent);color:var(--leave-parental);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Parental</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-bereavement);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Bereavement</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">Somber</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-bereavement) 14%, transparent);color:var(--leave-bereavement);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Bereavement</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-comp-off);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Comp off</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">Earned back</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-comp-off) 14%, transparent);color:var(--leave-comp-off);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Comp off</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:9999px;background:var(--leave-unpaid);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Unpaid</div>
+        <div style="font:400 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:1px;">No balance</div>
+      </div>
+      <span style="background:color-mix(in oklab, var(--leave-unpaid) 14%, transparent);color:var(--leave-unpaid);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">Unpaid</span>
+    </div>
+  
+</div>
+</body>
+</html>

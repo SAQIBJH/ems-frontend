@@ -3578,3 +3578,1299 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 **Commit:** `feat(settings): invoices panel — invoice table, status badges, CSV export`
 
 **STOP.** Wait for "next".
+
+---
+
+### PHASE 3 — Cosmetic UI Alignment + New Screens
+
+> Visual spec: `docs/EMS_UI_KIT.md` (primary) + `docs/ems-design-system/project/ui_kits/ems-app/index.html` (browser prototype).
+> Read CLAUDE.md §25 and §26 before any Phase 3 step.
+> Rules: Keep Recharts styled to tokens; build new screens with MSW; steps are granular.
+
+## Progress tracker (Phase 3)
+
+- [x] Step 73 — Token audit: align tokens.css with UI kit exactly
+- [ ] Step 74 — Typography: Inter variable + JetBrains Mono, .text-\* utility classes
+- [ ] Step 75 — AppShell sidebar: exact widths, logo mark, active state, collapse toggle
+- [ ] Step 76 — Topbar: frosted glass, search bar style, kbd chips, notification dot
+- [ ] Step 77 — PageHeader: frosted glass, breadcrumb chevron, title sizing
+- [ ] Step 78 — StatsCard: accent border, icon chip tint, tabular-nums, trend row
+- [ ] Step 79 — Login: two-column layout, version badge, feature bullets, footer
+- [ ] Step 80 — HR Dashboard: greeting, bar chart Recharts style, donut dept colors, activity table
+- [ ] Step 81 — Manager Dashboard: cosmetic alignment
+- [ ] Step 82 — Employee Dashboard: check-in card monospace clock, cosmetic alignment
+- [ ] Step 83 — Employees List: mono code col, avatar+name+role cell, dot badges, pagination
+- [ ] Step 84 — Employee Profile: identity band, tab underline, leave bars, documents
+- [ ] Step 85 — Attendance: mono time display, status-pill calendar cells, legend
+- [ ] Step 86 — Departments: tree row color dot, details hero colored top border
+- [ ] Step 87 — Leave: ColorPill component, per-type balance bars, bulk approve header
+- [ ] Step 88 — Holidays: type legend pills, mini-month colored cells, detail card tint
+- [ ] Step 89 — Permissions: role chip top border, matrix cell color-mix tint
+- [ ] Step 90 — Settings: FormRow pattern, sub-nav item exact style
+- [ ] Step 91 — Payroll: mono financial columns, status ColorPills, cycle banner
+- [ ] Step 92 — Reports: Recharts bar chart token styling, dept breakdown bars
+- [ ] Step 93 — Recruitment module: MSW + kanban board + openings + candidates
+- [ ] Step 94 — Performance module: MSW + reviews + goals + calibration
+- [ ] Step 95 — Assets module: MSW + inventory + assigned + requests
+- [ ] Step 96 — Announcements module: MSW + feed + channels sidebar
+- [ ] Step 97 — AppShell: add Recruitment/Performance/Assets/Announcements to NAV_ITEMS
+- [ ] Step 98 — Dark mode audit across all Phase 3 changes
+- [ ] Step 99 — Final typecheck + lint + visual walk-through all screens
+
+---
+
+## STEP 73 — Token audit
+
+**Goal:** Align `src/styles/tokens.css` with the UI kit token spec exactly.
+
+**Read first:** `docs/EMS_UI_KIT.md §1`. `CLAUDE.md §12`.
+
+**Build:**
+
+Audit `src/styles/tokens.css` against `docs/EMS_UI_KIT.md §1`. Add missing vars, correct wrong values. Do not remove correct existing vars.
+
+Department palette (add if missing):
+
+```css
+--dept-engineering: hsl(222 80% 52%);
+--dept-operations: hsl(152 60% 40%);
+--dept-sales: hsl(38 92% 50%);
+--dept-product: hsl(280 60% 55%);
+--dept-finance: hsl(190 80% 42%);
+--dept-people: hsl(340 70% 50%);
+--dept-legal: hsl(0 75% 55%);
+--dept-marketing: hsl(60 80% 42%);
+--dept-it: hsl(210 70% 50%);
+```
+
+Leave-type palette (add if missing):
+
+```css
+--leave-casual: hsl(38 92% 50%);
+--leave-sick: hsl(0 75% 55%);
+--leave-earned: hsl(152 60% 40%);
+--leave-parental: hsl(280 60% 55%);
+--leave-bereavement: hsl(220 9% 38%);
+--leave-comp-off: hsl(190 80% 42%);
+--leave-unpaid: hsl(220 13% 65%);
+```
+
+Status tokens (add if missing):
+
+```css
+--status-active: var(--success-500);
+--status-onleave: var(--warning-500);
+--status-terminated: var(--text-tertiary);
+--status-approved: var(--success-500);
+--status-pending: var(--warning-500);
+--status-rejected: var(--danger-500);
+--status-withdrawn: var(--text-tertiary);
+```
+
+Chart palette (add if missing):
+
+```css
+--chart-1: var(--brand-500);
+--chart-2: var(--success-500);
+--chart-3: var(--warning-500);
+--chart-4: var(--dept-product);
+--chart-5: var(--dept-finance);
+--chart-6: var(--dept-people);
+--chart-7: var(--info-500);
+--chart-8: var(--dept-marketing);
+```
+
+Focus ring (add if missing):
+
+```css
+--focus-ring: hsl(222 90% 56%);
+--shadow-focus: 0 0 0 3px hsl(222 90% 56% / 0.25);
+```
+
+Dark mode overrides — verify these exact values in `[data-theme='dark']`:
+
+```css
+--brand-50: hsl(222 20% 16%);
+--brand-100: hsl(222 18% 20%);
+--brand-500: hsl(222 85% 62%);
+--brand-600: hsl(222 80% 55%);
+```
+
+**Files to modify:** `src/styles/tokens.css`
+
+**Definition of done:** All vars from spec present and correct. Dark-mode overrides correct. `pnpm dev` boots; `bg-[var(--dept-engineering)]` renders indigo.
+
+**Test Gate:** Standard (typecheck + lint).
+
+**Commit:** `style(tokens): full token audit — dept/leave/status/chart palette, focus ring, dark-mode brand tints`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 74 — Typography
+
+**Goal:** Inter variable + JetBrains Mono via `next/font/google`; `.text-*` utility class set; semantic HTML defaults.
+
+**Read first:** `docs/EMS_UI_KIT.md §2`. `CLAUDE.md §12`.
+
+**Build:**
+
+1. Font loading — in `src/app/layout.tsx` ensure both fonts load via `next/font/google` with `variable` props applied to `<html>`. If already set up differently, leave it and skip to step 2.
+
+2. Add utility classes to `src/styles/globals.css`:
+
+```css
+.text-display {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.text-h1 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+.text-h2 {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.text-h3 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.text-body {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.text-body-sm {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.text-caption {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.text-overline {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+.text-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+```
+
+3. Semantic defaults (add/verify in `globals.css`):
+
+```css
+h1 {
+  font: 600 24px/32px var(--font-sans);
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 0;
+}
+h2 {
+  font: 600 20px/28px var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+h3 {
+  font: 600 16px/24px var(--font-sans);
+  color: var(--text-primary);
+  margin: 0;
+}
+p {
+  font: 400 14px/20px var(--font-sans);
+  color: var(--text-primary);
+  margin: 0;
+}
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-surface-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+a {
+  color: var(--brand-500);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+```
+
+**Files to modify:** `src/styles/globals.css`, `src/app/layout.tsx`
+
+**Test Gate:** Standard. Verify `.text-mono` renders JetBrains Mono in browser.
+
+**Commit:** `style(typography): Inter + JetBrains Mono, .text-* utility classes, semantic HTML defaults`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 75 — AppShell sidebar
+
+**Goal:** Exact sidebar: 240/64px with 180ms transition, typographic logo mark, brand-50 active state, Phase 2 section divider, collapse toggle.
+
+**Read first:** `docs/EMS_UI_KIT.md §3` (AppShell). `docs/ems-design-system/project/ui_kits/ems-app/AppShell.jsx` lines 39–89. `CLAUDE.md §25`.
+
+**Build** (`src/shared/layouts/AppShell.tsx`):
+
+1. **Width transition** — `style={{ width: collapsed ? 64 : 240, transition: 'width 180ms var(--ease-out)' }}`.
+
+2. **Logo** — expanded: `<span style={{ font: '700 16px/22px var(--font-sans)', letterSpacing: '-0.01em' }}><span style={{ color: 'var(--brand-500)' }}>E</span>MS</span>`. Collapsed: centered `<span style={{ font: '700 18px/24px var(--font-sans)', color: 'var(--brand-500)' }}>E</span>`. Logo area: `height: 64px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-subtle)`.
+
+3. **Sidebar chrome** — `background: var(--bg-surface); border-right: 1px solid var(--border-subtle)`.
+
+4. **Nav item active state** — active: `background: var(--brand-50); color: var(--brand-500)`. Hover (non-active): `background: var(--bg-surface-2); color: var(--text-primary)`. Transition: `background-color 120ms, color 120ms`. Padding: `8px 12px`. Radius: `8px`. Font: `500 14px/20px`. Icon: 16px. Gap: 12px. No left-bar accent.
+
+5. **Phase 2 divider** — expanded: `font: 500 10px/14px var(--font-sans); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; padding: 14px 12px 4px`. Collapsed: `height: 1px; background: var(--border-subtle); margin: 8px 4px`.
+
+6. **Collapsed icon centering** — when collapsed, nav item: `justify-content: center; padding: 10px`.
+
+7. **Collapse toggle** — `border-top: 1px solid var(--border-subtle); padding: 12px`. Button full width, `btn-ghost btn-sm`. Expanded: `<ChevronLeft /> Collapse` left-aligned. Collapsed: `<ChevronRight />` centered.
+
+**Files to modify:** `src/shared/layouts/AppShell.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → visual verify sidebar collapse/expand, active state, logo.
+
+**Commit:** `style(shell): sidebar 240/64px transition, logo mark, brand-50 active, divider, collapse toggle`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 76 — Topbar
+
+**Goal:** Frosted-glass topbar, exact search bar with ⌘K kbd chips, notification dot, brand avatar.
+
+**Read first:** `docs/EMS_UI_KIT.md §3`. `docs/ems-design-system/project/ui_kits/ems-app/AppShell.jsx` lines 91–113. `CLAUDE.md §25`.
+
+**Build** (`src/shared/layouts/AppShell.tsx` topbar + `src/styles/globals.css`):
+
+1. **Topbar chrome** — `height: 64px; background: hsla(0,0%,100%,0.8); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-subtle)`. Dark: `hsla(222,18%,11%,0.8)`.
+
+2. **Search bar** — `flex: 1; max-width: 480px; margin: 0 auto; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface-2); cursor: pointer`. Contains: `<Search size={14} color="var(--text-tertiary)" />` + placeholder `text-disabled` + two kbd chips. Hover: `border-color: var(--border-default)`.
+
+3. **`.kbd` class** (add to `globals.css`):
+
+```css
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 500 11px/14px var(--font-mono);
+  color: var(--text-secondary);
+}
+```
+
+4. **Notification bell** — `btn-ghost btn-icon-sm` (32×32) with `position: relative`. Dot: `position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 9999px; background: var(--danger-500); border: 1.5px solid var(--bg-surface)`. Only rendered when `unreadCount > 0`.
+
+5. **User avatar** — `width: 32px; height: 32px; border-radius: 9999px; background: var(--brand-500); color: var(--text-on-primary); font: 600 11px/14px var(--font-sans); display: grid; place-items: center; cursor: pointer`. Shows initials (first letter of firstName + lastName). `ml-1`.
+
+**Files to modify:** `src/shared/layouts/AppShell.tsx`, `src/styles/globals.css`
+
+**Test Gate:** Standard + `pnpm dev` → verify frosted glass, ⌘K chips, notification dot, brand avatar.
+
+**Commit:** `style(shell): topbar frosted glass, search kbd chips, notification dot, brand avatar`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 77 — PageHeader
+
+**Goal:** Sticky frosted-glass PageHeader with breadcrumb chevron separator, 20px/600/−0.01em title, 13px secondary description.
+
+**Read first:** `docs/EMS_UI_KIT.md §3`. `docs/ems-design-system/project/ui_kits/ems-app/AppShell.jsx` lines 136–160.
+
+**Build** (`src/shared/layouts/PageHeader.tsx`):
+
+1. **Chrome** — `position: sticky; top: 0; z-index: 10; padding: 16px 24px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; background: hsla(220,14%,98%,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-subtle)`. Dark: `hsla(222,20%,8%,0.95)`.
+
+2. **Breadcrumbs** — `display: flex; align-items: center; gap: 4px; margin-bottom: 4px`. Separator: `<ChevronRight size={12} style={{ color: 'var(--text-disabled)' }} />`. Crumb text: `font: 500 12px/16px var(--font-sans); color: var(--text-secondary)`.
+
+3. **Title** — `font: 600 20px/28px var(--font-sans); letter-spacing: -0.01em; color: var(--text-primary); margin: 0`.
+
+4. **Description** — `font: 400 13px/20px var(--font-sans); color: var(--text-secondary); margin: 4px 0 0`.
+
+5. **Actions** — `display: flex; align-items: center; gap: 8px; flex-shrink: 0`.
+
+**Files to modify:** `src/shared/layouts/PageHeader.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → `/employees` → scroll → verify sticky + frosted glass.
+
+**Commit:** `style(shell): PageHeader sticky frosted glass, breadcrumb chevron, title 20px/600`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 78 — StatsCard
+
+**Goal:** 2px top accent border; 32px icon chip with `color-mix` tint; 24px/600 tabular-nums value; TrendingUp/Down trend row.
+
+**Read first:** `docs/EMS_UI_KIT.md §3` (StatsCard). `docs/ems-design-system/project/ui_kits/ems-app/AppShell.jsx` lines 163–197.
+
+**Build** (`src/components/data-display/StatsCard.tsx`):
+
+Props interface: `{ label: string; value: string|number; icon?: ReactNode; sub?: string; delta?: number; tone?: 'positive'|'negative'|'warning'|'neutral'; accent?: string; }`
+
+Structure:
+
+- Card: `position: relative; overflow: hidden; padding: 16px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px`.
+- Accent bar: `position: absolute; top: 0; left: 0; right: 0; height: 2px; background: {accent}; opacity: 0.85`. Only rendered when `accent` prop provided.
+- Label row: `display: flex; align-items: center; justify-content: space-between`. Label: `font: 500 13px/18px; color: var(--text-secondary)`. Icon chip: `width: 32px; height: 32px; display: grid; place-items: center; background: color-mix(in oklab, {accent} 14%, transparent); color: {accent}; border-radius: 8px`. Chip only rendered when `icon` + `accent` both provided.
+- Value: `font: 600 24px/32px var(--font-sans); letter-spacing: -0.015em; color: var(--text-primary); margin-top: 10px; font-variant-numeric: tabular-nums`.
+- Delta row (when `delta != null`): `display: flex; align-items: center; gap: 6px; margin-top: 10px`. `delta >= 0`: `<TrendingUp size={14} style={{ color: 'var(--success-500)' }} />` + `+{delta}` in success-500 500 12px. `delta < 0`: `<TrendingDown>` in danger. Sub after: text-tertiary 500 12px.
+- Sub row (when `sub` only, no `delta`): `font: 500 12px/16px; color: {toneColor}; margin-top: 10px`. Tone map: `{ positive: 'var(--success-500)', negative: 'var(--danger-500)', warning: 'var(--warning-500)', neutral: 'var(--text-tertiary)' }`.
+
+**Files to modify:** `src/components/data-display/StatsCard.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → `/dashboard` → verify accent borders, icon chips, deltas.
+
+**Commit:** `style(data-display): StatsCard accent border, icon chip color-mix, tabular-nums, trend row`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 79 — Login screen
+
+**Goal:** Two-column layout; feature callout tile with version badge + bullet checkmarks; copyright footer.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Login). `docs/ems-design-system/project/ui_kits/ems-app/LoginScreen.jsx`.
+
+**Build** (login page/component in `src/modules/auth/` or `src/app/(auth)/login/`):
+
+1. **Shell** — `min-height: 100vh; background: var(--bg-canvas); display: flex; flex-direction: column`.
+2. **Logo** — `padding: 24px 32px`. Typographic mark: `<E>MS` with E in brand-500.
+3. **Center row** — `flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center`. On mobile (`<md`): single column, callout tile hidden.
+4. **Form column** — `display: flex; justify-content: center; padding: 0 32px`. Form: `width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px`. Heading: `font: 600 24px/32px; letter-spacing: -0.015em`. Sub: `font: 400 14px/20px; color: var(--text-secondary); margin: 6px 0 0`.
+5. **Callout tile** — `border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--bg-surface); padding: 28px; max-width: 440px`. Contains:
+   - `<Badge variant="secondary">v1.4 · {currentMonth} {year}</Badge>` with `margin-bottom: 16px`.
+   - Headline: `font: 600 20px/28px; letter-spacing: -0.01em`.
+   - Description: `font: 400 14px/20px; color: var(--text-secondary); margin: 8px 0 20px`.
+   - 3 feature bullets: `flex items-center gap-2.5 font: 400 13px/18px`. Each bullet icon: 16px circle `background: var(--brand-50); color: var(--brand-500)` containing a 10px white checkmark SVG (`strokeWidth: 3`).
+6. **Footer** — `padding: 24px 32px; font: 400 12px/16px; color: var(--text-tertiary); display: flex; justify-content: space-between`. Left: `© 2026 EMS`. Right: `Terms · Privacy`.
+7. Keep all existing form logic, validation, and submission intact.
+
+**Files to modify:** Login auth component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/login` → verify two-column, callout tile, submit still works.
+
+**Commit:** `style(auth): login two-column layout, callout tile, version badge, feature bullets, footer`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 80 — HR Dashboard
+
+**Goal:** Greeting with full formatted date; Recharts BarChart styled to tokens; Recharts PieChart with dept colors; recent activity table with monospace timestamps.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (HR Dashboard). `docs/ems-design-system/project/ui_kits/ems-app/HRDashboard.jsx`. `CLAUDE.md §25` (charts).
+
+**Build** (`src/modules/dashboard/components/HRDashboard.tsx`):
+
+1. **Greeting** — `font: 600 24px/32px var(--font-sans); letter-spacing: -0.015em` for name. Subtitle: `format(new Date(), 'EEEE, MMMM d, yyyy')` (date-fns) in `font: 400 14px/20px; color: var(--text-secondary)`.
+
+2. **Attendance BarChart (Recharts):**
+   - No `<CartesianGrid>`.
+   - `<XAxis>`: `tick={{ fontSize: 11, fill: 'var(--text-tertiary)', fontFamily: 'var(--font-sans)' }}`, `axisLine={false}`, `tickLine={false}`.
+   - `<YAxis>`: same tick, `tickFormatter={(v) => `${v}%`}`, `axisLine={false}`, `tickLine={false}`, `width={36}`.
+   - `<Bar fill="var(--brand-500)" radius={[4,4,0,0]} maxBarSize={28}>`.
+   - `<Tooltip contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, boxShadow: 'var(--shadow-md)', fontSize: 13, fontFamily: 'var(--font-sans)' }}`.
+   - Range toggle (7d/30d/90d): `btn-xs`, active = `btn-default`, inactive = `btn-ghost`.
+
+3. **Headcount PieChart (Recharts):**
+   - `<PieChart>` + `<Pie innerRadius="58%" outerRadius="80%" paddingAngle={0} dataKey="count">`.
+   - Each `<Cell fill={resolvedColor}>` — resolve dept CSS vars to actual hsl values using the dept palette hsl values (hardcode the hsl strings from tokens.css as constants; these don't change per theme).
+   - Center label: custom `<Label>` or absolutely positioned div — `{totalEmployees.toLocaleString()}` 18px/600 + "Total" overline.
+   - Legend: `flex-col gap-2`. Row: 10px square swatch + dept name flex-1 + count (tabular-nums text-tertiary).
+
+4. **Recent activity table:**
+   - Who cell: `flex items-center gap-2.5` — Avatar sm + name `font: 500 13px/18px`.
+   - Action cell: `color: var(--text-secondary)`.
+   - Resource cell: `<a style={{ color: 'var(--brand-500)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{resource} <ExternalLink size={12} /></a>`.
+   - When cell: `font: 500 12px/16px var(--font-mono); color: var(--text-tertiary)`.
+
+5. **Section card pattern** — wrap bar chart and activity table: `background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px`. Header: `display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border-subtle)`. Title: `font: 500 14px/20px`.
+
+**Files to modify:** `src/modules/dashboard/components/HRDashboard.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → `/dashboard` as `mohammadsaeedafri9@gmail.com`.
+
+**Commit:** `style(dashboard): HR greeting, token-styled bar chart, dept donut, mono activity timestamps`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 81 — Manager Dashboard
+
+**Goal:** Greeting with full date; StatsCard accents; section-card wrappers; mono timestamps; inline Approve/Deny buttons.
+
+**Read first:** `docs/EMS_UI_KIT.md §4`. `CLAUDE.md §25`.
+
+**Build** (`src/modules/dashboard/components/ManagerDashboard.tsx`):
+
+1. Greeting: `"Welcome back, {firstName}"` + `format(new Date(), 'EEEE, MMMM d, yyyy')` subtitle.
+2. 4 StatsCards with `accent` prop wired (use semantic color vars matching the metric).
+3. Team roster + pending approvals + upcoming leave: each in a section-card (`bg-surface border border-subtle rounded-xl`).
+4. Table timestamps: `font: 500 12px/16px var(--font-mono); color: var(--text-tertiary)`.
+5. Name cells: avatar-sm + name 500 13px + role 12px tertiary.
+6. Pending approvals rows: inline `<Button size="xs">Approve</Button>` + `<Button variant="outline" size="xs">Deny</Button>`.
+
+**Files to modify:** `src/modules/dashboard/components/ManagerDashboard.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → login as `aman@acme.test`.
+
+**Commit:** `style(dashboard): Manager greeting, StatsCard accents, section-cards, mono timestamps`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 82 — Employee Dashboard
+
+**Goal:** Check-in card with JetBrains Mono 32px time, personal StatsCards with accents, section-card wrappers.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Attendance check-in card pattern). `CLAUDE.md §25`.
+
+**Build** (`src/modules/dashboard/components/EmployeeDashboard.tsx`):
+
+1. Greeting: `"Hi, {firstName}"` + full date subtitle.
+2. Check-in card (`flex-shrink: 0; width: 280px` or full-width at top):
+   - Overline `"TODAY"`.
+   - Time: `font: 600 32px/40px var(--font-mono); font-variant-numeric: tabular-nums`.
+   - Status line: `"Checked in · {day}, {date}"` or `"Not checked in"` — `text-secondary text-body-sm`.
+   - Divider.
+   - 2-col grid: "Hours today" + "Target" — each overline + mono 16px/600 value.
+   - Buttons: Check out (primary, full-width) + Take a break (outline, full-width), stacked, gap-2.
+3. 4 StatsCards with `accent` props.
+4. Upcoming leave + recent attendance in section-cards.
+
+**Files to modify:** `src/modules/dashboard/components/EmployeeDashboard.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → login as `priya@acme.test`.
+
+**Commit:** `style(dashboard): Employee greeting, mono check-in clock, StatsCard accents, section-cards`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 83 — Employees List
+
+**Goal:** Mono code column; avatar+name+role cell; dot status badges; toolbar spacing; pagination footer.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Employees). `docs/ems-design-system/project/ui_kits/ems-app/EmployeesScreen.jsx`.
+
+**Build** (Employees list component):
+
+1. **Code column** — `font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary)`. Width ~110px.
+2. **Employee cell** — `flex items-center gap-2.5`. Avatar sm (28×28). Right: name `font: 500 13px/18px` + role `font: 400 12px/16px; color: var(--text-tertiary)`.
+3. **Status badge** — add 6px `currentColor` dot before text: Active = `badge-success` + dot, On Leave = `badge-warning` + dot, Terminated = `badge-secondary` no dot.
+4. **Type badge** — `badge-outline`.
+5. **Toolbar** — `flex items-center gap-3 flex-wrap`. Bulk area: `flex items-center gap-2` shown when `selectedCount > 0`, separated by `flex: 1` spacer.
+6. **Pagination footer** — `flex items-center justify-between px-5 py-3 border-t border-subtle bg-surface`. Left: "Showing 1–{n} of {total}" `text-body-sm text-secondary`. Right: Prev/Page x of y/Next with `btn-outline btn-sm`.
+
+**Files to modify:** Employees list component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/employees`.
+
+**Commit:** `style(employees): mono code col, avatar+name+role cell, dot badges, toolbar, pagination footer`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 84 — Employee Profile
+
+**Goal:** XL brand avatar identity band; tab underline active state; per-type leave balance bars; document badge styles.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Employee Profile). `docs/ems-design-system/project/ui_kits/ems-app/EmployeeProfileScreen.jsx`.
+
+**Build** (`src/modules/employees/components/EmployeeProfile.tsx`):
+
+1. **Identity band** — card `padding: 24px; display: flex; align-items: center; gap: 20px`.
+   - Avatar xl (56×56): `background: var(--brand-500); color: white; font: 600 18px/24px`.
+   - Name: `font: 600 20px/28px; letter-spacing: -0.01em`.
+   - Inline badges: status (success + dot) + type (outline). `flex flex-wrap gap-2 items-center`.
+   - Role · Dept: `font: 400 14px/20px; color: var(--text-secondary); margin-top: 4px`.
+   - Contact row: `display: flex; align-items: center; gap: 18px; margin-top: 12px; font: 400 13px/18px; color: var(--text-secondary)`. Each: icon 14px + value.
+
+2. **Tabs** — `display: flex; gap: 4px; border-bottom: 1px solid var(--border-subtle)`. Each tab: `padding: 10px 14px; font: 500 13px/18px; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; background: transparent; border-top: none; border-left: none; border-right: none`. Active: `color: var(--brand-500); border-bottom-color: var(--brand-500)`. Hover: `color: var(--text-primary)`. Transition 120ms.
+
+3. **Leave balance bars** — per type (Casual = `--leave-casual`, Sick = `--leave-sick`, Earned = `--leave-earned`):
+   - Label row: `display: flex; justify-content: space-between; font: 500 13px/18px`.
+   - Right: `{available} / {total} days` tabular-nums text-tertiary.
+   - Track: `height: 6px; background: var(--bg-surface-2); border-radius: 9999px; margin-top: 6px; overflow: hidden`.
+   - Fill: `height: 100%; width: {(used/total)*100}%; background: {typeColor}; border-radius: 9999px`.
+
+4. **Documents** — `badge-success` for "Verified", `badge-warning` for "Pending". Each row `flex items-center justify-between py-3 px-5 border-b border-subtle last:border-b-0`.
+
+**Files to modify:** `src/modules/employees/components/EmployeeProfile.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → click any employee.
+
+**Commit:** `style(employees): identity band XL avatar, tab underline, leave type bars, document badges`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 85 — Attendance
+
+**Goal:** JetBrains Mono 32px check-in time; status-pill calendar cells with semantic colors; legend row.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Attendance). `docs/ems-design-system/project/ui_kits/ems-app/AttendanceScreen.jsx`.
+
+**Build** (Attendance components):
+
+1. **Check-in card** (left column, 280px):
+   - Overline `"TODAY"`.
+   - Time: `font: 600 32px/40px var(--font-mono); font-variant-numeric: tabular-nums`. Live clock or check-in time.
+   - Status: `"Checked in · {dayname}, {date}"` — `font: 400 13px/18px; color: var(--text-secondary)`.
+   - Divider.
+   - 2-col grid: "Hours today" + "Target" — overline + mono 16px/600 value.
+   - Buttons stacked: Check out primary + Take a break outline, each full-width.
+
+2. **Status-pill classes** — add to `src/styles/globals.css`:
+
+```css
+.status-pill {
+  display: inline-block;
+  font: 500 10px/14px var(--font-sans);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  margin-top: auto;
+  align-self: flex-start;
+}
+.status-present {
+  background: hsla(152, 60%, 40%, 0.12);
+  color: var(--success-500);
+}
+.status-absent {
+  background: hsla(0, 75%, 50%, 0.12);
+  color: var(--danger-500);
+}
+.status-leave {
+  background: hsla(38, 92%, 50%, 0.16);
+  color: hsl(38 80% 38%);
+}
+.status-wfh {
+  background: hsla(210, 90%, 50%, 0.12);
+  color: var(--info-500);
+}
+.status-weekend {
+  background: var(--bg-surface-2);
+  color: var(--text-tertiary);
+}
+.status-holiday {
+  background: hsla(280, 60%, 55%, 0.12);
+  color: hsl(280 60% 50%);
+}
+```
+
+3. **Calendar cells** — each cell: `aspect-ratio: 1; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px`. Day number: `font: 600 13px/18px; font-variant-numeric: tabular-nums`. Today: `border: 1.5px solid var(--brand-500)`. Out-of-month: `color: var(--text-disabled); background: transparent`. Status pill rendered for occupied days.
+
+4. **Legend row** — `display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-subtle)`. Badge per status. Right-aligned caption "Click a day to see details".
+
+**Files to modify:** Attendance component(s), `src/styles/globals.css`
+
+**Test Gate:** Standard + `pnpm dev` → `/attendance`.
+
+**Commit:** `style(attendance): mono 32px check-in time, status-pill calendar cells, legend row`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 86 — Departments
+
+**Goal:** Tree row color dot + mono count; active row color-mix tint; details hero card dept-color top border + chip pill.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Departments). `docs/ems-design-system/project/ui_kits/ems-app/DepartmentsScreen.jsx`.
+
+**Build** (Departments components):
+
+1. **Tree row** — `display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: transparent; border-radius: 8px; cursor: pointer`.
+   - Chevron: 14px, `color: var(--text-tertiary)`, rotate 90deg when expanded, transition 120ms.
+   - Color dot: `width: 10px; height: 10px; border-radius: 9999px; background: {deptColor}; flex-shrink: 0`.
+   - Name: `flex: 1; font: 500 13px/18px`.
+   - Count: `font: 500 12px/16px var(--font-mono); color: var(--text-tertiary)`.
+   - Active: `background: color-mix(in oklab, {deptColor} 10%, transparent)`.
+   - Hover: `background: var(--bg-surface-2)`, transition 120ms.
+   - Sub-dept: `padding-left: 40px`, 6px dot 65% opacity, name `400 weight text-secondary`.
+
+2. **Details hero card** — `border-top: 3px solid {deptColor}; padding: 24px`.
+   - Dept chip pill: `display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 9999px; background: color-mix(in oklab, {deptColor} 14%, transparent); color: {deptColor}; font: 500 12px/16px`. 6px dot + label.
+   - Dept name: `font: 600 22px/30px; letter-spacing: -0.01em; margin: 10px 0 0`.
+   - Sub-line: `"Headed by {head} · {count} people"` in `text-secondary text-body`.
+
+3. **Sub-team cards** — `border-left: 3px solid {parentColor}; padding: 14px; cursor: pointer`. Name 500 13px, head 400 12px tertiary, count 600 18px.
+
+**Files to modify:** Departments component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/departments`.
+
+**Commit:** `style(departments): tree color dots, active color-mix, hero top border, dept chip pill`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 87 — Leave
+
+**Goal:** `ColorPill` component for leave-type and status chips; per-type balance bars; bulk approve section.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Leave). `docs/ems-design-system/project/ui_kits/ems-app/LeaveScreen.jsx`. `CLAUDE.md §25`.
+
+**Build:**
+
+1. **ColorPill** — create `src/components/data-display/ColorPill.tsx`:
+
+```tsx
+// Props: { color: string; children: React.ReactNode }
+// Renders: inline-flex, gap: 6px, background: color-mix(in oklab, {color} 14%, transparent),
+// color: {color}, font: 500 12px/16px var(--font-sans), padding: 2px 8px, border-radius: 9999px
+// 6px dot (border-radius: 9999px, background: currentColor) before children
+```
+
+Export from `src/components/data-display/index.ts`.
+
+2. **Leave type chips** — replace type display with `<ColorPill color="var(--leave-casual)">Casual</ColorPill>` etc. Map: Casual/CASUAL → `--leave-casual`, Sick/SICK → `--leave-sick`, Annual/ANNUAL/Earned → `--leave-earned`, Parental → `--leave-parental`, Bereavement → `--leave-bereavement`, CompOff/COMP_OFF → `--leave-comp-off`, Unpaid/UNPAID → `--leave-unpaid`.
+
+3. **Status chips** — use `<ColorPill>` for APPROVED/PENDING/DENIED/WITHDRAWN statuses using status vars.
+
+4. **Balance bars** — each leave type:
+   - 8px color swatch dot next to type label.
+   - Track: `height: 6px; bg-surface-2 rounded-full overflow-hidden`.
+   - Fill: `height: 100%; width: {pct}%; background: var(--leave-{type}); border-radius: 9999px`.
+   - Right: `<strong>{available}</strong> / {total} days` tabular-nums.
+
+5. **Bulk approve** — when `selectedCount > 0`: render in table card header `{n} selected · <Button variant="outline" size="sm">Reject</Button> · <Button size="sm" icon={Check}>Approve all</Button>`.
+
+**Files to create:** `src/components/data-display/ColorPill.tsx`
+**Files to modify:** Leave module components, `src/components/data-display/index.ts`
+
+**Test Gate:** Standard + `pnpm dev` → `/leave`.
+
+**Commit:** `style(leave): ColorPill component, leave-type chips, per-type balance bars, bulk approve section`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 88 — Holidays
+
+**Goal:** Type legend pills; mini-month colored holiday date cells; selected holiday tinted detail card.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Holidays). `docs/ems-design-system/project/ui_kits/ems-app/HolidaysScreen.jsx`.
+
+**Build** (Holidays components):
+
+1. **Type legend** — `flex flex-wrap gap-3`. Each pill: `inline-flex items-center gap-2 px-3 py-1 rounded-full font: 500 12px/16px; background: color-mix(in oklab, {typeColor} 14%, transparent); color: {typeColor}`. 8px dot + type label + count (font-mono 11px 70% opacity).
+
+2. **Mini-month grid cells** — holiday date button: `background: {typeColor}; color: white; border-radius: 6px`. Non-holiday: `background: transparent; color: var(--text-secondary); border: 1px solid transparent; cursor: default`. Today: `border: 1.5px solid var(--brand-500)`. Grid: `display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font: 500 11px/14px`.
+
+3. **Holiday list table** — date cell: mono font. Type cell: `inline-flex items-center gap-6 text-{typeColor}` with 8px dot. Row: `opacity: 0.55` for past holidays.
+
+4. **Detail card** — when holiday selected: `background: color-mix(in oklab, {typeColor} 12%, transparent); border: 1px solid color-mix(in oklab, {typeColor} 22%, transparent); border-radius: 12px; padding: 20px 16px; text-align: center`. Overline type label in typeColor. Name: `font: 600 28px/34px`. Full date: `font: 500 14px/20px var(--font-mono)`. Region description. Edit + Remove buttons.
+
+**Files to modify:** Holidays component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/holidays`.
+
+**Commit:** `style(holidays): type legend pills, colored holiday cells, tinted detail card`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 89 — Permissions
+
+**Goal:** Role chip cards with colored 3px top border; matrix cells with `color-mix` tint + border; permission group section header rows.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Permissions). `docs/ems-design-system/project/ui_kits/ems-app/PermissionsScreen.jsx`.
+
+**Build** (Permissions components):
+
+1. **Role chip cards** — `grid grid-cols-5 gap-3`. Each: `border-top: 3px solid {roleColor}; padding: 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px`. Label: `font: 600 14px/20px`. ID: `font: 500 12px/16px var(--font-mono); color: {roleColor}; margin-top: 2px`. Count: `font: 600 20px/26px; color: {roleColor}; font-variant-numeric: tabular-nums` + "members" `font: 500 12px/16px text-tertiary`.
+
+2. **Legend** — `flex items-center gap-4 text-body-sm text-secondary`. Write (●, success-500), Read (◐, info-500), None (○, text-disabled). Italic right-aligned caption.
+
+3. **Group header rows** — `<td colSpan={roleCount+1} style={{ background: 'var(--bg-surface-2)', padding: '10px 20px' }}>`. Inside: `flex items-center gap-2 font: 500 11px/14px text-secondary uppercase tracking-wider`. Group icon 12px + name.
+
+4. **Matrix cells** — Write: `background: color-mix(in oklab, var(--success-500) 14%, transparent); color: var(--success-500); border: 1px solid color-mix(in oklab, var(--success-500) 26%, transparent)`. Read: same with `--info-500`. None: `background: transparent; color: var(--text-disabled); border: 1px solid var(--border-subtle)`. Cell: `min-width: 88px; height: 28px; padding: 0 10px; border-radius: 6px; font: 500 12px/16px; cursor: pointer`. Hover: `transform: scale(1.04)`. Active press: `scale(0.96)`. Transition 60ms. Symbol (●/◐) before label for write/read.
+
+**Files to modify:** Permissions component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/permissions`.
+
+**Commit:** `style(permissions): role chip top borders, matrix cell color-mix tints, group section rows`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 90 — Settings
+
+**Goal:** `FormRow` component with 200px label column; sub-nav item exact style.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Settings). `docs/ems-design-system/project/ui_kits/ems-app/SettingsScreen.jsx` lines 28–38 and 60–88.
+
+**Build:**
+
+1. **FormRow** — create `src/modules/settings/components/FormRow.tsx`:
+
+```tsx
+// Props: { label: string; help?: string; children: ReactNode }
+// Outer: display: grid; grid-template-columns: 200px 1fr; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--border-subtle)
+// Outer last-child: border-bottom: none
+// Left: label font: 500 13px/18px text-primary; help font: 400 12px/18px text-tertiary margin-top: 4px
+// Right: display: flex; flex-direction: column; gap: 8px; max-width: 480px
+```
+
+Export from settings module index.
+
+2. **Settings panel headers** — each panel component should start with:
+
+```tsx
+<div
+  style={{
+    padding: '24px 0 16px',
+    borderBottom: '1px solid var(--border-subtle)',
+    marginBottom: '4px',
+  }}
+>
+  <div className="text-overline">{groupName}</div>
+  <h2
+    style={{
+      font: '600 20px/28px var(--font-sans)',
+      letterSpacing: '-0.01em',
+      margin: '4px 0 6px',
+    }}
+  >
+    {panelTitle}
+  </h2>
+  <p style={{ font: '400 13px/20px var(--font-sans)', color: 'var(--text-secondary)', margin: 0 }}>
+    {panelDescription}
+  </p>
+</div>
+```
+
+3. **Apply FormRow** — in CompanyProfilePanel, BrandingPanel, NotificationPrefsPanel, AuthSettingsPanel: replace ad-hoc label+field layouts with `<FormRow>`. Do not change form logic.
+
+4. **Sub-nav item style** (SettingsNav.tsx):
+   - Item: `display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 8px; font: 400 13px/18px; color: var(--text-secondary); cursor: pointer; border: none; background: transparent; text-left; width: 100%`.
+   - Icon: 14px.
+   - Hover: `background: var(--bg-surface-2); color: var(--text-primary)`, transition 120ms.
+   - Active: `background: var(--brand-50); color: var(--brand-500); font-weight: 500`.
+   - Section label: `font: 500 11px/14px uppercase tracking-wider text-tertiary; padding: 12px 12px 6px`.
+
+**Files to create:** `src/modules/settings/components/FormRow.tsx`
+**Files to modify:** Settings panel components, `src/modules/settings/components/SettingsNav.tsx`, settings module index
+
+**Test Gate:** Standard + `pnpm dev` → `/settings/company-profile`.
+
+**Commit:** `style(settings): FormRow 200px label col, sub-nav exact style, panel header pattern`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 91 — Payroll
+
+**Goal:** Mono right-aligned financial columns; ColorPill status indicators; cycle status badge banner.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Payroll). `docs/ems-design-system/project/ui_kits/ems-app/PayrollScreen.jsx`. `CLAUDE.md §25`.
+
+**Build** (Payroll module components):
+
+1. **Financial columns** — Basic/Allowances/Deductions/Net Pay: `font-family: var(--font-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums`. Allowances: `color: var(--success-500)`, prefix `+`. Deductions: `color: var(--danger-500)`, prefix `−`. Net Pay: `font-weight: 600; font-size: 13px`.
+
+2. **Status ColorPills** — use `<ColorPill>` from Step 87: Processed → `var(--status-approved)`, Pending → `var(--status-pending)`, Hold → `var(--status-rejected)`.
+
+3. **Cycle banner** — `display: flex; align-items: center; gap: 12px; flex-wrap: wrap`. "Cycle" overline + `<Select>` for period + status badge. Spacer. "Hold cycle" ghost + "Process & lock" primary `icon={Check}`.
+
+4. **History table** — "Run on" column: `font-family: var(--font-mono); color: var(--text-secondary)`. Net paid: mono tabular-nums right-aligned.
+
+5. **Payslip ref column** — mono text-tertiary.
+
+**Files to modify:** Payroll module component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/payroll`.
+
+**Commit:** `style(payroll): mono financial columns, ColorPill statuses, cycle status banner`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 92 — Reports
+
+**Goal:** Token-aligned Recharts BarChart for headcount trend; CSS horizontal dept breakdown bars; report icon chips.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Reports). `docs/ems-design-system/project/ui_kits/ems-app/ReportsScreen.jsx`. `CLAUDE.md §25`.
+
+**Build** (Reports module components):
+
+1. **Headcount trend BarChart** — same Recharts styling as Step 80. Current month bar: `fill="var(--brand-500)"`. Previous months: `fill="var(--bg-surface-2)"` + `stroke="var(--border-subtle)" strokeWidth={1}`. Label above current bar: count in mono brand-500. No CartesianGrid. Token-aligned axes and tooltip.
+
+2. **Dept breakdown** — horizontal bars (pure CSS, not Recharts):
+   For each dept: `{ dept name row (dot + name + count) } + { track (8px height bg-surface-2 rounded-full) with fill (dept color, width = count/maxCount * 100%) }`.
+   Gap 14px between rows.
+
+3. **Report icon chip** — each report row in library tab: `width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: var(--bg-surface-2); color: var(--text-secondary)` containing `<BarChart2 size={16} />`.
+
+4. **Category badges** — `<Badge variant="info">Headcount</Badge>`, `<Badge variant="success">Attendance</Badge>`, `<Badge variant="warning">Payroll</Badge>`, etc.
+
+**Files to modify:** Reports module component(s).
+
+**Test Gate:** Standard + `pnpm dev` → `/reports`.
+
+**Commit:** `style(reports): token-aligned trend chart, dept horizontal bars, report icon chips`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 93 — Recruitment module
+
+**Goal:** New Recruitment module with MSW; kanban pipeline board; Openings table; Candidates table.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Recruitment). `CLAUDE.md §26` (kanban grid, CandidateCard, star rating). `docs/phase3api.md` Recruitment domain. `docs/ems-design-system/project/ui_kits/ems-app/RecruitmentScreen.jsx`.
+
+**Build:**
+
+1. **Types** — `src/modules/recruitment/types/recruitment.types.ts`:
+
+```ts
+export type RecruitStage = 'APPLIED' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'REJECTED';
+export type OpeningStatus = 'OPEN' | 'CLOSING' | 'ON_HOLD' | 'CLOSED';
+export interface JobOpening {
+  id: string;
+  requisitionCode: string;
+  title: string;
+  departmentId: string;
+  department: { name: string };
+  location: string;
+  employmentType: string;
+  applicantCount: number;
+  currentStage: string;
+  status: OpeningStatus;
+  createdAt: string;
+}
+export interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  jobOpeningId: string;
+  jobOpening: { requisitionCode: string; title: string };
+  currentStage: RecruitStage;
+  rating: number;
+  daysInStage: number;
+  isReferral: boolean;
+  createdAt: string;
+}
+export interface RecruitStats {
+  openReqs: number;
+  activeCandidates: number;
+  interviewsThisWeek: number;
+  avgTimeToHire: number;
+}
+```
+
+2. **MSW handler** — `src/mocks/handlers/recruitment.ts`:
+   - `GET /recruitment/jobs` — 6 JobOpening objects across different stages/statuses.
+   - `GET /recruitment/candidates` — 16 Candidate objects spread across all stages.
+   - `GET /recruitment/stats` — RecruitStats object.
+   - `POST /recruitment/jobs` — 201 new job.
+   - `PATCH /recruitment/candidates/:id/stage` — 200 updated candidate.
+     Register in `src/mocks/handlers/index.ts`.
+
+3. **Services** — `src/modules/recruitment/services/recruitment.api.ts`: `getJobs()`, `getCandidates(params)`, `getStats()`, `createJob(body)`, `advanceCandidate(id, stage)`.
+
+4. **Hooks** — `src/modules/recruitment/hooks/useRecruitment.ts`: `useJobs()`, `useCandidates(params)`, `useRecruitStats()`.
+
+5. **CandidateCard** — `src/modules/recruitment/components/CandidateCard.tsx`:
+   - `bg-surface border border-subtle rounded-xl p-3 flex flex-col gap-2.5 cursor-pointer`.
+   - Hover: `border-default bg-surface-2`, transition 120ms.
+   - Top row: Avatar sm + name 500 13px + role 400 12px tertiary.
+   - Middle row: 5 Star icons (filled = warning-500, empty = border-strong, size 12px) + Clock 12px + days mono.
+   - Tag chip: `font: 500 11px var(--font-mono); background: var(--bg-surface-2); border-radius: var(--radius-sm); padding: 2px 6px`.
+   - "Referral" label: brand-500 500 11px if `isReferral`.
+
+6. **RecruitmentScreen** — `src/modules/recruitment/components/RecruitmentScreen.tsx`:
+   - `'use client'`
+   - PageHeader + 4 StatsCards.
+   - Tab strip: Pipeline / Openings / Candidates.
+   - **Pipeline**: `display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 12px; align-items: start`. Column header: stage dot (stage color) + label uppercase 600 12px + count mono. Body: `flex flex-col gap-2 p-2`. CandidateCards.
+   - **Openings**: DynamicTable — Role (title 500 + mono code tertiary), Dept, Location (MapPin 13px + text), Type, Applicants (mono right), Stage, Status Badge.
+   - **Candidates**: DynamicTable — Candidate (Avatar sm + name + Referral label if applicable), Applied for (role + mono code), Stage (ColorPill with stage color), Rating (stars), In stage (mono days), Actions.
+   - All 4 states on every tab.
+
+7. **Route** — `src/app/(dashboard)/recruitment/page.tsx`.
+
+**Files to create:** Full `src/modules/recruitment/`, `src/mocks/handlers/recruitment.ts`, `src/app/(dashboard)/recruitment/page.tsx`
+**Files to modify:** `src/mocks/handlers/index.ts`
+
+**Test Gate:** Standard + `pnpm dev` → `/recruitment` → all 3 tabs, loading/empty states.
+
+**Commit:** `feat(recruitment): module, MSW handlers, kanban board, openings + candidates tables`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 94 — Performance module
+
+**Goal:** New Performance module with MSW; active cycle banner with progress; Reviews, Goals, and Calibration tabs.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Performance). `CLAUDE.md §26` (rating scale). `docs/phase3api.md` Performance domain. `docs/ems-design-system/project/ui_kits/ems-app/PerformanceScreen.jsx`.
+
+**Build:**
+
+1. **Types** — `src/modules/performance/types/performance.types.ts`:
+
+```ts
+export type ReviewStatus = 'NOT_STARTED' | 'SELF_REVIEW' | 'MANAGER_REVIEW' | 'CALIBRATED';
+export type Rating = 'EXCEEDS' | 'STRONG' | 'MEETS' | 'DEVELOPING' | 'BELOW';
+export type GoalStatus = 'ON_TRACK' | 'AT_RISK' | 'DONE' | 'CANCELLED';
+export interface ReviewCycle {
+  id: string;
+  name: string;
+  status: 'DRAFT' | 'ACTIVE' | 'CLOSED';
+  selfReviewDue: string;
+  managerReviewDue: string;
+  calibrationDate: string;
+  progressPercent: number;
+}
+export interface Review {
+  id: string;
+  employee: { id: string; firstName: string; lastName: string; department: { name: string } };
+  reviewer: { firstName: string; lastName: string };
+  status: ReviewStatus;
+  rating: Rating | null;
+  selfSubmitted: boolean;
+  managerSubmitted: boolean;
+}
+export interface Goal {
+  id: string;
+  employee: { id: string; firstName: string; lastName: string };
+  title: string;
+  progressPercent: number;
+  dueDate: string;
+  status: GoalStatus;
+}
+```
+
+2. **MSW handler** — `src/mocks/handlers/performance.ts`:
+   - `GET /performance/cycles` — array with 1 active cycle.
+   - `GET /performance/cycles/active` — single active cycle.
+   - `GET /performance/cycles/:id/reviews` — 7 reviews.
+   - `GET /performance/goals` — 6 goals.
+     Register in `src/mocks/handlers/index.ts`.
+
+3. **Services + hooks** — standard pattern.
+
+4. **PerformanceScreen** — `src/modules/performance/components/PerformanceScreen.tsx`:
+   - Active cycle banner: `bg-surface border border-subtle rounded-xl` flex row. Brand Star chip (36px, color-mix 14%). Cycle name 600 14px. Due dates in mono. ProgressBar (inline, 120px). Badge "In progress" warning.
+   - 4 StatsCards.
+   - Tab strip: Reviews / Goals / Calibration.
+   - **Reviews**: DynamicTable — Employee (Avatar + name + dept), Reviewer, Self (Check or —), Manager (Check or —), Status (colored dot + label), Rating (colored label or —), Actions btn-xs.
+   - **Goals**: DynamicTable — Owner, Goal text, Progress (ProgressBar + % mono), Due mono, Status Badge.
+   - **Calibration**: 2-col. Left: distribution rows (label + dot + count · pct + horizontal bar). Right: calibration notes (3 notes, each left 4px color bar + title 500 + description 400, + "Open calibration sheet" outline btn full-width).
+
+5. **ProgressBar** inline component (or reusable in `src/components/data-display/`): `height: 6px; background: var(--bg-surface-2); border-radius: 9999px; overflow: hidden`. Fill: `height: 100%; width: {value}%; background: {color}; border-radius: 9999px`.
+
+6. **Route** — `src/app/(dashboard)/performance/page.tsx`.
+
+**Files to create:** Full `src/modules/performance/`, `src/mocks/handlers/performance.ts`, `src/app/(dashboard)/performance/page.tsx`
+**Files to modify:** `src/mocks/handlers/index.ts`
+
+**Test Gate:** Standard + `pnpm dev` → `/performance` → all 3 tabs.
+
+**Commit:** `feat(performance): module, MSW, cycle banner, reviews + goals + calibration`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 95 — Assets module
+
+**Goal:** New Assets module with MSW; Inventory with type glyphs; Assigned table; Requests with approve/decline.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Assets). `CLAUDE.md §26` (type glyph icons). `docs/phase3api.md` Assets domain. `docs/ems-design-system/project/ui_kits/ems-app/AssetsScreen.jsx`.
+
+**Build:**
+
+1. **Types** — `src/modules/assets/types/assets.types.ts`:
+
+```ts
+export type AssetStatus = 'ASSIGNED' | 'AVAILABLE' | 'REPAIR' | 'RETIRED';
+export type AssetType = 'LAPTOP' | 'MONITOR' | 'PHONE' | 'OTHER';
+export type RequestStatus = 'PENDING' | 'APPROVED' | 'FULFILLED' | 'DECLINED';
+export interface Asset {
+  id: string;
+  assetTag: string;
+  name: string;
+  assetType: AssetType;
+  status: AssetStatus;
+  assignedTo: { id: string; firstName: string; lastName: string } | null;
+  assignedSince: string | null;
+}
+export interface AssetRequest {
+  id: string;
+  requestedBy: { id: string; firstName: string; lastName: string };
+  item: string;
+  reason: string;
+  requestDate: string;
+  status: RequestStatus;
+}
+```
+
+2. **MSW handler** — `src/mocks/handlers/assets.ts`:
+   - `GET /assets` — 8 assets.
+   - `GET /assets/assigned` — assigned subset.
+   - `GET /assets/requests` — 4 requests.
+   - `PATCH /assets/requests/:id/approve` — 200.
+   - `PATCH /assets/requests/:id/decline` — 200.
+     Register in `src/mocks/handlers/index.ts`.
+
+3. **Services + hooks** — standard.
+
+4. **AssetGlyph** — `src/modules/assets/components/AssetGlyph.tsx`:
+
+```tsx
+// 30×30, bg-surface-2 rounded-md, text-secondary, grid place-items-center
+// LAPTOP→<Laptop size={16}/>, MONITOR→<Monitor size={16}/>, PHONE→<Smartphone size={16}/>, OTHER→<Box size={16}/>
+```
+
+5. **AssetsScreen** — `src/modules/assets/components/AssetsScreen.tsx`:
+   - `'use client'`
+   - 4 StatsCards (Total / Assigned / Available / In repair).
+   - Tab strip: Inventory / Assigned / Requests.
+   - **Inventory**: DynamicTable — Asset (AssetGlyph + name 500), Tag (mono tertiary), Type, Status (Badge dot), Assigned to (Avatar sm + name or —), Since, Actions.
+   - **Assigned**: DynamicTable — Employee (Avatar + name), Asset (AssetGlyph + name), Tag (mono), Since, Actions (Recall outline xs).
+   - **Requests**: DynamicTable — Requested by (Avatar + name), Item, Reason (secondary), Date (mono), Status (Badge), Actions (Approve primary + Decline outline xs when PENDING; View ghost otherwise).
+   - All states.
+
+6. **Route** — `src/app/(dashboard)/assets/page.tsx`.
+
+**Files to create:** Full `src/modules/assets/`, `src/mocks/handlers/assets.ts`, `src/app/(dashboard)/assets/page.tsx`
+**Files to modify:** `src/mocks/handlers/index.ts`
+
+**Test Gate:** Standard + `pnpm dev` → `/assets` → all 3 tabs.
+
+**Commit:** `feat(assets): module, MSW, inventory + assigned + requests tables, AssetGlyph`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 96 — Announcements module
+
+**Goal:** New Announcements module with MSW; feed column with pinned + chronological cards; channels + upcoming events sidebar.
+
+**Read first:** `docs/EMS_UI_KIT.md §4` (Announcements). `CLAUDE.md §26` (card design, category colors). `docs/phase3api.md` Announcements domain. `docs/ems-design-system/project/ui_kits/ems-app/AnnouncementsScreen.jsx`.
+
+**Build:**
+
+1. **Types** — `src/modules/announcements/types/announcements.types.ts`:
+
+```ts
+export type AnnCategory = 'COMPANY' | 'PEOPLE' | 'PRODUCT' | 'IT' | 'OFFICE';
+export interface Announcement {
+  id: string;
+  category: AnnCategory;
+  title: string;
+  body: string;
+  authorName: string;
+  authorRole: string | null;
+  publishedAt: string;
+  readCount: number;
+  audience: string;
+  isPinned: boolean;
+}
+export interface Channel {
+  id: string;
+  name: string;
+  category: AnnCategory;
+  postCount: number;
+}
+export interface UpcomingEvent {
+  id: string;
+  title: string;
+  date: string;
+  meta: string;
+}
+```
+
+2. **Category color constants** — `src/modules/announcements/constants/index.ts`:
+
+```ts
+export const ANN_CATEGORY_COLOR: Record<AnnCategory, string> = {
+  COMPANY: 'var(--brand-500)',
+  PEOPLE: 'var(--dept-people)',
+  PRODUCT: 'var(--dept-product)',
+  IT: 'var(--dept-engineering)',
+  OFFICE: 'var(--dept-operations)',
+};
+```
+
+3. **MSW handler** — `src/mocks/handlers/announcements.ts`:
+   - `GET /announcements` — 5 announcements (1 pinned + 4 feed), paginated.
+   - `GET /announcements/channels` — 5 channels.
+   - `GET /announcements/upcoming-events` — 3 events.
+   - `POST /announcements` — 201 new.
+     Register in `src/mocks/handlers/index.ts`.
+
+4. **Services + hooks** — standard.
+
+5. **AnnouncementCard** — `src/modules/announcements/components/AnnouncementCard.tsx`:
+   - `<article>` with `border-l-[3px]` in category color. `bg-surface border border-subtle rounded-xl`.
+   - Top row: category chip (uppercase 11px + dot) + optional "Pinned" with `<Pin size={12} />` + timestamp.
+   - Title: 18px/600 (pinned) or 15px/600 (regular).
+   - Body: `text-secondary text-body-sm max-w-[68ch]`.
+   - Footer: Avatar sm + author name + role (if pinned) + `flex: 1` spacer + audience (Users 13px) + read count (Check 13px).
+
+6. **AnnouncementsScreen** — `src/modules/announcements/components/AnnouncementsScreen.tsx`:
+   - `'use client'`
+   - `display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 16px; align-items: start`.
+   - **Feed column**: Composer bar (Avatar sm + fake input `bg-surface-2 border border-subtle rounded-md` + Post btn-sm). Pinned card. Feed cards.
+   - **Sidebar**: Channels card (`bg-surface border border-subtle rounded-xl`). Section header + channel list (dot + name flex-1 + count mono). First channel highlighted `bg-surface-2`. Hover others `bg-surface-2`. Upcoming events card: date block (day 700 16px + month uppercase 10px) + `border-l border-subtle pl-3` + title 500 13px + meta 400 12px tertiary.
+
+7. **Route** — `src/app/(dashboard)/announcements/page.tsx`. No role restriction.
+
+**Files to create:** Full `src/modules/announcements/`, `src/mocks/handlers/announcements.ts`, `src/app/(dashboard)/announcements/page.tsx`
+**Files to modify:** `src/mocks/handlers/index.ts`
+
+**Test Gate:** Standard + `pnpm dev` → `/announcements`.
+
+**Commit:** `feat(announcements): module, MSW, feed + AnnouncementCard + channels + events sidebar`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 97 — AppShell NAV_ITEMS update
+
+**Goal:** Add Recruitment, Performance, Assets, Announcements to sidebar. Confirm all Phase 2 items are in the correct order.
+
+**Read first:** `CLAUDE.md §25` (new top-level routes). `CLAUDE.md §23` (original Phase 2 nav).
+
+**Build** (`src/shared/layouts/AppShell.tsx`):
+
+Update NAV_ITEMS to exactly:
+
+```
+Dashboard, Employees, Departments, Attendance, Leave, Holidays, Permissions, Settings
+[divider: Phase 2]
+Payroll, Recruitment, Performance, Assets, Reports, Announcements
+```
+
+Import from `lucide-react`: `Target` (Performance), `Box` (Assets), `Megaphone` (Announcements). `UserPlus` (Recruitment) and `BarChart2` (Reports) should already be imported.
+
+**Files to modify:** `src/shared/layouts/AppShell.tsx`
+
+**Test Gate:** Standard + `pnpm dev` → verify all 14 nav items render and all routes navigate correctly.
+
+**Commit:** `feat(shell): add Recruitment/Performance/Assets/Announcements to sidebar NAV_ITEMS`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 98 — Dark mode audit
+
+**Goal:** Walk all screens in dark mode; fix any hardcoded colors, bg-white, text-black, or border-gray-\* that aren't token-driven.
+
+**Read first:** `CLAUDE.md §25` (cosmetic rules). `CLAUDE.md §12`.
+
+**Build:**
+
+Toggle dark mode. Walk every screen. Fix:
+
+- `bg-white` → `bg-surface` or token equivalent.
+- `text-black`, `text-gray-900` → `text-primary`.
+- `border-gray-*` → `border-subtle` or `border-default`.
+- Any `hsl(...)` or `#hex` in JSX `style={{}}` that should be a CSS var.
+- Any `hsla(...)` that should use a CSS var with alpha.
+- Exception: `color-mix(in oklab, var(--token) ...)` is always fine.
+- Recharts: ensure chart colors are readable in dark mode (use hardcoded hsl strings from dark-mode tokens where CSS vars can't be passed directly).
+- Verify frosted glass on topbar + PageHeader still visible in dark mode.
+
+**Files to modify:** Any file with hardcoded colors found during audit.
+
+**Test Gate:** Standard + `pnpm dev` → toggle dark → walk all 19 screens.
+
+**Commit:** `style(dark-mode): audit and fix hardcoded colors across all Phase 3 changes`
+
+**STOP.** Wait for "next".
+
+---
+
+## STEP 99 — Final verification
+
+**Goal:** Zero typecheck errors, zero lint errors, visual walk-through all 19 screens in both modes, mark Phase 3 complete.
+
+**Read first:** `CLAUDE.md §15` (Definition of done per screen).
+
+**Build:**
+
+1. `pnpm typecheck` — fix all errors.
+2. `pnpm lint` — fix all errors.
+3. `pnpm dev` — walk through every screen, both light and dark mode, at 1280px and 768px widths, checking each against the UI kit prototype.
+4. Mark all Steps 73–98 as `[x]` in the Phase 3 progress tracker above.
+
+Screen order: Login → HR Dashboard → Manager Dashboard → Employee Dashboard → Employees List → Employee Profile → Employee Create → Departments → Attendance → Leave → Holidays → Permissions → Settings (4 panes) → Payroll → Reports → Analytics → Recruitment → Performance → Assets → Announcements.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `chore: Phase 3 complete — cosmetic alignment and new screens verified`
+
+**STOP.** Phase 3 complete. Wait for further instructions.

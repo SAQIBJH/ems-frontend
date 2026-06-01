@@ -1,0 +1,520 @@
+/* ─────────────────────────────────────────────────────────────────────────
+ * EMS UI kit — component styles
+ * Built on tokens.css. No hex values in this file; everything references vars.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ── Button ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: 500 14px/20px var(--font-sans);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0 16px;
+  height: 36px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 120ms,
+    border-color 120ms,
+    color 120ms,
+    transform 60ms;
+}
+.btn:active:not([disabled]) {
+  transform: translateY(1px);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--focus-ring);
+}
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.btn-default {
+  background: var(--brand-500);
+  color: var(--text-on-primary);
+}
+.btn-default:hover {
+  background: var(--brand-600);
+}
+.btn-outline {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.btn-outline:hover {
+  background: var(--bg-surface-2);
+}
+.btn-secondary {
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+}
+.btn-secondary:hover {
+  background: hsl(220 14% 92%);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+}
+.btn-ghost:hover {
+  background: var(--bg-surface-2);
+}
+.btn-destructive {
+  background: hsla(0, 75%, 50%, 0.1);
+  color: var(--danger-500);
+}
+.btn-destructive:hover {
+  background: hsla(0, 75%, 50%, 0.18);
+}
+.btn-link {
+  color: var(--brand-500);
+  background: transparent;
+  padding: 0;
+  height: auto;
+}
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.btn-xs {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  gap: 6px;
+  border-radius: 6px;
+}
+.btn-xs svg {
+  width: 12px;
+  height: 12px;
+}
+.btn-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  gap: 8px;
+  border-radius: 8px;
+}
+.btn-lg {
+  height: 40px;
+  padding: 0 20px;
+}
+
+.btn-icon {
+  width: 36px;
+  padding: 0;
+}
+.btn-icon-sm {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+.btn-icon-xs {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.btn-icon svg,
+.btn-icon-sm svg,
+.btn-icon-xs svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Badge ─────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font: 500 12px/16px var(--font-sans);
+  white-space: nowrap;
+}
+.badge-default {
+  background: var(--brand-500);
+  color: var(--text-on-primary);
+}
+.badge-secondary {
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+}
+.badge-outline {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.badge-success {
+  background: hsla(152, 60%, 40%, 0.12);
+  color: var(--success-500);
+}
+.badge-warning {
+  background: hsla(38, 92%, 50%, 0.16);
+  color: hsl(38 80% 38%);
+}
+.badge-danger {
+  background: hsla(0, 75%, 50%, 0.12);
+  color: var(--danger-500);
+}
+.badge-info {
+  background: hsla(210, 90%, 50%, 0.12);
+  color: var(--info-500);
+}
+.badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+/* ── Input / select ────────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+.help {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+
+.input,
+.select-trigger {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+.input:focus,
+.select-trigger:focus {
+  border-color: var(--focus-ring);
+  box-shadow: var(--shadow-focus);
+}
+.input::placeholder {
+  color: var(--text-disabled);
+}
+.input[disabled] {
+  background: var(--bg-surface-2);
+  cursor: not-allowed;
+}
+.input.error {
+  border-color: var(--danger-500);
+  box-shadow: 0 0 0 3px hsla(0, 75%, 50%, 0.2);
+}
+
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.select-trigger svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+}
+
+/* ── Checkbox / switch ─────────────────────────────────────────────────── */
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.checkbox.checked {
+  background: var(--brand-500);
+  border-color: var(--brand-500);
+}
+.checkbox.checked::after {
+  content: '';
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.switch {
+  width: 32px;
+  height: 18px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: 9999px;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.switch.on {
+  background: var(--brand-500);
+  border-color: var(--brand-500);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 9999px;
+  box-shadow: var(--shadow-xs);
+  transition: left 120ms;
+}
+.switch.on::after {
+  left: 15px;
+}
+
+/* ── Avatar ────────────────────────────────────────────────────────────── */
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  display: inline-grid;
+  place-items: center;
+  font: 600 11px/14px var(--font-sans);
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+.avatar-lg {
+  width: 40px;
+  height: 40px;
+  font-size: 13px;
+}
+.avatar-xl {
+  width: 56px;
+  height: 56px;
+  font-size: 18px;
+}
+.avatar-brand {
+  background: var(--brand-500);
+  color: var(--text-on-primary);
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+.card-padded {
+  padding: 20px;
+}
+.card-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.card-title {
+  font: 500 14px/20px var(--font-sans);
+  color: var(--text-primary);
+}
+.card-body {
+  padding: 20px;
+}
+.card-body.tight {
+  padding: 12px 20px;
+}
+
+/* ── Skeleton ──────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-2) 0%,
+    hsl(220 14% 93%) 50%,
+    var(--bg-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+  border-radius: 6px;
+}
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Table ─────────────────────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: 400 13px/18px var(--font-sans);
+}
+.table th {
+  text-align: left;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  background: var(--bg-surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+.table th:first-child {
+  padding-left: 20px;
+  border-top-left-radius: 12px;
+}
+.table th:last-child {
+  padding-right: 20px;
+  border-top-right-radius: 12px;
+}
+.table td {
+  padding: 12px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.table td:first-child {
+  padding-left: 20px;
+}
+.table td:last-child {
+  padding-right: 20px;
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+.table tr:hover td {
+  background: var(--bg-surface-2);
+}
+.table tr {
+  cursor: default;
+}
+.table .mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.table .num {
+  font-variant-numeric: tabular-nums;
+}
+
+.table-wrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Tooltip / dropdown surfaces ───────────────────────────────────────── */
+.menu {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  min-width: 200px;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.menu-item:hover {
+  background: var(--bg-surface-2);
+}
+.menu-sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}
+
+/* ── Misc ──────────────────────────────────────────────────────────────── */
+.divider-y > * + * {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 500 11px/14px var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ── Frosted-glass overlays (sparingly used) ───────────────────────────── */
+.glass {
+  background: hsla(0, 0%, 100%, 0.72);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid hsl(220 13% 91% / 0.6);
+}
+[data-theme='dark'] .glass {
+  background: hsla(222, 18%, 11%, 0.72);
+  border-color: hsl(222 14% 18% / 0.6);
+}

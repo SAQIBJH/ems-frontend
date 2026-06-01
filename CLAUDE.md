@@ -976,3 +976,189 @@ invoice download link opens a server-provided URL in a new tab.
 Upgrade/manage-seats/contact-sales actions show an info toast:
 `"Contact your account manager to change your plan."` — no actual billing
 integration is wired up. These screens are information dashboards only.
+
+---
+
+## 25. Phase 3 — Cosmetic UI Alignment + New Screens
+
+> Read this section before working on Steps 73–99.
+
+### Purpose
+
+Steps 73–99 align the running application to the pixel-level design system
+documented in `docs/EMS_UI_KIT.md`. That file is the **authoritative visual
+spec** for Phase 3. Read the relevant section of `EMS_UI_KIT.md` at the start
+of every Phase 3 step — it supersedes generic taste calls and the older
+`docs/DESIGN_SYSTEM.md` wherever they conflict.
+
+### Visual spec source of truth
+
+```
+docs/EMS_UI_KIT.md          ← primary reference for all Phase 3 work
+docs/ems-design-system/     ← click-through HTML prototype (open index.html in browser)
+```
+
+Open `docs/ems-design-system/project/ui_kits/ems-app/index.html` in a browser
+before implementing any screen. The running prototype is the ground truth for
+spacing, colour, and interaction behaviour.
+
+### Charts — Recharts styled to design tokens
+
+Phase 3 keeps Recharts for all data charts. Style them to match the design
+system tokens — do **not** replace with CSS placeholders:
+
+- Bar fills: `var(--brand-500)` (primary series), then `--chart-2` through `--chart-8` for multi-series.
+- No grid lines on bar charts. Y-axis ticks only; x-axis labels only.
+- Custom `<Tooltip>` with `bg-surface border-subtle shadow-md` card style, `text-body-sm` font.
+- Axis labels: `font-sans text-xs text-tertiary`.
+- DonutChart: Recharts `PieChart` + `Pie` with `innerRadius` 60%, dept/leave-type colors from token vars.
+- Remove all default Recharts borders and cartesian grid from dashboard widgets.
+
+### New top-level routes (Steps 93–96)
+
+Add these routes to `AppShell.tsx` NAV_ITEMS in **Step 97** (not before):
+
+```ts
+// Phase 2 section — insert between Holidays and Permissions
+{ key: 'payroll',       label: 'Payroll',       icon: DollarSign  }
+{ key: 'recruitment',   label: 'Recruitment',   icon: UserPlus    }
+{ key: 'performance',   label: 'Performance',   icon: Target      }
+{ key: 'assets',        label: 'Assets',        icon: Box         }
+{ key: 'reports',       label: 'Reports',       icon: BarChart2   }
+{ key: 'announcements', label: 'Announcements', icon: Megaphone   }
+```
+
+Do **not** add these items until Step 97 — the routes must exist first.
+
+### New module anatomy (Steps 93–96)
+
+Each new module follows the standard layout from §6:
+
+```
+src/modules/recruitment/
+  components/   hooks/   services/   types/   constants/   index.ts
+
+src/modules/performance/
+  components/   hooks/   services/   types/   constants/   index.ts
+
+src/modules/assets/
+  components/   hooks/   services/   types/   constants/   index.ts
+
+src/modules/announcements/
+  components/   hooks/   services/   types/   constants/   index.ts
+```
+
+### MSW handlers for new modules
+
+| Module        | Handler file                          |
+| ------------- | ------------------------------------- |
+| Recruitment   | `src/mocks/handlers/recruitment.ts`   |
+| Performance   | `src/mocks/handlers/performance.ts`   |
+| Assets        | `src/mocks/handlers/assets.ts`        |
+| Announcements | `src/mocks/handlers/announcements.ts` |
+
+All four must be registered in `src/mocks/handlers/index.ts`.
+All MSW shapes must match `docs/phase3api.md` exactly.
+
+### Cosmetic rules for Phase 3
+
+1. **No raw hex values** in any JSX or CSS. Use CSS vars from `tokens.css`.
+2. **`color-mix(in oklab, {var} 14%, transparent)`** for soft tint backgrounds
+   on chips, role cards, dept badges. This is the universal tint formula.
+3. **`font-variant-numeric: tabular-nums`** on all numeric cells in tables
+   and all clock/financial displays.
+4. **JetBrains Mono** for: employee codes, leave reference numbers, attendance
+   reference numbers, payslip IDs, audit timestamps, financial values in payroll
+   tables, the check-in clock display.
+5. **Status dots** (6px, `border-radius: 9999px`, `background: currentColor`) on
+   every Badge that represents a live/pending/rejected entity status.
+6. **`backdrop-filter: blur(8px)`** on: AppShell topbar, PageHeader, any
+   sticky surface that scrolls over content.
+7. **Transition all colour/bg changes at `120ms`** and layout changes at `180ms`.
+   Use the `--ease-out` and `--ease-in-out` motion tokens.
+8. **Avoid `transition-all`** — be explicit: `transition: background-color 120ms, border-color 120ms, color 120ms`.
+
+---
+
+## 26. Phase 3 — New Screen Inventory
+
+> These four screens exist in the click-through prototype but are not yet in
+> the running app. Steps 93–96 build them with MSW data.
+
+| Step | Route            | Screen        | Tabs                             | Role access           |
+| ---- | ---------------- | ------------- | -------------------------------- | --------------------- |
+| 93   | `/recruitment`   | Recruitment   | Pipeline / Openings / Candidates | HR_ADMIN, SUPER_ADMIN |
+| 94   | `/performance`   | Performance   | Reviews / Goals / Calibration    | HR_ADMIN, SUPER_ADMIN |
+| 95   | `/assets`        | Assets        | Inventory / Assigned / Requests  | HR_ADMIN, SUPER_ADMIN |
+| 96   | `/announcements` | Announcements | Feed + Channels sidebar          | All roles             |
+
+### Shared design pattern for new screens
+
+All four screens follow the same structure:
+
+```tsx
+<PageHeader
+  title="Screen Name"
+  description="One sentence."
+  breadcrumbs={[{ label: 'Screen Name' }]}
+  actions={<PrimaryActionButton />}
+/>
+<div className="p-6 flex flex-col gap-6">
+  {/* 4× StatsCards grid */}
+  {/* Tab strip */}
+  {/* Tab content */}
+</div>
+```
+
+- 4 StatsCards above the tab strip (matches UI kit layout exactly).
+- Each tab uses `DynamicTable` where the content is tabular; custom layout
+  where it isn't (kanban board, calibration distribution, announcements feed).
+- Loading state: Skeleton rows matching the table/card shape.
+- Empty state: domain-appropriate illustration + description + primary CTA.
+- Error state: `ErrorState` with retry.
+
+### Recruitment — kanban specifics
+
+The pipeline board is **not** `DynamicTable`. It is a custom CSS Grid:
+
+```css
+display: grid;
+grid-template-columns: repeat(5, minmax(200px, 1fr));
+gap: 12px;
+align-items: start;
+```
+
+Each column header shows: stage dot (stage color) + stage name uppercase + count (mono).
+Each candidate card shows: Avatar sm + name + role + star rating (5 × Star icons,
+filled = warning-500, empty = border-strong) + days-in-stage + req tag pill.
+
+### Performance — rating scale
+
+| Rating     | Color                |
+| ---------- | -------------------- |
+| Exceeds    | `--success-500`      |
+| Strong     | `--dept-engineering` |
+| Meets      | `--info-500`         |
+| Developing | `--warning-500`      |
+| Below      | `--danger-500`       |
+
+### Assets — type glyph icons
+
+| Type    | Lucide icon  |
+| ------- | ------------ |
+| Laptop  | `Laptop`     |
+| Monitor | `Monitor`    |
+| Phone   | `Smartphone` |
+| Other   | `Box`        |
+
+Render each glyph in a 30×30 `bg-surface-2 rounded-md` chip with `text-secondary`.
+
+### Announcements — card design
+
+Each announcement card has:
+
+- `border-left: 3px solid {category color}` (the only decoration — no card shadow).
+- Category chip: uppercase 11px tracking-wide with color dot.
+- "Pinned" label (Pin icon + text) when `pinned: true`.
+- Author row: Avatar sm + name + role (if pinned), audience count, read count.
+- Body text: max-width `68ch`, `text-pretty`.

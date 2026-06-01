@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Type scale</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); }
+  * { box-sizing: border-box; }
+  .text-display{font:600 32px/40px var(--font-sans);letter-spacing:-0.02em;}
+.text-h1{font:600 24px/32px var(--font-sans);letter-spacing:-0.015em;}
+.text-h2{font:600 20px/28px var(--font-sans);letter-spacing:-0.01em;}
+.text-h3{font:600 16px/24px var(--font-sans);}
+.text-body{font:400 14px/20px var(--font-sans);}
+.text-body-sm{font:400 13px/18px var(--font-sans);}
+.text-caption{font:500 12px/16px var(--font-sans);}
+.text-overline{font:600 11px/14px var(--font-sans);}
+</style>
+</head>
+<body>
+
+<div style="border:1px solid var(--border-subtle);border-radius:12px;background:var(--bg-surface);padding:20px;display:flex;flex-direction:column;gap:14px;">
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">display</div>
+      <div class="text-display" style="color:var(--text-primary);">Display heading</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">32 / 40 · 600</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">h1</div>
+      <div class="text-h1" style="color:var(--text-primary);">Page title</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">24 / 32 · 600</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">h2</div>
+      <div class="text-h2" style="color:var(--text-primary);">Section title</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">20 / 28 · 600</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">h3</div>
+      <div class="text-h3" style="color:var(--text-primary);">Card title</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">16 / 24 · 600</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">body</div>
+      <div class="text-body" style="color:var(--text-primary);">Default body copy</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">14 / 20 · 400</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">body-sm</div>
+      <div class="text-body-sm" style="color:var(--text-primary);">Table cell · dense form</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">13 / 18 · 400</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">caption</div>
+      <div class="text-caption" style="color:var(--text-primary);">Label · helper text</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">12 / 16 · 500</div>
+    </div>
+  
+    <div style="display:grid;grid-template-columns:80px 1fr 140px;align-items:baseline;gap:18px;">
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);">overline</div>
+      <div class="text-overline" style="color:var(--text-primary);letter-spacing:0.05em;text-transform:uppercase;">OVERLINE</div>
+      <div style="font:500 11px/14px var(--font-mono);color:var(--text-tertiary);text-align:right;">11 / 14 · 600</div>
+    </div>
+  
+</div>
+
+</body>
+</html>

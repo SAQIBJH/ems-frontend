@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Department colors</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); margin: 0; }
+  * { box-sizing: border-box; }
+  
+</style>
+</head>
+<body>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-engineering);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Engineering</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-engineering</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-engineering) 12%, transparent);color:var(--dept-engineering);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-operations);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Operations</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-operations</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-operations) 12%, transparent);color:var(--dept-operations);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-sales);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Sales</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-sales</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-sales) 12%, transparent);color:var(--dept-sales);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-product);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Product</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-product</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-product) 12%, transparent);color:var(--dept-product);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-finance);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Finance</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-finance</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-finance) 12%, transparent);color:var(--dept-finance);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-people);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">People Ops</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-people</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-people) 12%, transparent);color:var(--dept-people);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-legal);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Legal</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-legal</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-legal) 12%, transparent);color:var(--dept-legal);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-marketing);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">Marketing</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-marketing</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-marketing) 12%, transparent);color:var(--dept-marketing);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-surface);">
+      <span style="width:14px;height:14px;border-radius:4px;background:var(--dept-it);flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font:500 13px/18px var(--font-sans);color:var(--text-primary);">IT</div>
+        <div style="font:500 10px/13px var(--font-mono);color:var(--text-tertiary);margin-top:1px;">--dept-it</div>
+      </div>
+      <span class="dept-badge" style="background:color-mix(in oklab, var(--dept-it) 12%, transparent);color:var(--dept-it);font:500 11px/14px var(--font-sans);padding:2px 8px;border-radius:9999px;">badge</span>
+    </div>
+  
+</div>
+<div style="margin-top:14px;font:400 12px/16px var(--font-sans);color:var(--text-tertiary);font-style:italic;">Each department keeps its color across badges, donut slices, org tree, and charts.</div>
+</body>
+</html>

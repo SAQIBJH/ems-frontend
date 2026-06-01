@@ -1,6 +1,6 @@
 # EMS API — Actual Response Mapping
 
-> **Last verified: 2026-05-24**
+> **Last verified: 2026-05-27** (bulk approve live-tested + null balance fix deployed)
 > Base URL: `https://employee-management-system-2b9q.onrender.com/api/v1`
 > Local: `http://localhost:3000/api/v1`
 > Email: Resend HTTP API (port 443, not SMTP — OTP delivery live and tested)
@@ -98,7 +98,7 @@ After login, two httpOnly cookies are set automatically:
 | ----------------------------------------- | ------ |
 | Success GET/PATCH/DELETE                  | 200    |
 | Success POST (create)                     | 201    |
-| Validation error (missing/invalid fields) | 422    |
+| Validation error (missing/invalid fields) | 400    |
 | Conflict (duplicate, cycle, not-empty)    | 409    |
 | Not found                                 | 404    |
 | Auth/token missing or invalid             | 401    |
@@ -1102,6 +1102,108 @@ Each activity item has:
 
 ---
 
+### `GET /analytics/workforce-trend`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN. Query: `?range=6m|12m|2y` (default `6m`).
+
+Returns month-by-month headcount, hires, exits, and net change.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "month": "2025-12",
+      "monthLabel": "Dec 2025",
+      "headcount": 70,
+      "hires": 0,
+      "exits": 0,
+      "netChange": 0
+    }
+  ],
+  "meta": { "generatedAt": "2026-05-28T..." }
+}
+```
+
+---
+
+### `GET /analytics/attrition`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN. Query: `?range=6m|12m|2y` (default `6m`).
+
+Returns attrition rate trend over time.
+
+```json
+{
+  "success": true,
+  "data": {
+    "currentMonthRate": 0,
+    "rollingAnnualRate": 0,
+    "trend": [{ "month": "2025-12", "monthLabel": "Dec 2025", "rate": 0, "exits": 0 }]
+  },
+  "meta": { "generatedAt": "..." }
+}
+```
+
+---
+
+### `GET /analytics/payroll-cost`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN. Query: `?range=6m|12m` (default `6m`).
+
+Returns monthly payroll cost trend (estimated from headcount — no payroll module yet).
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "month": "2025-12",
+      "monthLabel": "Dec 2025",
+      "totalNet": 4928000,
+      "totalGross": 5600000,
+      "employeeCount": 70,
+      "avgNetPerEmployee": 70400
+    }
+  ],
+  "meta": { "generatedAt": "..." }
+}
+```
+
+---
+
+### `GET /analytics/department-performance`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN see all departments. MANAGER sees only their own department. EMPLOYEE: 403.
+Query: `?range=30d|90d` (default `30d`).
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "departmentId": "...",
+      "departmentName": "Engineering",
+      "headcount": 12,
+      "attendanceRate": 80.7,
+      "leaveRate": 0,
+      "pendingApprovals": 35,
+      "avgTenureMonths": 68.4
+    }
+  ],
+  "meta": { "generatedAt": "..." }
+}
+```
+
+| Field              | Type   | Description                                          |
+| ------------------ | ------ | ---------------------------------------------------- |
+| `attendanceRate`   | number | % of present/WFH days in range                       |
+| `leaveRate`        | number | % of working days on approved leave                  |
+| `pendingApprovals` | number | Tenant-wide pending leave + regularization requests  |
+| `avgTenureMonths`  | number | Average months since `joinedOn` for active employees |
+
+---
+
 ## Settings
 
 ### `GET /settings/tenant`
@@ -1156,9 +1258,7 @@ Each activity item has:
 
 ### `PATCH /settings/email-templates/:type`
 
-**Body:** `{ "subject": "...", "body": "...", "fromAddressOverride": "sender@co.com" | null }`
-
-> **Note:** `fromAddressOverride` is a planned frontend-driven extension. The live backend currently ignores this field; it will be stored once the backend ships support. The frontend type has `fromAddressOverride?: string | null` and the edit dialog already sends the value.
+**Body:** `{ "subject": "...", "body": "..." }`
 
 ---
 
@@ -1342,6 +1442,116 @@ Payroll summary data.
 
 ---
 
+### Phase 2 Report Endpoints (Domain 4)
+
+All Phase 2 report endpoints require **HR_ADMIN or SUPER_ADMIN**. All responses follow the shape:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meta": { "reportName": "...", "generatedAt": "...", "filters": {} },
+    "summary": {},
+    "chartData": [],
+    "tableData": { "items": [], "pagination": {} }
+  }
+}
+```
+
+#### `GET /reports/workforce/headcount`
+
+Query: `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&departmentId=`
+
+- `data.summary`: `currentHeadcount`, `changeFromStart`, `changePercent`, `netHires`, `netExits`
+- `data.chartData[]`: `month`, `monthLabel`, `headcount`, `hires`, `exits`
+- `data.tableData.items[]`: `departmentName`, `startHeadcount`, `endHeadcount`, `hires`, `exits`, `changePercent`
+
+#### `GET /reports/workforce/turnover`
+
+Query: `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&departmentId=`
+
+- `data.summary`: `totalExits`, `voluntaryExits`, `involuntaryExits`, `averageHeadcount`, `attritionRate`
+- `data.chartData[]`: `month`, `monthLabel`, `exits`, `attritionRate`
+- `data.tableData.items[]`: `employeeId`, `employeeCode`, `employeeName`, `departmentName`, `designation`, `exitDate`, `exitType`, `tenure`
+
+#### `GET /reports/workforce/demographics`
+
+Query: `?departmentId=`
+
+- `data.byEmploymentType[]`: `type`, `count`, `percent`
+- `data.byGender[]`: `gender`, `count`, `percent`
+- `data.byDepartment[]`: `departmentName`, `count`, `percent`
+
+#### `GET /reports/attendance/summary`
+
+Query: `?month=YYYY-MM&departmentId=&page=1&limit=20`
+
+- `data.summary`: `month`, `totalWorkingDays`, `avgAttendancePercent`, `totalPresent`, `totalAbsent`, `totalLeave`
+- `data.tableData.items[]`: `employeeId`, `employeeCode`, `employeeName`, `departmentName`, `presentDays`, `absentDays`, `leaveDays`, `wfhDays`, `halfDays`, `lateDays`, `attendancePercent`
+
+#### `GET /reports/attendance/absenteeism`
+
+Query: `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&departmentId=`
+
+- `data.chartData[]`: `month`, `monthLabel`, `absenteeismRate`, `absences`, `employees`
+- `data.tableData.items[]`: `employeeId`, `employeeName`, `absentDays`, `unauthorizedAbsences`, `leaveDays`, `absenteeismRate`
+
+#### `GET /reports/leave/utilization`
+
+Query: `?year=2026&departmentId=&leaveTypeId=`
+
+- `data.summary`: `year`, `totalAllocated`, `totalTaken`, `totalPending`, `utilizationRate`, `avgDaysPerEmployee`
+- `data.chartData[]`: `leaveTypeName`, `leaveTypeCode`, `allocated`, `taken`, `pending`, `utilizationRate`
+- `data.tableData.items[]`: `employeeId`, `employeeName`, per-leave-type fields (e.g. `annual_leaveAllocated`, `annual_leaveTaken`, `annual_leaveBalance`)
+
+#### `GET /reports/leave/pending`
+
+Query: `?departmentId=&leaveTypeId=&page=1&limit=20`
+
+- `data.tableData.items[]`: `id`, `referenceNo`, `employeeName`, `leaveTypeName`, `startDate`, `endDate`, `totalDays`, `reason`, `appliedAt`, `daysPending`
+
+#### `GET /reports/payroll/summary`
+
+Query: `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&departmentId=`
+
+- `data.summary`: `totalPayrollCost`, `avgMonthlyPayroll`, `totalEmployees`, `currency`, `monthsIncluded`
+- `data.chartData[]`: `month`, `monthLabel`, `totalGross`, `totalDeductions`, `totalNet`, `employeeCount`
+- `data.tableData.items[]`: `departmentName`, `employeeCount`, `totalGross`, `totalDeductions`, `totalNet`, `avgNetPerEmployee`
+
+> **Note:** Payroll cost is estimated from headcount (no payroll module yet). FULL_TIME: 80,000/month, PART_TIME/CONTRACT: 40,000/month, INTERNSHIP: 20,000/month gross.
+
+#### `GET /reports/payroll/ctc-analysis`
+
+Query: `?departmentId=`
+
+- `data.bands[]`: `label`, `count`, `percent` (4 bands: <₹5L, ₹5L–₹10L, ₹10L–₹20L, >₹20L)
+- `data.percentiles`: `p25`, `p50`, `p75`, `p90`
+
+#### `POST /reports/export`
+
+**Body:**
+
+```json
+{ "reportType": "workforce/headcount", "format": "CSV", "filters": {} }
+```
+
+Valid `reportType` values: `workforce/headcount`, `workforce/turnover`, `workforce/demographics`, `attendance/summary`, `attendance/absenteeism`, `leave/utilization`, `leave/pending`, `payroll/summary`, `payroll/ctc-analysis`
+
+Returns 202:
+
+```json
+{
+  "success": true,
+  "data": {
+    "jobId": "...",
+    "status": "PENDING",
+    "message": "Export queued. Use /export/:job_id/download once ready."
+  }
+}
+```
+
+---
+
 ## Audit Logs
 
 ### `GET /audit-logs`
@@ -1398,7 +1608,7 @@ Single audit log entry (direct object, not wrapped in `logs`).
 **Response `data`:**
 
 ```json
-{ "job_id": "uuid", "status": "PROCESSING", "estimated_completion_time": 2 }
+{ "job_id": "uuid", "status": "QUEUED", "estimated_completion_time": 2 }
 ```
 
 ### `POST /export/attendance`
@@ -1670,7 +1880,7 @@ Alias for `GET /leave/balance` — used by the employee dashboard widget. Same r
 
 ---
 
-### `POST /leave/requests/bulk-approve`
+### `POST /leave/requests/bulk-approve` (also: `POST /leave/requests/bulk/approve`)
 
 **Required roles:** MANAGER, HR_ADMIN
 
@@ -1684,21 +1894,27 @@ Alias for `GET /leave/balance` — used by the employee dashboard widget. Same r
 
 ```json
 {
-  "results": [
-    { "id": "id1", "status": "approved", "referenceNo": "LVR-0044" },
-    { "id": "id2", "status": "failed", "error": "Cannot approve leave with status APPROVED" }
-  ],
-  "processed": 2
+  "succeeded": ["id1"],
+  "failed": [
+    { "id": "id2", "code": "ERROR", "message": "Cannot approve leave with status APPROVED" }
+  ]
 }
 ```
 
-Each request is processed independently — some can succeed and some fail. Check `status` per item.
+- `succeeded` — flat array of string IDs successfully approved
+- `failed` — array of `{ id, code, message }` for each that failed
+- Each request is processed independently — partial success is normal
+- `code` is always `"ERROR"` in failed items (no per-item error codes)
+
+> **Fixed 2026-05-27:** No longer crashes with `"Cannot read properties of null (reading 'pending')"` when a leave request has no LeaveBalance record (common with seeded/imported data). Balance update is safely skipped; approve still succeeds.
 
 ---
 
-### `POST /leave/requests/bulk-deny`
+### `POST /leave/requests/bulk-deny` (also: `POST /leave/requests/bulk/reject`)
 
-Same shape as bulk-approve. `comment` is used as the rejection reason (required in spirit — defaults to "Bulk denied" if omitted).
+Same response shape as bulk-approve. `comment` optional — defaults to `"Bulk denied"` if omitted.
+
+> Same null-balance fix applied — deny no longer crashes on requests without a LeaveBalance row.
 
 ---
 
@@ -2018,16 +2234,40 @@ Reassigns all active employees to the target department, then soft-deletes the s
 
 ```json
 {
-  "succeeded": ["lr_a"],
-  "failed": [{ "id": "lr_b", "code": "LEAVE_ALREADY_DECIDED", "message": "Already decided." }]
+  "succeeded": ["lr_a", "lr_c"],
+  "failed": [
+    { "id": "lr_b", "code": "ERROR", "message": "Cannot approve leave with status APPROVED" }
+  ]
 }
 ```
 
+- `succeeded` — flat array of string IDs that were successfully approved
+- `failed[].code` — always `"ERROR"` (not a specific code per item)
+- `failed[].message` — human-readable reason
+
+**Common failure messages:**
+| Message | Cause |
+|---------|-------|
+| `Cannot approve leave with status APPROVED` | Already approved |
+| `Cannot approve leave with status DENIED` | Already rejected |
+| `Leave request not found` | ID doesn't exist or belongs to another tenant |
+
+> **Fixed 2026-05-27:** Requests approved/rejected/withdrawn where no LeaveBalance row exists (seeded data) no longer crash with `"Cannot read properties of null (reading 'pending')"`. Balance update is safely skipped when no balance record exists.
+
+**Also available at:** `POST /leave/requests/bulk-approve` (legacy kebab path — same handler).
+
 #### `POST /leave/requests/bulk/reject`
 
-Same shape as bulk/approve.
+Same response shape as bulk/approve. `comment` optional — defaults to `"Bulk denied"`.
 
-> **Note:** Legacy paths `POST /leave/requests/bulk-approve` and `POST /leave/requests/bulk-deny` remain active as aliases.
+**Common failure messages:**
+| Message | Cause |
+|---------|-------|
+| `Cannot reject leave with status DENIED` | Already rejected |
+| `Cannot reject leave with status APPROVED` | Already approved |
+| `Leave request not found` | ID not found |
+
+**Also available at:** `POST /leave/requests/bulk-deny` (legacy kebab path — same handler).
 
 ---
 
@@ -2259,10 +2499,409 @@ Added `todayAttendance` (camelCase field names) and `leaveBalanceSummary` (top-3
 
 ---
 
-## Not Yet Implemented (Deferred)
+## UI-Requested Endpoints — All Live ✅ (2026-05-28, fully tested end-to-end)
 
-| Feature                        | Status       | Notes                                                                                                               |
-| ------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `POST /auth/otp/initiate`      | ❌ Not built | MFA challenge initiation. Current flow: `POST /auth/verify-otp` still works for existing users with OTP challenges. |
-| `POST /holidays/import` (.ics) | ❌ Not built | Requires .ics parsing library — flagged as separate ticket.                                                         |
-| Full S3 presign flow           | ⚠️ Deviated  | Cloudinary doesn't support anonymous PUT presign. Our presign returns our multipart endpoint instead.               |
+> All 7 endpoints from `api_to_be_created.md` are implemented and tested.
+> MSW mock handlers can be removed.
+
+---
+
+### `POST /auth/otp/initiate` — Public ✅
+
+Send or resend OTP for an existing MFA challenge. Required when login returns `mfaRequired: true`.
+
+**Request body:**
+
+```json
+{ "challengeId": "c74f9dc8-55c2-47f7-a081-a73d01681886" }
+```
+
+**Success response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "challengeId": "c74f9dc8-...",
+    "deliveryMethod": "EMAIL",
+    "expiresAt": "2026-05-27T18:43:43.526Z",
+    "resendAvailableAt": "2026-05-27T18:35:05.325Z"
+  },
+  "meta": {}
+}
+```
+
+**Error responses:**
+
+| HTTP | Code                  | When                                          |
+| ---- | --------------------- | --------------------------------------------- |
+| 404  | `CHALLENGE_NOT_FOUND` | challengeId unknown or expired                |
+| 429  | `RESEND_TOO_SOON`     | Called within 60 seconds of last send         |
+| 429  | `MAX_RESENDS`         | More than 3 resend attempts on this challenge |
+
+**How OTP challenges are created:** Login with a user that has `mfaEnabled: true` — the login response returns `{ mfaRequired: true, challengeId }` instead of tokens. Currently no users have MFA enabled by default.
+
+---
+
+### `POST /holidays/import` — HR_ADMIN, SUPER_ADMIN ✅
+
+Upload `.ics` iCalendar file to bulk-import holidays. Two-step: upload → preview → commit.
+
+**Request:** `multipart/form-data`, field `file`, `.ics` / `text/calendar`, max 1 MB.
+
+**Success response (202):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "jobId": "imp_89eff8fa",
+    "previewUrl": "/api/v1/holidays/import/imp_89eff8fa/preview"
+  },
+  "meta": {}
+}
+```
+
+**Error responses:**
+
+| HTTP | Code                | When                                |
+| ---- | ------------------- | ----------------------------------- |
+| 403  | `FORBIDDEN`         | MANAGER or EMPLOYEE role            |
+| 422  | `INVALID_FILE_TYPE` | Not a `.ics` / `text/calendar` file |
+| 422  | `FILE_TOO_LARGE`    | File exceeds 1 MB                   |
+| 400  | `PARSE_ERROR`       | Malformed `.ics` content            |
+
+**Notes:** Job is held in memory with 15-min TTL. No DB writes until commit.
+
+---
+
+### `GET /holidays/import/:jobId/preview` — HR_ADMIN, SUPER_ADMIN ✅
+
+Preview candidates from an upload job before committing.
+
+**Success response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "candidates": [
+      {
+        "name": "Test Holiday A",
+        "date": "2027-03-01",
+        "isOptional": false,
+        "willOverwrite": false
+      },
+      { "name": "Test Holiday B", "date": "2027-04-01", "isOptional": true, "willOverwrite": false }
+    ],
+    "summary": { "new": 2, "overwrites": 0, "skipped": 0 }
+  },
+  "meta": {}
+}
+```
+
+- `willOverwrite: true` → a holiday already exists for that date in this tenant
+- `isOptional` → mapped from `TRANSP:TRANSPARENT` in the `.ics`
+
+**Error:** `404 JOB_NOT_FOUND`
+
+---
+
+### `POST /holidays/import/:jobId/commit` — HR_ADMIN, SUPER_ADMIN ✅
+
+Persist holidays from a previewed import job to the DB.
+
+**Request body:**
+
+```json
+{ "overwriteExisting": true }
+```
+
+- `overwriteExisting: true` → upsert holidays that already exist for the same date
+- `overwriteExisting: false` → skip holidays whose date already exists (count in `skipped`)
+
+**Success response (200):**
+
+```json
+{
+  "success": true,
+  "data": { "imported": 3, "overwritten": 0, "skipped": 0 },
+  "meta": {}
+}
+```
+
+**Error responses:**
+
+| HTTP | Code                | When                            |
+| ---- | ------------------- | ------------------------------- |
+| 404  | `JOB_NOT_FOUND`     | jobId expired or never existed  |
+| 409  | `ALREADY_COMMITTED` | commit called twice on same job |
+
+---
+
+### `GET /employee/documents` — any authenticated (own employee record only) ✅
+
+Self-service document list for the logged-in user's employee profile.
+
+**Success response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "documents": [
+      {
+        "id": "doc_a1b2c3",
+        "filename": "Aadhaar Card.pdf",
+        "category": "AADHAAR",
+        "sizeBytes": 2415616,
+        "status": "VERIFIED",
+        "uploadedAt": "2026-01-15T10:00:00.000Z"
+      }
+    ]
+  },
+  "meta": {}
+}
+```
+
+**Notes:**
+
+- Returns `documents: []` if the employee has no documents — never errors on empty list.
+- `status` enum: `VERIFIED | PENDING | REJECTED`
+- `400 NO_EMPLOYEE_RECORD` if user has no linked employee record (e.g. SUPER_ADMIN with no employee profile).
+- Distinct from `GET /employees/:id/documents` (HR admin, any employee).
+
+---
+
+### `GET /employee/dashboard` — leaveBalanceSummary field ✅
+
+Field `leaveBalanceSummary` is present in the live response. Top-3 active leave types.
+
+**Shape in response:**
+
+```json
+"leaveBalanceSummary": [
+  { "code": "ANNUAL", "name": "Annual Leave", "available": 21 },
+  { "code": "CASUAL", "name": "Casual Leave", "available": 10 },
+  { "code": "SICK",   "name": "Sick Leave",   "available": 10 }
+]
+```
+
+Returns `[]` if employee has no leave balance records.
+
+---
+
+### `POST /attendance/regularization/:id/documents` — EMPLOYEE, MANAGER (own requests only) ✅
+
+Attach a supporting document to a regularization request. One document per request.
+
+**Request:** `multipart/form-data`
+
+| Field      | Type | Required | Notes                                                                |
+| ---------- | ---- | -------- | -------------------------------------------------------------------- |
+| `document` | File | Yes      | PDF, JPG, PNG, DOC, DOCX. Max 5 MB. Field name `file` also accepted. |
+
+**Success response (201):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "documentUrl": "https://res.cloudinary.com/dmljxhmio/image/upload/v1.../document.png"
+  },
+  "meta": {}
+}
+```
+
+**Error responses:**
+
+| HTTP | Code                       | When                                                 |
+| ---- | -------------------------- | ---------------------------------------------------- |
+| 403  | `FORBIDDEN`                | HR/SA trying to upload on another employee's request |
+| 404  | `REGULARIZATION_NOT_FOUND` | `:id` unknown or not in this tenant                  |
+| 409  | `DOCUMENT_ALREADY_EXISTS`  | Document already attached to this request            |
+| 422  | `INVALID_FILE_TYPE`        | Not PDF/JPG/PNG/DOC/DOCX                             |
+| 422  | `FILE_TOO_LARGE`           | Exceeds 5 MB                                         |
+| 502  | `UPLOAD_FAILED`            | Cloudinary upload error (transient)                  |
+| 503  | `STORAGE_NOT_CONFIGURED`   | Cloudinary env vars not set on server                |
+
+---
+
+## 2026-05-26 Batch — Profile Photos + Swagger Completeness
+
+### `POST /employees/:id/photo` — HR_ADMIN, SUPER_ADMIN, own employee ✅ live
+
+Upload or replace an employee's profile photo.  
+**Body:** `multipart/form-data` field `file` — any image format (JPEG/PNG/WebP/GIF).  
+**Behavior:** Image is automatically resized to max 800×800 and converted to **WebP format** before storage.  
+Old photo is automatically deleted from Cloudinary before uploading new one.  
+**Response 200:** `{ success: true, data: { id, profilePhotoUrl } }`
+
+### `DELETE /employees/:id/photo` — HR_ADMIN, SUPER_ADMIN, own employee ✅ live
+
+Delete an employee's profile photo from Cloudinary and clear the `profilePhotoUrl` field.  
+**Response 200:** `{ success: true, message: "Profile photo deleted" }`
+
+### `GET /employees/:id` — profilePhotoUrl now included ✅
+
+`Employee` response now includes `profilePhotoUrl` (nullable string — Cloudinary WebP URL or null).
+
+### `GET /holidays/upcoming` ✅ live (was missing from Swagger)
+
+**Query:** `?limit=3` (1–10)  
+Returns upcoming holidays for the employee dashboard widget.
+
+### `GET /employees/me/documents` ✅ live alias
+
+Same as `GET /employee/documents` — returns current user's documents.
+
+### `GET /employees/me/team` ✅ live alias
+
+Same as `GET /employee/team` — returns current user's team.
+
+### `GET /leave/balance/me` ✅ live alias
+
+Same as `GET /leave/balance` — returns current employee's leave balance.
+
+### `GET /leave/team/calendar` ✅ live (was missing from Swagger)
+
+**Query:** `?month=YYYY-MM&departmentId=<id>`  
+Returns who is on leave for a given month. MANAGER+ only.
+
+---
+
+## Schema Change: Employee.profilePhotoUrl
+
+New nullable field `profilePhotoUrl String?` added to `Employee` model.  
+Applied via `npx prisma db push` (no migration needed — additive change).  
+All 201 employees seeded with unique WebP avatar images (colored initials avatars).  
+Seed script: `npm run db:seed:photos`
+
+---
+
+## Phase 2 — Domain 1-3: Payroll Module (25 endpoints)
+
+**Added:** 2026-05-28 | **Roles:** HR_ADMIN/SUPER_ADMIN (unless noted)
+
+### Salary Components
+
+| Method | Path                      | Roles   | Notes                                                                                         |
+| ------ | ------------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/components`     | HR,SA   | `?active=true\|false`. Returns array of component objects                                     |
+| POST   | `/payroll/components`     | HR,SA   | 201. Required: name, code (UPPER_SNAKE_CASE), type, calculationType, taxable. 409 CODE_EXISTS |
+| PATCH  | `/payroll/components/:id` | HR,SA   | code is immutable → 400 CODE_IMMUTABLE                                                        |
+| DELETE | `/payroll/components/:id` | SA only | 409 COMPONENT_IN_USE if referenced by pay groups                                              |
+
+**Component shape:** `{ id, name, code, type(EARNING|DEDUCTION|BENEFIT|REIMBURSEMENT), calculationType(FLAT|PERCENTAGE|FORMULA), value, basisCode, formula, taxable, active, displayOrder, description, createdAt, updatedAt }`
+
+### Pay Groups
+
+| Method | Path                  | Roles   | Notes                                                                                                                   |
+| ------ | --------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/groups`     | HR,SA   | Returns groups with `components[]` and `employeeCount`                                                                  |
+| POST   | `/payroll/groups`     | HR,SA   | 201. Required: name, code. Optional: components[]{componentId, overrideCalculationType, overrideValue, overrideFormula} |
+| PATCH  | `/payroll/groups/:id` | HR,SA   | code immutable. Replaces components array if provided                                                                   |
+| DELETE | `/payroll/groups/:id` | SA only | 409 GROUP_HAS_EMPLOYEES with `{employeeCount}` in details                                                               |
+| GET    | `/payroll/schedules`  | HR,SA   | Returns BIWEEKLY/WEEKLY groups as schedule records                                                                      |
+
+### Employee Salary Config
+
+| Method | Path                                    | Roles          | Notes                                                                                             |
+| ------ | --------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/employees/:employeeId/salary` | HR,SA,EMP(own) | EMP sees own with bankAccountNumber masked (XXXX1234). Includes calculatedComponents[], history[] |
+| POST   | `/payroll/employees/:employeeId/salary` | HR,SA          | 201. Required: payGroupId, annualCtc, effectiveFrom. Closes previous record's effectiveTo         |
+| PATCH  | `/payroll/employees/:employeeId/salary` | HR,SA          | 201. Always creates new history record, never edits in place                                      |
+
+### Employee Payslips (self-service)
+
+| Method | Path                                                 | Roles          | Notes                                                                                                                                          |
+| ------ | ---------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/employees/:employeeId/payslips`            | HR,SA,EMP(own) | `?page&limit&year`. Paginated list. EMPLOYEE sees own only.                                                                                    |
+| GET    | `/payroll/employees/:employeeId/payslips/:payslipId` | HR,SA,EMP(own) | Full detail: earnings[], deductions[], oneTimeAdditions[], oneTimeDeductions[], attendance fields, `documentUrl` (Cloudinary WebP URL or null) |
+
+#### 👉 UI TEAM — How to view & download a payslip document
+
+The payslip PDF is stored on Cloudinary as a WebP image. The download link is the
+`documentUrl` field returned by the **payslip detail** endpoint (NOT the list endpoint).
+
+**Step 1 — Login (no `X-Tenant-Key` needed; resolved from email):**
+
+```
+POST /api/v1/auth/login
+{ "email": "priya@acme.test", "password": "Password123!" }
+→ data.accessToken, data.user.employeeId
+```
+
+**Step 2 — List the employee's payslips (get IDs + periods):**
+
+```
+GET /api/v1/payroll/employees/{employeeId}/payslips
+Authorization: Bearer <accessToken>
+→ data.items[] = [{ id, period, periodLabel, netPay, status }, ...]
+```
+
+> EMPLOYEE may only pass their **own** employeeId (else 403). HR/SA may pass any.
+
+**Step 3 — Get one payslip's detail → read `documentUrl`:**
+
+```
+GET /api/v1/payroll/employees/{employeeId}/payslips/{payslipId}
+Authorization: Bearer <accessToken>
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "cmponmwqj000ptlvss9t0smkw",
+    "period": "2026-05",
+    "periodLabel": "May 2026",
+    "employee": { "firstName": "Priya", "lastName": "Sharma", "employeeCode": "E0002" },
+    "earnings": [{ "code": "BASIC", "name": "Basic Salary", "monthlyAmount": 30000 }],
+    "deductions": [{ "code": "PF", "name": "Provident Fund (Employee)", "monthlyAmount": 3600 }],
+    "grossEarnings": 75000,
+    "totalDeductions": 3800,
+    "netPay": 71200,
+    "status": "PAID",
+    "documentUrl": "https://res.cloudinary.com/dmljxhmio/image/upload/v1.../ems/payslips/payslip_E0002_2026_05.webp"
+  },
+  "meta": {}
+}
+```
+
+**Step 4 — Render/download:** use `data.documentUrl` directly as an `<img src>` / download link.
+It is a public Cloudinary URL — no auth header needed to fetch the file itself.
+
+> **`documentUrl` is `null`** when the payslip was generated by the live `/calculate`
+> API (it computes numbers but does not render a PDF). Only seeded historical payslips
+> (Mar/Apr/May 2026) carry Cloudinary documents today. SUPER_ADMIN has no Employee
+> record, so it has no payslips.
+
+### Payroll Runs
+
+| Method | Path                          | Roles   | Notes                                                                                               |
+| ------ | ----------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/runs`               | HR,SA   | `?page&limit&year&status`. Paginated. status: DRAFT\|CALCULATING\|REVIEW\|APPROVED\|PAID\|CANCELLED |
+| POST   | `/payroll/runs`               | HR,SA   | 201. Required: period (YYYY-MM). 409 RUN_EXISTS if non-CANCELLED run exists                         |
+| GET    | `/payroll/runs/:id`           | HR,SA   | Includes `summary.byDepartment[]` and `summary.warnings[]`                                          |
+| POST   | `/payroll/runs/:id/calculate` | HR,SA   | 202. DRAFT→REVIEW. Computes payslips for all employees with salary config                           |
+| POST   | `/payroll/runs/:id/approve`   | HR,SA   | 200. REVIEW→APPROVED. Body: `{notes}`                                                               |
+| PATCH  | `/payroll/runs/:id/mark-paid` | HR,SA   | 200. APPROVED→PAID. Body: `{paidAt, paymentReference}`. Updates all payslips to PAID                |
+| POST   | `/payroll/runs/:id/cancel`    | SA only | 200. Cannot cancel PAID runs. Body: `{reason}`                                                      |
+
+### Run Payslips
+
+| Method | Path                                       | Roles | Notes                                                                                                |
+| ------ | ------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/runs/:runId/payslips`            | HR,SA | `?page&limit&departmentId&search`. Lists payslips in run                                             |
+| GET    | `/payroll/runs/:runId/payslips/:payslipId` | HR,SA | Full detail same shape as employee self-service detail. Includes `documentUrl`                       |
+| PATCH  | `/payroll/runs/:runId/payslips/:payslipId` | HR,SA | Add one-time adjustments. Body: `{oneTimeAdditions[], oneTimeDeductions[], notes}`. Recalculates net |
+| GET    | `/payroll/runs/:runId/export`              | HR,SA | `Content-Type: text/csv`. Payroll register download                                                  |
+
+### Formula Language (for FORMULA calculationType)
+
+Variables: any component code (e.g. BASIC, HRA), CTC (annualCtc/12), GROSS (sum of EARNINGs), NET (GROSS - DEDUCTIONs)
+Functions: MIN, MAX, IF, ROUND, FLOOR, CEIL, ABS
+Example: `"IF(BASIC > 15000, 200, 0)"` (professional tax)
