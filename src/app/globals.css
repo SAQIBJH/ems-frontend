@@ -86,6 +86,40 @@
   --color-warning: var(--warning-500);
   --color-danger: var(--danger-500);
   --color-info: var(--info-500);
+
+  /* Department palette — generates bg-dept-engineering, text-dept-sales, etc. */
+  --color-dept-engineering: var(--dept-engineering);
+  --color-dept-operations: var(--dept-operations);
+  --color-dept-sales: var(--dept-sales);
+  --color-dept-product: var(--dept-product);
+  --color-dept-finance: var(--dept-finance);
+  --color-dept-people: var(--dept-people);
+  --color-dept-legal: var(--dept-legal);
+  --color-dept-marketing: var(--dept-marketing);
+  --color-dept-it: var(--dept-it);
+
+  /* Leave-type palette */
+  --color-leave-casual: var(--leave-casual);
+  --color-leave-sick: var(--leave-sick);
+  --color-leave-earned: var(--leave-earned);
+  --color-leave-parental: var(--leave-parental);
+  --color-leave-bereavement: var(--leave-bereavement);
+  --color-leave-comp-off: var(--leave-comp-off);
+  --color-leave-unpaid: var(--leave-unpaid);
+
+  /* Status tokens */
+  --color-status-active: var(--status-active);
+  --color-status-onleave: var(--status-onleave);
+  --color-status-terminated: var(--status-terminated);
+  --color-status-approved: var(--status-approved);
+  --color-status-pending: var(--status-pending);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-withdrawn: var(--status-withdrawn);
+
+  /* Extended chart palette */
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
 }
 
 /* ── shadcn variable values — EMS-tuned ────────────────────────────────── */
@@ -110,12 +144,15 @@
   --ring: var(--focus-ring);
   --radius: 0.5rem;
 
-  /* Charts — brand palette */
+  /* Charts — 8-series hue-wheel palette (matches tokens.css --chart-*) */
   --chart-1: var(--brand-500);
   --chart-2: var(--success-500);
   --chart-3: var(--warning-500);
-  --chart-4: var(--info-500);
-  --chart-5: var(--danger-500);
+  --chart-4: var(--dept-product);
+  --chart-5: var(--dept-finance);
+  --chart-6: var(--dept-people);
+  --chart-7: var(--info-500);
+  --chart-8: var(--dept-marketing);
 
   /* Sidebar */
   --sidebar: var(--bg-surface);

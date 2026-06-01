@@ -35,6 +35,45 @@
   --danger-500: hsl(0 75% 50%);
   --info-500: hsl(210 90% 50%);
 
+  /* Department palette — stable per domain, same hue across the whole app */
+  --dept-engineering: hsl(222 80% 52%);
+  --dept-operations: hsl(152 60% 40%);
+  --dept-sales: hsl(38 92% 50%);
+  --dept-product: hsl(280 60% 55%);
+  --dept-finance: hsl(190 80% 42%);
+  --dept-people: hsl(340 70% 50%);
+  --dept-legal: hsl(0 75% 55%);
+  --dept-marketing: hsl(60 80% 42%);
+  --dept-it: hsl(210 70% 50%);
+
+  /* Leave-type palette — stable per type */
+  --leave-casual: hsl(38 92% 50%);
+  --leave-sick: hsl(0 75% 55%);
+  --leave-earned: hsl(152 60% 40%);
+  --leave-parental: hsl(280 60% 55%);
+  --leave-bereavement: hsl(220 9% 38%);
+  --leave-comp-off: hsl(190 80% 42%);
+  --leave-unpaid: hsl(220 13% 65%);
+
+  /* Status tokens — map to semantic palette */
+  --status-active: var(--success-500);
+  --status-onleave: var(--warning-500);
+  --status-terminated: var(--text-tertiary);
+  --status-approved: var(--success-500);
+  --status-pending: var(--warning-500);
+  --status-rejected: var(--danger-500);
+  --status-withdrawn: var(--text-tertiary);
+
+  /* Chart palette — 8 series, hue-wheel distributed to avoid clashes */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--success-500);
+  --chart-3: var(--warning-500);
+  --chart-4: var(--dept-product);
+  --chart-5: var(--dept-finance);
+  --chart-6: var(--dept-people);
+  --chart-7: var(--info-500);
+  --chart-8: var(--dept-marketing);
+
   /* Focus */
   --focus-ring: hsl(222 90% 56%);
 
