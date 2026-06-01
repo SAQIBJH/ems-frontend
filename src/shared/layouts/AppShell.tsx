@@ -46,34 +46,43 @@ import { cn } from '@/lib/utils';
 
 /* ── Nav definition ──────────────────────────────────────────────────────── */
 
-type NavItemDef = {
+type NavItem = {
+  kind: 'item';
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
 };
 
-const NAV_ITEMS: NavItemDef[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Employees', href: '/employees', icon: Users },
-  { label: 'Departments', href: '/departments', icon: Building2 },
-  { label: 'Attendance', href: '/attendance', icon: Clock },
-  { label: 'Leave', href: '/leave', icon: CalendarOff },
-  { label: 'Holidays', href: '/holidays', icon: Calendar },
-  { label: 'Payroll', href: '/payroll', icon: DollarSign },
-  { label: 'Reports', href: '/reports', icon: BarChart2 },
-  { label: 'Analytics', href: '/analytics', icon: TrendingUp },
-  { label: 'Permissions', href: '/permissions', icon: Shield },
-  { label: 'Settings', href: '/settings', icon: Settings },
+type NavDivider = {
+  kind: 'divider';
+  label: string;
+};
+
+type NavEntry = NavItem | NavDivider;
+
+const NAV_ITEMS: NavEntry[] = [
+  { kind: 'item', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { kind: 'item', label: 'Employees', href: '/employees', icon: Users },
+  { kind: 'item', label: 'Departments', href: '/departments', icon: Building2 },
+  { kind: 'item', label: 'Attendance', href: '/attendance', icon: Clock },
+  { kind: 'item', label: 'Leave', href: '/leave', icon: CalendarOff },
+  { kind: 'item', label: 'Holidays', href: '/holidays', icon: Calendar },
+  { kind: 'item', label: 'Permissions', href: '/permissions', icon: Shield },
+  { kind: 'item', label: 'Settings', href: '/settings', icon: Settings },
+  { kind: 'divider', label: 'Phase 2' },
+  { kind: 'item', label: 'Payroll', href: '/payroll', icon: DollarSign },
+  { kind: 'item', label: 'Reports', href: '/reports', icon: BarChart2 },
+  { kind: 'item', label: 'Analytics', href: '/analytics', icon: TrendingUp },
 ];
 
 /* ── NavItem ─────────────────────────────────────────────────────────────── */
 
-function NavItem({
+function NavItemLink({
   item,
   collapsed,
   onNavClick,
 }: {
-  item: NavItemDef;
+  item: NavItem;
   collapsed: boolean;
   onNavClick?: () => void;
 }) {
@@ -81,26 +90,50 @@ function NavItem({
   const isActive =
     pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
 
-  const linkClasses = cn(
-    'flex items-center rounded-lg text-sm font-medium',
-    'transition-colors duration-[120ms]',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    isActive ? 'bg-brand-50 text-brand' : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
-    collapsed ? 'justify-center size-10 mx-auto' : 'gap-3 px-3 py-2',
-  );
-
   return (
     <Link
       href={item.href}
-      className={linkClasses}
       onClick={onNavClick}
       aria-label={item.label}
       aria-current={isActive ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
+      className={cn(
+        'flex items-center rounded-lg',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        isActive ? 'bg-brand-50 text-brand' : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
+        collapsed ? 'justify-center' : 'gap-3',
+      )}
+      style={{
+        font: '500 14px/20px var(--font-sans)',
+        padding: collapsed ? 10 : '8px 12px',
+        borderRadius: 8,
+        transition: 'background-color 120ms, color 120ms',
+      }}
     >
       <item.icon className="size-4 shrink-0" aria-hidden />
       {!collapsed && <span>{item.label}</span>}
     </Link>
+  );
+}
+
+/* ── SidebarDivider ──────────────────────────────────────────────────────── */
+
+function SidebarDivider({ label, collapsed }: { label: string; collapsed: boolean }) {
+  if (collapsed) {
+    return <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 4px' }} />;
+  }
+  return (
+    <div
+      style={{
+        font: '500 10px/14px var(--font-sans)',
+        color: 'var(--text-tertiary)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        padding: '14px 12px 4px',
+      }}
+    >
+      {label}
+    </div>
   );
 }
 
@@ -121,33 +154,61 @@ function SidebarContent({
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div
-        className={cn(
-          'h-16 flex items-center border-b border-subtle shrink-0',
-          collapsed ? 'justify-center px-4' : 'px-5',
-        )}
+        style={{
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 20px',
+          borderBottom: '1px solid var(--border-subtle)',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          flexShrink: 0,
+        }}
       >
         {collapsed ? (
-          <span className="text-lg font-bold text-brand">E</span>
+          <span style={{ font: '700 18px/24px var(--font-sans)', color: 'var(--brand-500)' }}>
+            E
+          </span>
         ) : (
-          <span className="text-base font-bold tracking-tight text-fg">
-            <span className="text-brand">E</span>MS
+          <span
+            style={{
+              font: '700 16px/22px var(--font-sans)',
+              letterSpacing: '-0.01em',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <span style={{ color: 'var(--brand-500)' }}>E</span>MS
           </span>
         )}
       </div>
 
       {/* Nav */}
       <nav
-        className={cn('flex-1 overflow-y-auto py-4 space-y-0.5', collapsed ? 'px-2' : 'px-3')}
+        className="flex-1 overflow-y-auto"
+        style={{ padding: collapsed ? '12px 8px' : '12px' }}
         aria-label="Main navigation"
       >
-        {NAV_ITEMS.map((item) => (
-          <NavItem key={item.href} item={item} collapsed={collapsed} onNavClick={onNavClick} />
-        ))}
+        <div className="flex flex-col gap-0.5">
+          {NAV_ITEMS.map((entry, i) => {
+            if (entry.kind === 'divider') {
+              return (
+                <SidebarDivider key={`divider-${i}`} label={entry.label} collapsed={collapsed} />
+              );
+            }
+            return (
+              <NavItemLink
+                key={entry.href}
+                item={entry}
+                collapsed={collapsed}
+                onNavClick={onNavClick}
+              />
+            );
+          })}
+        </div>
       </nav>
 
       {/* Collapse toggle — desktop only */}
       {showToggle && (
-        <div className="shrink-0 border-t border-subtle p-3">
+        <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 12, flexShrink: 0 }}>
           <Button
             variant="ghost"
             size="sm"
@@ -192,10 +253,6 @@ function UserMenu() {
     } catch {
       /* best effort — server clears the httpOnly cookie even on network errors */
     }
-    // Wipe the in-memory query cache, then hard-navigate so the page reloads
-    // from scratch. A client-side push() keeps AuthProvider mounted and it
-    // would immediately refetch /auth/me, re-authenticating if the cookie is
-    // still alive. window.location destroys the entire JS heap and query cache.
     queryClient.clear();
     window.location.href = '/login';
   }
@@ -313,11 +370,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex h-screen bg-canvas overflow-hidden">
         {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
         <aside
-          className={cn(
-            'hidden lg:flex flex-col shrink-0 h-screen border-r border-subtle bg-surface',
-            'transition-[width] duration-[180ms] ease-out overflow-hidden',
-            sidebarCollapsed ? 'w-16' : 'w-60',
-          )}
+          className="hidden lg:flex flex-col shrink-0 h-screen overflow-hidden"
+          style={{
+            width: sidebarCollapsed ? 64 : 240,
+            transition: 'width 180ms var(--ease-out)',
+            background: 'var(--bg-surface)',
+            borderRight: '1px solid var(--border-subtle)',
+          }}
         >
           <SidebarContent collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
         </aside>
