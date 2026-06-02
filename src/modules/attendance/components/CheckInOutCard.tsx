@@ -65,7 +65,7 @@ export function CheckInOutCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-subtle bg-surface p-5 space-y-4">
+      <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
         <Skeleton className="h-5 w-32" />
         <div className="flex gap-4">
           <Skeleton className="h-14 w-28" />
@@ -81,7 +81,7 @@ export function CheckInOutCard() {
   const statusCfg = todayRecord ? STATUS_CONFIG[todayRecord.status] : null;
 
   return (
-    <div className="rounded-lg border border-subtle bg-surface p-5 space-y-4">
+    <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ClockIcon className="size-4 text-fg-muted" aria-hidden />

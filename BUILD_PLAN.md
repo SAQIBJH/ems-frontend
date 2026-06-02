@@ -3617,7 +3617,7 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 - [x] Step 77 — Dashboards restyle (HR / Manager / Employee)
 - [x] Step 78 — Employees list restyle
 - [x] Step 79 — Employee profile restyle
-- [ ] Step 80 — Attendance restyle
+- [x] Step 80 — Attendance restyle
 - [ ] Step 81 — Departments restyle
 - [ ] Step 82 — Leave restyle
 - [ ] Step 83 — Holidays restyle

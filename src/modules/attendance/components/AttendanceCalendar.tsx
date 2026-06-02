@@ -63,9 +63,9 @@ export function AttendanceCalendar({
   }
 
   return (
-    <div className="rounded-lg border border-subtle bg-surface">
+    <div className="rounded-xl border border-subtle bg-surface">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-subtle">
+      <div className="flex items-center justify-between border-b border-subtle px-4 py-3">
         <h3 className="text-sm font-semibold text-fg">{format(currentDate, 'MMMM yyyy')}</h3>
         <div className="flex items-center gap-1">
           <Button
@@ -89,84 +89,82 @@ export function AttendanceCalendar({
         </div>
       </div>
 
-      {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b border-subtle">
-        {WEEKDAY_LABELS.map((day) => (
-          <div key={day} className="py-2 text-center text-xs font-medium text-fg-subtle">
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Day cells */}
-      <div className="grid grid-cols-7">
-        {/* leading blank cells */}
-        {Array.from({ length: leadingBlanks }).map((_, i) => (
-          <div
-            key={`blank-${i}`}
-            className="aspect-square border-b border-r border-subtle p-1 last:border-r-0"
-          />
-        ))}
-
-        {days.map((day, idx) => {
-          const key = format(day, 'yyyy-MM-dd');
-          const record = recordMap.get(key);
-          const isCurrentDay = isToday(day);
-          const isCurrentMonth = isSameMonth(day, currentDate);
-          const isLastRow = idx >= days.length - 7;
-
-          // Sunday or Saturday → weekend styling
-          const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-          const colIdx = (leadingBlanks + idx) % 7;
-          const isLastCol = colIdx === 6;
-
-          return (
+      <div className="p-3">
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 mb-1.5">
+          {WEEKDAY_LABELS.map((day) => (
             <div
-              key={key}
-              role={onDayClick ? 'button' : undefined}
-              tabIndex={onDayClick ? 0 : undefined}
-              onClick={() => onDayClick?.(key, record ?? null)}
-              onKeyDown={(e) => {
-                if (onDayClick && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault();
-                  onDayClick(key, record ?? null);
-                }
-              }}
-              className={cn(
-                'relative flex flex-col items-center justify-start gap-0.5',
-                'border-b border-r border-subtle p-1 pt-1.5',
-                'min-h-[60px] sm:min-h-[72px]',
-                isLastRow && 'border-b-0',
-                isLastCol && 'border-r-0',
-                isWeekend && 'bg-surface-2/50',
-                isCurrentDay && 'ring-1 ring-inset ring-brand/40',
-                onDayClick &&
-                  'cursor-pointer transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-              )}
+              key={day}
+              className="py-1 text-center text-[11px] font-medium uppercase tracking-wide text-fg-subtle"
             >
-              {isLoading ? (
-                <Skeleton className="size-5 rounded-full" />
-              ) : (
-                <>
-                  <span
-                    className={cn(
-                      'flex size-6 items-center justify-center rounded-full text-xs font-medium',
-                      isCurrentDay
-                        ? 'bg-brand text-on-primary'
-                        : isCurrentMonth
-                          ? 'text-fg'
-                          : 'text-fg-disabled',
-                    )}
-                  >
-                    {format(day, 'd')}
-                  </span>
-
-                  {record && <StatusPip status={record.status} />}
-                </>
-              )}
+              {day}
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Day cells grid */}
+        <div className="grid grid-cols-7 gap-1.5">
+          {/* leading blank cells */}
+          {Array.from({ length: leadingBlanks }).map((_, i) => (
+            <div key={`blank-${i}`} className="rounded-md" />
+          ))}
+
+          {days.map((day) => {
+            const key = format(day, 'yyyy-MM-dd');
+            const record = recordMap.get(key);
+            const isCurrentDay = isToday(day);
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+            return (
+              <div
+                key={key}
+                role={onDayClick ? 'button' : undefined}
+                tabIndex={onDayClick ? 0 : undefined}
+                onClick={() => onDayClick?.(key, record ?? null)}
+                onKeyDown={(e) => {
+                  if (onDayClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    onDayClick(key, record ?? null);
+                  }
+                }}
+                className={cn(
+                  'flex min-h-[68px] flex-col gap-1 rounded-md border p-2',
+                  'transition-colors duration-[120ms]',
+                  isCurrentDay ? 'border-brand' : 'border-subtle',
+                  isWeekend && !isCurrentDay && 'bg-surface-2',
+                  !isWeekend && !isCurrentDay && 'bg-surface',
+                  onDayClick &&
+                    'cursor-pointer hover:border-default-border hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                )}
+              >
+                {isLoading ? (
+                  <Skeleton className="size-4 rounded" />
+                ) : (
+                  <>
+                    <span
+                      className={cn(
+                        'text-xs font-semibold tabular-nums',
+                        isCurrentDay
+                          ? 'text-brand'
+                          : isCurrentMonth
+                            ? 'text-fg'
+                            : 'text-fg-disabled',
+                      )}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                    {record && (
+                      <span className="mt-auto">
+                        <StatusPip status={record.status} />
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Legend */}
@@ -178,11 +176,7 @@ export function AttendanceCalendar({
           ][]
         ).map(([key, cfg]) => (
           <div key={key} className="flex items-center gap-1.5">
-            <span
-              className={cn('size-2 rounded-full', cfg.bgClass.replace('/10', ''))}
-              style={{ backgroundColor: undefined }}
-              aria-hidden
-            />
+            <span className={cn('size-2 rounded-full', cfg.bgClass)} aria-hidden />
             <span className="text-xs text-fg-subtle">{cfg.label}</span>
           </div>
         ))}
@@ -205,7 +199,7 @@ function StatusPip({ status }: { status: AttendanceStatus }) {
   return (
     <span
       className={cn(
-        'rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
+        'inline-block rounded-full px-1.5 py-[1px] text-[10px] font-medium leading-[14px]',
         cfg.bgClass,
         cfg.textClass,
       )}

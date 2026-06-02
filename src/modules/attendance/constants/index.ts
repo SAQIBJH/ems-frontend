@@ -31,13 +31,13 @@ export const STATUS_CONFIG: Record<
   },
   LEAVE: {
     label: 'Leave',
-    textClass: 'text-fg-muted',
-    bgClass: 'bg-surface-2',
+    textClass: 'text-warning',
+    bgClass: 'bg-warning/10',
   },
   HOLIDAY: {
     label: 'Holiday',
-    textClass: 'text-brand',
-    bgClass: 'bg-brand-50',
+    textClass: 'text-dept-product',
+    bgClass: 'bg-dept-product/12',
   },
 };
 

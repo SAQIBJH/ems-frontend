@@ -114,7 +114,7 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
         title="Attendance"
         description="Track check-in, check-out, and monthly records."
@@ -122,7 +122,7 @@ export default function AttendancePage() {
         actions={
           <Button
             variant="outline"
-            size="default"
+            size="sm"
             className="gap-1.5"
             onClick={() => {
               setRegularizationDate(undefined);
@@ -135,142 +135,141 @@ export default function AttendancePage() {
         }
       />
 
-      <AttendanceSummaryCards />
+      <div className="flex flex-col gap-6 p-6">
+        <AttendanceSummaryCards />
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 px-6">
-        {/* Department filter — HR/Manager only */}
-        {showFilters && flatDepts.length > 0 && (
-          <Select
-            value={deptId || '__all__'}
-            onValueChange={(v) => {
-              setDeptId(v === '__all__' ? '' : (v ?? ''));
-              setEmpId(''); // reset employee when dept changes
-            }}
-          >
-            <SelectTrigger className="h-8 w-44 text-xs">
-              <SelectValue placeholder="All departments">
-                {(v) =>
-                  v === '__all__'
-                    ? 'All departments'
-                    : (flatDepts.find((d) => d.id === v)?.name ?? 'All departments')
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All departments</SelectItem>
-              {flatDepts.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Department filter — HR/Manager only */}
+          {showFilters && flatDepts.length > 0 && (
+            <Select
+              value={deptId || '__all__'}
+              onValueChange={(v) => {
+                setDeptId(v === '__all__' ? '' : (v ?? ''));
+                setEmpId(''); // reset employee when dept changes
+              }}
+            >
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <SelectValue placeholder="All departments">
+                  {(v) =>
+                    v === '__all__'
+                      ? 'All departments'
+                      : (flatDepts.find((d) => d.id === v)?.name ?? 'All departments')
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All departments</SelectItem>
+                {flatDepts.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-        {/* Employee filter — HR/Manager only */}
-        {showFilters && (
-          <Select
-            value={empId || '__all__'}
-            onValueChange={(v) => setEmpId(v === '__all__' ? '' : (v ?? ''))}
-          >
-            <SelectTrigger className="h-8 w-44 text-xs">
-              <SelectValue placeholder="All employees">
-                {(v) =>
-                  v === '__all__'
-                    ? 'All employees'
-                    : (employeeOptions.find((e) => e.id === v)?.name ?? 'All employees')
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All employees</SelectItem>
-              {employeeOptions.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          {/* Employee filter — HR/Manager only */}
+          {showFilters && (
+            <Select
+              value={empId || '__all__'}
+              onValueChange={(v) => setEmpId(v === '__all__' ? '' : (v ?? ''))}
+            >
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <SelectValue placeholder="All employees">
+                  {(v) =>
+                    v === '__all__'
+                      ? 'All employees'
+                      : (employeeOptions.find((e) => e.id === v)?.name ?? 'All employees')
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All employees</SelectItem>
+                {employeeOptions.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-        {/* Spacer */}
-        <div className="flex-1" />
+          {/* Spacer */}
+          <div className="flex-1" />
 
-        {/* Month navigation */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => navigateMonth(-1)}
-            aria-label="Previous month"
-          >
-            <ChevronLeftIcon className="size-4" />
-          </Button>
-          <span className="min-w-[110px] text-center text-sm font-medium text-fg">
-            {format(currentDate, 'MMMM yyyy')}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => navigateMonth(1)}
-            aria-label="Next month"
-          >
-            <ChevronRightIcon className="size-4" />
-          </Button>
-        </div>
+          {/* Month navigation */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => navigateMonth(-1)}
+              aria-label="Previous month"
+            >
+              <ChevronLeftIcon className="size-4" />
+            </Button>
+            <span className="min-w-[110px] text-center text-sm font-medium text-fg">
+              {format(currentDate, 'MMMM yyyy')}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => navigateMonth(1)}
+              aria-label="Next month"
+            >
+              <ChevronRightIcon className="size-4" />
+            </Button>
+          </div>
 
-        {/* View toggle */}
-        <div className="flex items-center rounded-md border border-subtle">
-          <button
-            type="button"
-            onClick={() => setView('calendar')}
-            className={`flex h-8 items-center gap-1.5 rounded-l-md px-3 text-xs font-medium transition-colors ${
-              view === 'calendar'
-                ? 'bg-surface-2 text-fg'
-                : 'text-fg-muted hover:bg-surface-2/60 hover:text-fg'
-            }`}
-            aria-pressed={view === 'calendar'}
-          >
-            <CalendarIcon className="size-3.5" aria-hidden />
-            Calendar
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('table')}
-            className={`flex h-8 items-center gap-1.5 rounded-r-md border-l border-subtle px-3 text-xs font-medium transition-colors ${
-              view === 'table'
-                ? 'bg-surface-2 text-fg'
-                : 'text-fg-muted hover:bg-surface-2/60 hover:text-fg'
-            }`}
-            aria-pressed={view === 'table'}
-          >
-            <TableIcon className="size-3.5" aria-hidden />
-            Table
-          </button>
-        </div>
-      </div>
-
-      {/* Main content */}
-      {view === 'calendar' ? (
-        <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-[280px_1fr]">
-          {/* Only show CheckInOutCard when viewing own records */}
-          {!empId && <CheckInOutCard />}
-          <div className={!empId ? '' : 'col-span-full'}>
-            <AttendanceCalendar
-              currentDate={currentDate}
-              onPrev={() => navigateMonth(-1)}
-              onNext={() => navigateMonth(1)}
-              employeeId={empId || undefined}
-              onDayClick={handleDayClick}
-            />
+          {/* View toggle */}
+          <div className="flex items-center rounded-md border border-subtle">
+            <button
+              type="button"
+              onClick={() => setView('calendar')}
+              className={`flex h-8 items-center gap-1.5 rounded-l-md px-3 text-xs font-medium transition-colors ${
+                view === 'calendar'
+                  ? 'bg-surface-2 text-fg'
+                  : 'text-fg-muted hover:bg-surface-2/60 hover:text-fg'
+              }`}
+              aria-pressed={view === 'calendar'}
+            >
+              <CalendarIcon className="size-3.5" aria-hidden />
+              Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('table')}
+              className={`flex h-8 items-center gap-1.5 rounded-r-md border-l border-subtle px-3 text-xs font-medium transition-colors ${
+                view === 'table'
+                  ? 'bg-surface-2 text-fg'
+                  : 'text-fg-muted hover:bg-surface-2/60 hover:text-fg'
+              }`}
+              aria-pressed={view === 'table'}
+            >
+              <TableIcon className="size-3.5" aria-hidden />
+              Table
+            </button>
           </div>
         </div>
-      ) : (
-        <div className="px-6">
+
+        {/* Main content */}
+        {view === 'calendar' ? (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
+            {!empId && <CheckInOutCard />}
+            <div className={!empId ? '' : 'col-span-full'}>
+              <AttendanceCalendar
+                currentDate={currentDate}
+                onPrev={() => navigateMonth(-1)}
+                onNext={() => navigateMonth(1)}
+                employeeId={empId || undefined}
+                onDayClick={handleDayClick}
+              />
+            </div>
+          </div>
+        ) : (
           <AttendanceTableView params={attendanceParams} useTeam={showFilters} />
-        </div>
-      )}
+        )}
+      </div>
 
       <RegularizationDialog
         open={regularizationOpen}
@@ -286,6 +285,6 @@ export default function AttendancePage() {
         onRequestRegularization={handleRequestRegularization}
         readOnly={!!empId}
       />
-    </div>
+    </>
   );
 }
