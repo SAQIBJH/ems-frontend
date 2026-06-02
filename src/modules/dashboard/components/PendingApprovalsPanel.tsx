@@ -242,7 +242,7 @@ export function PendingApprovalsPanel() {
   const totalPending = leaveRequests.length + regRequests.length;
 
   return (
-    <div className="rounded-lg border border-subtle bg-surface">
+    <div className="rounded-xl border border-subtle bg-surface">
       <div className="flex items-center justify-between border-b border-subtle px-5 py-3">
         <h2 className="text-sm font-medium text-fg">Pending Approvals</h2>
         {totalPending > 0 && !isLoading && (

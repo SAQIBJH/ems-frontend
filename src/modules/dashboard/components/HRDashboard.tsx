@@ -46,11 +46,20 @@ const DEPT_COLORS = [
   'hsl(60 80% 42%)',
 ];
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-lg border border-subtle bg-surface">
-      <div className="border-b border-subtle px-5 py-3">
+    <div className="rounded-xl border border-subtle bg-surface">
+      <div className="flex items-center justify-between border-b border-subtle px-5 py-3">
         <h2 className="text-sm font-medium text-fg">{title}</h2>
+        {actions && <div className="flex items-center gap-1">{actions}</div>}
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -73,23 +82,26 @@ function AttendanceTrendChart() {
       })(),
     })) ?? [];
 
+  const rangeActions = (
+    <>
+      {RANGE_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => setRange(opt.value)}
+          className={cn(
+            'rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
+            range === opt.value ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-2',
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </>
+  );
+
   return (
-    <SectionCard title="Attendance — Last 30 Days">
-      <div className="mb-4 flex items-center gap-1">
-        {RANGE_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => setRange(opt.value)}
-            className={cn(
-              'rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
-              range === opt.value ? 'bg-brand text-white' : 'text-fg-muted hover:bg-surface-2',
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+    <SectionCard title="Attendance — Last 30 Days" actions={rangeActions}>
       {isLoading ? (
         <Skeleton className="h-60 w-full rounded-md" />
       ) : isError ? (
@@ -164,7 +176,7 @@ function ActivityRow({ item }: { item: RecentActivityItem }) {
   const resourceUrl = item.entity_url;
 
   return (
-    <tr className="border-b border-subtle last:border-0">
+    <tr className="border-b border-subtle last:border-0 hover:bg-surface-2 transition-colors duration-[120ms]">
       {/* Who */}
       <td className="py-2.5 pr-3">
         <div className="flex items-center gap-2.5">
@@ -305,6 +317,7 @@ export function HRDashboard() {
             icon={<UsersIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
             href="/employees"
+            accent="var(--brand-500)"
             subLine={employeeDeltaText ? { text: employeeDeltaText, tone: 'positive' } : undefined}
           />
           <StatsCard
@@ -312,6 +325,7 @@ export function HRDashboard() {
             value={summary?.activeToday ?? 0}
             icon={<CalendarCheckIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            accent="var(--success-500)"
             subLine={activeTodayText ? { text: activeTodayText, tone: 'positive' } : undefined}
           />
           <StatsCard
@@ -319,6 +333,7 @@ export function HRDashboard() {
             value={summary?.onLeaveToday ?? 0}
             icon={<CalendarXIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            accent="var(--warning-500)"
             subLine={onLeaveDeltaText ? { text: onLeaveDeltaText, tone: 'neutral' } : undefined}
           />
           <StatsCard
@@ -327,6 +342,7 @@ export function HRDashboard() {
             icon={<ClipboardListIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
             href="/leave"
+            accent="var(--dept-product)"
             subLine={urgentText ? { text: urgentText, tone: 'warning' } : undefined}
           />
         </div>

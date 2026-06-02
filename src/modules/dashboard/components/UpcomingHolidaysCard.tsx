@@ -26,7 +26,7 @@ export function UpcomingHolidaysCard() {
   })();
 
   return (
-    <div className="rounded-lg border border-subtle bg-surface p-5 space-y-4">
+    <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
       <p className="text-sm font-medium text-fg">Upcoming Holidays</p>
 
       {isLoading ? (

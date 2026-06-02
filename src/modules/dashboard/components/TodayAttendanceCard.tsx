@@ -81,7 +81,7 @@ export function TodayAttendanceCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-subtle bg-surface p-5 space-y-4">
+      <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton className="h-4 w-36" />
           <Skeleton className="h-5 w-20 rounded-full" />
@@ -98,7 +98,7 @@ export function TodayAttendanceCard() {
 
   if (isError) {
     return (
-      <div className="rounded-lg border border-subtle bg-surface p-5 space-y-3">
+      <div className="rounded-xl border border-subtle bg-surface p-5 space-y-3">
         <p className="text-sm font-medium text-fg">Today&apos;s Attendance</p>
         <p className="text-sm text-danger">Failed to load attendance.</p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -120,7 +120,7 @@ export function TodayAttendanceCard() {
   })();
 
   return (
-    <div className="rounded-lg border border-subtle bg-surface p-5 space-y-4">
+    <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-fg">Today&apos;s Attendance</p>

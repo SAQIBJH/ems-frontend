@@ -81,12 +81,14 @@ export function ManagerDashboard() {
             value={summary?.teamSize ?? 0}
             icon={<UsersIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            accent="var(--brand-500)"
           />
           <StatsCard
             label="Present Today"
             value={summary?.presentToday ?? 0}
             icon={<CalendarCheckIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            accent="var(--success-500)"
             subLine={presentDelta ? { text: presentDelta, tone: 'positive' } : undefined}
           />
           <StatsCard
@@ -95,6 +97,7 @@ export function ManagerDashboard() {
             icon={<ClipboardListIcon className="size-4" aria-hidden />}
             loading={summaryLoading}
             href="/leave"
+            accent="var(--warning-500)"
             subLine={breakdownText ? { text: breakdownText, tone: 'warning' } : undefined}
           />
           <StatsCard
@@ -104,6 +107,7 @@ export function ManagerDashboard() {
             }
             icon={<BarChart2Icon className="size-4" aria-hidden />}
             loading={summaryLoading}
+            accent="var(--info-500)"
             subLine={avgText ? { text: avgText, tone: 'neutral' } : undefined}
           />
         </div>

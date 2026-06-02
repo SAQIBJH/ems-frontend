@@ -27,7 +27,7 @@ export function TeamWeeklyAttendanceGrid() {
   const { data, isLoading, isError, refetch } = useTeamWeeklyAttendance(weekStart);
 
   return (
-    <div className="rounded-lg border border-subtle bg-surface">
+    <div className="rounded-xl border border-subtle bg-surface">
       <div className="border-b border-subtle px-5 py-3">
         <h2 className="text-sm font-medium text-fg">Team Attendance — This Week</h2>
       </div>

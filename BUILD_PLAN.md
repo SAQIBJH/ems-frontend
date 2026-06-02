@@ -3614,7 +3614,7 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 - [x] Step 74 — Foundation: design tokens + primitives
 - [x] Step 75 — AppShell / Sidebar / Topbar / PageHeader parity + placeholder nav routes
 - [ ] Step 76 — Login screen restyle
-- [ ] Step 77 — Dashboards restyle (HR / Manager / Employee)
+- [x] Step 77 — Dashboards restyle (HR / Manager / Employee)
 - [ ] Step 78 — Employees list restyle
 - [ ] Step 79 — Employee profile restyle
 - [ ] Step 80 — Attendance restyle
