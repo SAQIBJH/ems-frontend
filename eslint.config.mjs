@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated MSW worker — not our code.
     "public/mockServiceWorker.js",
+    // Design prototype files (HTML/CSS/JS mocks from Claude Design — not production code).
+    "docs/ems-design-system/**",
   ]),
 ]);
 
