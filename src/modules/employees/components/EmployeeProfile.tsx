@@ -27,6 +27,7 @@ import { useDeleteEmployee } from '../hooks/useEmployeeMutations';
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
 import type { EmployeeDetail, EmploymentType } from '../types/employee.types';
 import { StatusBadge } from './StatusBadge';
+import { LeaveBalanceSidecard } from './LeaveBalanceSidecard';
 import { DocumentsTab } from './DocumentsTab';
 import { AttendanceTab } from './AttendanceTab';
 import { LeaveTab } from './LeaveTab';
@@ -51,10 +52,6 @@ function getInitials(first: string, last: string): string {
 /* ── Overview tab ─────────────────────────────────────────────────────────── */
 
 function OverviewTab({ employee }: { employee: EmployeeDetail }) {
-  const managerName = employee.manager
-    ? `${employee.manager.firstName} ${employee.manager.lastName}`
-    : null;
-
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       {/* Left — personal details */}
@@ -93,17 +90,7 @@ function OverviewTab({ employee }: { employee: EmployeeDetail }) {
 
       {/* Right sidebar */}
       <div className="flex flex-col gap-4">
-        <SectionCard title="Employment" noPad>
-          <div className="px-5">
-            <InfoRow label="Designation">{employee.designation}</InfoRow>
-            <InfoRow label="Department">{employee.department?.name}</InfoRow>
-            <InfoRow label="Type">
-              {EMPLOYMENT_TYPE_LABELS[employee.employmentType as EmploymentType]}
-            </InfoRow>
-            <InfoRow label="Joined">{formatDate(employee.joinedOn)}</InfoRow>
-            {managerName && <InfoRow label="Manager">{managerName}</InfoRow>}
-          </div>
-        </SectionCard>
+        <LeaveBalanceSidecard balances={employee.leaveBalances} />
 
         {employee.documents.length > 0 && (
           <SectionCard title="Documents" noPad>

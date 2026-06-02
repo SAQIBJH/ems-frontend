@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { LogInIcon, LogOutIcon, ClockIcon } from 'lucide-react';
+import { LogInIcon, LogOutIcon, CoffeeIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
@@ -21,7 +21,19 @@ import { useAttendanceRecords } from '../hooks/useAttendance';
 import { useCheckIn, useCheckOut } from '../hooks/useAttendanceMutations';
 import { STATUS_CONFIG, WORK_MODE_LABELS } from '../constants';
 import { buildDateMap, formatDuration } from '../utils/attendance.utils';
+import { LiveClock } from './LiveClock';
 import type { WorkMode } from '../types/attendance.types';
+
+const TARGET_MINUTES = 480; // 8h — configurable via tenant settings in future
+
+function StatCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-widest text-fg-subtle">{label}</p>
+      <p className="mt-1 font-mono text-base font-semibold tabular-nums text-fg">{value}</p>
+    </div>
+  );
+}
 
 export function CheckInOutCard() {
   const todayMonth = format(new Date(), 'yyyy-MM');
@@ -63,15 +75,25 @@ export function CheckInOutCard() {
     });
   }
 
+  function handleTakeBreak() {
+    toast.info('Break started — remember to resume when you return.');
+  }
+
   if (isLoading) {
     return (
       <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
-        <Skeleton className="h-5 w-32" />
-        <div className="flex gap-4">
-          <Skeleton className="h-14 w-28" />
-          <Skeleton className="h-14 w-28" />
+        <Skeleton className="h-4 w-12" />
+        <Skeleton className="h-8 w-36" />
+        <Skeleton className="h-4 w-44" />
+        <div className="h-px bg-subtle" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-10" />
+          <Skeleton className="h-10" />
         </div>
-        <Skeleton className="h-9 w-32" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
       </div>
     );
   }
@@ -80,93 +102,108 @@ export function CheckInOutCard() {
   const hasCheckedOut = !!todayRecord?.checkOutAt;
   const statusCfg = todayRecord ? STATUS_CONFIG[todayRecord.status] : null;
 
+  const checkInTime = todayRecord?.checkInAt
+    ? format(parseISO(todayRecord.checkInAt), 'hh:mm a')
+    : null;
+  const checkOutTime = todayRecord?.checkOutAt
+    ? format(parseISO(todayRecord.checkOutAt), 'hh:mm a')
+    : null;
+
+  const hoursWorked =
+    todayRecord?.totalMinutes != null
+      ? formatDuration(todayRecord.totalMinutes)
+      : hasCheckedIn
+        ? '—'
+        : null;
+  const target = formatDuration(TARGET_MINUTES);
+
+  const statusText = hasCheckedIn
+    ? `Checked in · ${format(new Date(), 'EEE, MMM d')}`
+    : `Not checked in · ${format(new Date(), 'EEE, MMM d')}`;
+
   return (
-    <div className="rounded-xl border border-subtle bg-surface p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ClockIcon className="size-4 text-fg-muted" aria-hidden />
-          <span className="text-sm font-medium text-fg">Today</span>
-          <span className="text-sm text-fg-subtle">{format(new Date(), 'EEEE, MMM d')}</span>
-        </div>
-        {statusCfg && (
-          <span
-            className={cn(
-              'rounded-full px-2.5 py-0.5 text-xs font-medium',
-              statusCfg.bgClass,
-              statusCfg.textClass,
-            )}
-          >
-            {statusCfg.label}
-          </span>
+    <div className="flex flex-col gap-0 rounded-xl border border-subtle bg-surface p-5">
+      {/* Label */}
+      <p className="text-[11px] font-medium uppercase tracking-widest text-fg-subtle">Today</p>
+
+      {/* Clock */}
+      <div className="mt-1.5">
+        <LiveClock />
+      </div>
+
+      {/* Status line */}
+      <p className="mt-1 text-sm text-fg-muted">{statusText}</p>
+
+      {/* Status badge */}
+      {statusCfg && (
+        <span
+          className={cn(
+            'mt-2 self-start rounded-full px-2.5 py-0.5 text-xs font-medium',
+            statusCfg.bgClass,
+            statusCfg.textClass,
+          )}
+        >
+          {statusCfg.label}
+        </span>
+      )}
+
+      {/* Divider */}
+      <div className="my-4 h-px bg-subtle" />
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <StatCell label="Hours today" value={hoursWorked ?? '—'} />
+        <StatCell label="Target" value={target} />
+        {checkInTime && <StatCell label="Check In" value={checkInTime} />}
+        {checkOutTime && <StatCell label="Check Out" value={checkOutTime} />}
+      </div>
+
+      {/* Actions */}
+      <div className="mt-4 flex flex-col gap-2">
+        {!hasCheckedIn && (
+          <>
+            <Select value={workMode} onValueChange={(v) => setWorkMode(v as WorkMode)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(v) => WORK_MODE_LABELS[v as keyof typeof WORK_MODE_LABELS] ?? v}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(WORK_MODE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button className="w-full gap-1.5" onClick={handleCheckIn} disabled={checkIn.isPending}>
+              <LogInIcon className="size-4" aria-hidden />
+              {checkIn.isPending ? 'Checking in…' : 'Check In'}
+            </Button>
+          </>
+        )}
+
+        {hasCheckedIn && !hasCheckedOut && (
+          <>
+            <Button
+              className="w-full gap-1.5"
+              onClick={handleCheckOut}
+              disabled={checkOut.isPending}
+            >
+              <LogOutIcon className="size-4" aria-hidden />
+              {checkOut.isPending ? 'Checking out…' : 'Check Out'}
+            </Button>
+            <Button variant="outline" className="w-full gap-1.5" onClick={handleTakeBreak}>
+              <CoffeeIcon className="size-4" aria-hidden />
+              Take a break
+            </Button>
+          </>
+        )}
+
+        {hasCheckedIn && hasCheckedOut && (
+          <p className="text-center text-sm text-fg-muted">Completed for today</p>
         )}
       </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md bg-surface-2 px-3 py-2.5">
-          <p className="text-xs text-fg-subtle mb-1">Check In</p>
-          <p className="text-sm font-medium text-fg">
-            {todayRecord?.checkInAt ? format(parseISO(todayRecord.checkInAt), 'hh:mm a') : '—'}
-          </p>
-        </div>
-        <div className="rounded-md bg-surface-2 px-3 py-2.5">
-          <p className="text-xs text-fg-subtle mb-1">Check Out</p>
-          <p className="text-sm font-medium text-fg">
-            {todayRecord?.checkOutAt ? format(parseISO(todayRecord.checkOutAt), 'hh:mm a') : '—'}
-          </p>
-        </div>
-      </div>
-
-      {todayRecord?.totalMinutes != null && (
-        <p className="text-xs text-fg-subtle">
-          Total: {formatDuration(todayRecord.totalMinutes)}
-          {todayRecord.workMode && <> · {WORK_MODE_LABELS[todayRecord.workMode]}</>}
-        </p>
-      )}
-
-      {!hasCheckedIn && (
-        <div className="flex items-center gap-2">
-          <Select value={workMode} onValueChange={(v) => setWorkMode(v as WorkMode)}>
-            <SelectTrigger className="h-8 w-36 text-xs">
-              <SelectValue>
-                {(v) => WORK_MODE_LABELS[v as keyof typeof WORK_MODE_LABELS] ?? v}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(WORK_MODE_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value} className="text-xs">
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            size="sm"
-            onClick={handleCheckIn}
-            disabled={checkIn.isPending}
-            className="h-8 gap-1.5"
-          >
-            <LogInIcon className="size-3.5" aria-hidden />
-            {checkIn.isPending ? 'Checking in…' : 'Check In'}
-          </Button>
-        </div>
-      )}
-
-      {hasCheckedIn && !hasCheckedOut && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleCheckOut}
-          disabled={checkOut.isPending}
-          className="h-8 gap-1.5"
-        >
-          <LogOutIcon className="size-3.5" aria-hidden />
-          {checkOut.isPending ? 'Checking out…' : 'Check Out'}
-        </Button>
-      )}
-
-      {hasCheckedIn && hasCheckedOut && (
-        <p className="text-xs text-fg-subtle">Completed for today</p>
-      )}
     </div>
   );
 }

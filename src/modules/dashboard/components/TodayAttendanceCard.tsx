@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { LogInIcon, LogOutIcon } from 'lucide-react';
@@ -20,31 +20,9 @@ import { cn } from '@/lib/utils';
 
 import { useAttendanceToday } from '@/modules/attendance/hooks/useAttendance';
 import { useCheckIn, useCheckOut } from '@/modules/attendance/hooks/useAttendanceMutations';
+import { LiveClock } from '@/modules/attendance/components/LiveClock';
 import { STATUS_CONFIG, WORK_MODE_LABELS } from '@/modules/attendance/constants';
 import type { WorkMode } from '@/modules/attendance/types/attendance.types';
-
-function LiveClock() {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    // Respect prefers-reduced-motion: update every minute instead of every second
-    const reducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const interval = reducedMotion ? 60_000 : 1_000;
-    const id = setInterval(() => setNow(new Date()), interval);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-4xl font-bold tabular-nums tracking-tight text-fg">
-        {format(now, 'hh:mm')}
-      </span>
-      <span className="text-lg font-medium text-fg-muted">{format(now, 'a')}</span>
-    </div>
-  );
-}
 
 export function TodayAttendanceCard() {
   const { data: record, isLoading, isError, refetch } = useAttendanceToday();
