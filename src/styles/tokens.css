@@ -58,6 +58,57 @@
   --dur-fast: 120ms;
   --dur-base: 180ms;
   --dur-slow: 280ms;
+
+  /* Spacing scale — 8px rhythm */
+  --space-0: 0px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+  --space-13: 80px;
+  --space-14: 96px;
+
+  /* Department colors — stable per domain */
+  --dept-engineering: hsl(222 80% 52%);
+  --dept-operations: hsl(152 60% 40%);
+  --dept-sales: hsl(38 92% 50%);
+  --dept-product: hsl(280 60% 55%);
+  --dept-finance: hsl(190 80% 42%);
+  --dept-people: hsl(340 70% 50%);
+  --dept-legal: hsl(0 75% 55%);
+  --dept-marketing: hsl(60 80% 42%);
+  --dept-it: hsl(210 70% 50%);
+
+  /* Leave-type colors */
+  --leave-casual: hsl(38 92% 50%);
+  --leave-sick: hsl(0 75% 55%);
+  --leave-earned: hsl(152 60% 40%);
+  --leave-parental: hsl(280 60% 55%);
+  --leave-bereavement: hsl(220 9% 38%);
+  --leave-comp-off: hsl(190 80% 42%);
+  --leave-unpaid: hsl(220 13% 65%);
+
+  /* Status aliases — reference existing semantic tokens */
+  --status-active: var(--success-500);
+  --status-onleave: var(--warning-500);
+  --status-terminated: var(--text-tertiary);
+  --status-approved: var(--success-500);
+  --status-pending: var(--warning-500);
+  --status-rejected: var(--danger-500);
+  --status-withdrawn: var(--text-tertiary);
+
+  /* Extended chart palette (chart-1..5 defined in globals.css; 6..8 here) */
+  --chart-6: var(--dept-people);
+  --chart-7: var(--info-500);
+  --chart-8: var(--dept-marketing);
 }
 
 [data-theme='dark'] {

@@ -86,6 +86,50 @@
   --color-warning: var(--warning-500);
   --color-danger: var(--danger-500);
   --color-info: var(--info-500);
+
+  /* Department color utilities */
+  --color-dept-engineering: var(--dept-engineering);
+  --color-dept-operations: var(--dept-operations);
+  --color-dept-sales: var(--dept-sales);
+  --color-dept-product: var(--dept-product);
+  --color-dept-finance: var(--dept-finance);
+  --color-dept-people: var(--dept-people);
+  --color-dept-legal: var(--dept-legal);
+  --color-dept-marketing: var(--dept-marketing);
+  --color-dept-it: var(--dept-it);
+
+  /* Leave-type color utilities */
+  --color-leave-casual: var(--leave-casual);
+  --color-leave-sick: var(--leave-sick);
+  --color-leave-earned: var(--leave-earned);
+  --color-leave-parental: var(--leave-parental);
+  --color-leave-bereavement: var(--leave-bereavement);
+  --color-leave-comp-off: var(--leave-comp-off);
+  --color-leave-unpaid: var(--leave-unpaid);
+
+  /* Status color utilities */
+  --color-status-active: var(--status-active);
+  --color-status-onleave: var(--status-onleave);
+  --color-status-terminated: var(--status-terminated);
+  --color-status-approved: var(--status-approved);
+  --color-status-pending: var(--status-pending);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-withdrawn: var(--status-withdrawn);
+
+  /* Extended chart palette */
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+
+  /* Badge semantic bg/text pairs */
+  --color-badge-success-bg: hsl(152 60% 40% / 0.12);
+  --color-badge-success: var(--success-500);
+  --color-badge-warning-bg: hsl(38 92% 50% / 0.16);
+  --color-badge-warning: hsl(38 80% 38%);
+  --color-badge-danger-bg: hsl(0 75% 50% / 0.12);
+  --color-badge-danger: var(--danger-500);
+  --color-badge-info-bg: hsl(210 90% 50% / 0.12);
+  --color-badge-info: var(--info-500);
 }
 
 /* ── shadcn variable values — EMS-tuned ────────────────────────────────── */
@@ -162,5 +206,103 @@
   }
   .payslip-print-root {
     display: block !important;
+  }
+}
+
+/* ── EMS type-scale utilities ───────────────────────────────────────────── */
+@layer utilities {
+  .text-display {
+    font-family: var(--font-sans);
+    font-size: 32px;
+    line-height: 40px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+
+  .text-h1 {
+    font-family: var(--font-sans);
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--text-primary);
+  }
+
+  .text-h2 {
+    font-family: var(--font-sans);
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+
+  .text-h3 {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .text-body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  .text-body-sm {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  .text-caption {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .text-overline {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+
+  .text-mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  /* Keyboard shortcut chip */
+  .kbd {
+    display: inline-grid;
+    place-items: center;
+    height: 18px;
+    min-width: 18px;
+    padding: 0 5px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
   }
 }
