@@ -24,6 +24,10 @@ import {
   DollarSign,
   BarChart2,
   TrendingUp,
+  UserPlus,
+  Star,
+  Box,
+  Megaphone,
 } from 'lucide-react';
 import { GlobalSearch } from '@/modules/search';
 import { NotificationBell } from '@/modules/notifications';
@@ -52,7 +56,9 @@ type NavItemDef = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-const NAV_ITEMS: NavItemDef[] = [
+type NavEntry = NavItemDef | { separator: true };
+
+const NAV_ITEMS: NavEntry[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Employees', href: '/employees', icon: Users },
   { label: 'Departments', href: '/departments', icon: Building2 },
@@ -64,6 +70,11 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Analytics', href: '/analytics', icon: TrendingUp },
   { label: 'Permissions', href: '/permissions', icon: Shield },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { separator: true },
+  { label: 'Recruitment', href: '/recruitment', icon: UserPlus },
+  { label: 'Performance', href: '/performance', icon: Star },
+  { label: 'Assets', href: '/assets', icon: Box },
+  { label: 'Announcements', href: '/announcements', icon: Megaphone },
 ];
 
 /* ── NavItem ─────────────────────────────────────────────────────────────── */
@@ -140,9 +151,20 @@ function SidebarContent({
         className={cn('flex-1 overflow-y-auto py-4 space-y-0.5', collapsed ? 'px-2' : 'px-3')}
         aria-label="Main navigation"
       >
-        {NAV_ITEMS.map((item) => (
-          <NavItem key={item.href} item={item} collapsed={collapsed} onNavClick={onNavClick} />
-        ))}
+        {NAV_ITEMS.map((entry, i) => {
+          if ('separator' in entry) {
+            return (
+              <div
+                key={`sep-${i}`}
+                className={cn('border-t border-subtle', collapsed ? 'mx-1 my-2' : 'mx-0 my-2')}
+                role="separator"
+              />
+            );
+          }
+          return (
+            <NavItem key={entry.href} item={entry} collapsed={collapsed} onNavClick={onNavClick} />
+          );
+        })}
       </nav>
 
       {/* Collapse toggle — desktop only */}

@@ -26,12 +26,12 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'sticky top-0 z-10 bg-canvas/95 backdrop-blur-sm border-b border-subtle px-6 py-4',
+        'sticky top-0 z-10 bg-canvas/95 backdrop-blur border-b border-subtle px-6 py-4',
         className,
       )}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {breadcrumbs && breadcrumbs.length > 0 && (
             <nav className="flex items-center gap-1 mb-1" aria-label="Breadcrumb">
               {breadcrumbs.map((crumb, i) => (
@@ -53,8 +53,10 @@ export function PageHeader({
               ))}
             </nav>
           )}
-          <h1 className="text-xl font-semibold text-fg leading-tight truncate">{title}</h1>
-          {description && <p className="text-sm text-fg-muted mt-0.5 leading-5">{description}</p>}
+          <h1 className="text-xl font-semibold tracking-[-0.01em] text-fg leading-7 truncate">
+            {title}
+          </h1>
+          {description && <p className="text-sm text-fg-muted mt-1 leading-5">{description}</p>}
         </div>
         {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
       </div>
