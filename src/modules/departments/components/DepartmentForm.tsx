@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ApiError } from '@/types/api';
+import { useEmployees } from '@/modules/employees/hooks/useEmployees';
 
 import {
   departmentCreateSchema,
@@ -65,6 +66,9 @@ export function DepartmentForm({
 
   const flatDepts = flattenDepartmentTree(departments);
 
+  const { data: employeesData } = useEmployees({ limit: 200, status: 'ACTIVE' });
+  const employees = employeesData?.data ?? [];
+
   const {
     register,
     handleSubmit,
@@ -74,7 +78,12 @@ export function DepartmentForm({
     formState: { errors, isSubmitting },
   } = useForm<DepartmentCreateFormValues>({
     resolver: zodResolver(departmentCreateSchema),
-    defaultValues: { name: '', departmentCode: '', parentId: parentId ?? '' },
+    defaultValues: {
+      name: '',
+      departmentCode: '',
+      parentId: parentId ?? '',
+      headEmployeeId: '',
+    },
   });
 
   useEffect(() => {
@@ -84,9 +93,15 @@ export function DepartmentForm({
           name: initialDept.name,
           departmentCode: initialDept.departmentCode,
           parentId: initialDept.parentId ?? '',
+          headEmployeeId: initialDept.headEmployeeId ?? '',
         });
       } else {
-        reset({ name: '', departmentCode: '', parentId: parentId ?? '' });
+        reset({
+          name: '',
+          departmentCode: '',
+          parentId: parentId ?? '',
+          headEmployeeId: '',
+        });
       }
     }
   }, [open, mode, initialDept, parentId, reset]);
@@ -96,6 +111,7 @@ export function DepartmentForm({
       name: values.name,
       departmentCode: values.departmentCode,
       parentId: values.parentId || null,
+      headEmployeeId: values.headEmployeeId || null,
     };
 
     try {
@@ -218,6 +234,40 @@ export function DepartmentForm({
               )}
             />
             <FieldError message={errors.parentId?.message} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="dept-manager-trigger">Manager / Head</Label>
+            <Controller
+              control={control}
+              name="headEmployeeId"
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? ''}
+                  onValueChange={(v) => field.onChange(v === '_none' ? '' : v)}
+                >
+                  <SelectTrigger id="dept-manager-trigger" className="w-full">
+                    <SelectValue placeholder="No head assigned">
+                      {(v) => {
+                        if (!v || v === '_none') return 'No head assigned';
+                        const emp = employees.find((e) => e.id === v);
+                        return emp ? `${emp.firstName} ${emp.lastName}` : v;
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">No head assigned</SelectItem>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.firstName} {emp.lastName}
+                        {emp.designation ? ` — ${emp.designation}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <FieldError message={errors.headEmployeeId?.message} />
           </div>
 
           <DialogFooter className="pt-2">

@@ -1,21 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ChevronRightIcon,
   MoreHorizontalIcon,
   PlusIcon,
   PencilIcon,
   Trash2Icon,
-  UsersIcon,
-  Building2Icon,
   FolderPlusIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +53,32 @@ import { findDepartmentById, flattenDepartmentTree } from '../utils/department.u
 import { DepartmentForm } from './DepartmentForm';
 import { DepartmentEmployeesTable } from './DepartmentEmployeesTable';
 
+/* ── Dept color palette ─────────────────────────────────────────────────── */
+
+const DEPT_COLORS = [
+  'var(--dept-engineering)',
+  'var(--dept-operations)',
+  'var(--dept-sales)',
+  'var(--dept-product)',
+  'var(--dept-finance)',
+  'var(--dept-people)',
+  'var(--dept-legal)',
+  'var(--dept-marketing)',
+  'var(--dept-it)',
+];
+
+function buildColorMap(departments: Department[]): Map<string, string> {
+  const map = new Map<string, string>();
+  function traverse(dept: Department, color: string) {
+    map.set(dept.id, color);
+    dept.children.forEach((child) => traverse(child, color));
+  }
+  departments.forEach((root, i) => {
+    traverse(root, DEPT_COLORS[i % DEPT_COLORS.length]);
+  });
+  return map;
+}
+
 /* ── Tree item ───────────────────────────────────────────────────────────── */
 
 function DepartmentTreeItem({
@@ -63,6 +86,7 @@ function DepartmentTreeItem({
   depth = 0,
   selectedId,
   expandedIds,
+  colorMap,
   onSelect,
   onToggleExpand,
   onEdit,
@@ -73,6 +97,7 @@ function DepartmentTreeItem({
   depth?: number;
   selectedId: string | null;
   expandedIds: Set<string>;
+  colorMap: Map<string, string>;
   onSelect: (id: string) => void;
   onToggleExpand: (id: string) => void;
   onEdit: (dept: Department) => void;
@@ -82,6 +107,7 @@ function DepartmentTreeItem({
   const hasChildren = dept.children.length > 0;
   const isExpanded = expandedIds.has(dept.id);
   const isSelected = selectedId === dept.id;
+  const color = colorMap.get(dept.id) ?? DEPT_COLORS[0];
 
   return (
     <li>
@@ -90,11 +116,11 @@ function DepartmentTreeItem({
         aria-selected={isSelected}
         aria-expanded={hasChildren ? isExpanded : undefined}
         tabIndex={0}
-        className={cn(
-          'group flex cursor-pointer items-center gap-1.5 rounded-md py-1.5 pr-1 text-sm transition-colors',
-          isSelected ? 'bg-brand/10 text-brand font-medium' : 'text-fg hover:bg-surface-2',
-        )}
-        style={{ paddingLeft: `${depth * 16 + 6}px` }}
+        className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 transition-colors duration-[120ms] hover:bg-surface-2"
+        style={{
+          background: isSelected ? `color-mix(in oklab, ${color} 10%, transparent)` : undefined,
+          paddingLeft: depth > 0 ? `${depth * 24 + 12}px` : undefined,
+        }}
         onClick={() => onSelect(dept.id)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -109,7 +135,7 @@ function DepartmentTreeItem({
           tabIndex={-1}
           aria-hidden
           className={cn(
-            'flex size-4 shrink-0 items-center justify-center rounded text-fg-muted transition-transform',
+            'flex size-4 shrink-0 items-center justify-center rounded text-fg-muted transition-transform duration-[120ms]',
             !hasChildren && 'pointer-events-none text-transparent',
             isExpanded && 'rotate-90',
           )}
@@ -121,18 +147,35 @@ function DepartmentTreeItem({
           <ChevronRightIcon className="size-3.5" />
         </button>
 
-        <Building2Icon className="size-4 shrink-0 text-fg-muted" aria-hidden />
+        {/* Color dot */}
+        {depth === 0 ? (
+          <span
+            className="size-2.5 shrink-0 rounded-full"
+            style={{ background: color }}
+            aria-hidden
+          />
+        ) : (
+          <span
+            className="size-1.5 shrink-0 rounded-full"
+            style={{ background: color, opacity: 0.65 }}
+            aria-hidden
+          />
+        )}
 
-        <span className="flex-1 truncate">{dept.name}</span>
-
-        <Badge
-          variant="outline"
-          className="ml-1 shrink-0 font-mono text-[10px] font-normal text-fg-muted"
+        <span
+          className={cn(
+            'flex-1 truncate text-[13px] leading-[18px]',
+            depth === 0 ? 'font-medium text-fg' : 'font-normal text-fg-muted',
+          )}
         >
-          {dept._count.employees}
-        </Badge>
+          {dept.name}
+        </span>
 
-        {/* Row actions — visible on hover/focus */}
+        <span className="font-mono text-[12px] font-medium leading-[16px] text-fg-muted tabular-nums">
+          {dept._count.employees}
+        </span>
+
+        {/* Row actions */}
         <div
           className="shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
           onClick={(e) => e.stopPropagation()}
@@ -177,6 +220,7 @@ function DepartmentTreeItem({
               depth={depth + 1}
               selectedId={selectedId}
               expandedIds={expandedIds}
+              colorMap={colorMap}
               onSelect={onSelect}
               onToggleExpand={onToggleExpand}
               onEdit={onEdit}
@@ -198,7 +242,7 @@ function TreeSkeleton() {
       {Array.from({ length: 7 }).map((_, i) => (
         <div
           key={i}
-          className="h-8 animate-pulse rounded-md bg-surface-2"
+          className="h-9 animate-pulse rounded-lg bg-surface-2"
           style={{ width: `${70 + (i % 3) * 10}%` }}
         />
       ))}
@@ -210,128 +254,148 @@ function TreeSkeleton() {
 
 function DepartmentDetailPanel({
   dept,
+  colorMap,
+  flatDepts,
   onEdit,
   onAddChild,
   onDelete,
 }: {
   dept: Department;
+  colorMap: Map<string, string>;
+  flatDepts: Department[];
   onEdit: (dept: Department) => void;
   onAddChild: (parentId: string) => void;
   onDelete: (dept: Department) => void;
 }) {
+  const color = colorMap.get(dept.id) ?? DEPT_COLORS[0];
+  const parentName = dept.parentId
+    ? (flatDepts.find((d) => d.id === dept.parentId)?.name ?? null)
+    : null;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-fg">{dept.name}</h2>
-            <Badge variant="outline" className="font-mono text-xs">
-              {dept.departmentCode}
-            </Badge>
-          </div>
-          {dept.depth > 0 && (
-            <p className="mt-1 text-sm text-fg-muted">Level {dept.depth} sub-department</p>
-          )}
-        </div>
-
-        <PermissionWrapper permission="departments:write">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => onAddChild(dept.id)}>
-              <FolderPlusIcon className="mr-1.5 size-3.5" aria-hidden />
-              Add sub-dept
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onEdit(dept)}>
-              <PencilIcon className="mr-1.5 size-3.5" aria-hidden />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-danger hover:bg-danger/10 hover:text-danger"
-              onClick={() => onDelete(dept)}
+    <div className="flex flex-col gap-4">
+      {/* Hero card */}
+      <div
+        className="rounded-xl border border-subtle bg-surface p-6"
+        style={{ borderTop: `3px solid ${color}` }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            {/* Type badge */}
+            <div
+              className="mb-2.5 inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[12px] font-medium leading-[16px]"
+              style={{
+                background: `color-mix(in oklab, ${color} 14%, transparent)`,
+                color,
+              }}
             >
-              <Trash2Icon className="mr-1.5 size-3.5" aria-hidden />
-              Delete
-            </Button>
+              <span
+                className="size-1.5 rounded-full"
+                style={{ background: 'currentColor' }}
+                aria-hidden
+              />
+              {parentName ? `${parentName} · sub-team` : 'Department'}
+            </div>
+
+            <h2 className="text-[22px] font-semibold leading-[30px] tracking-tight text-fg">
+              {dept.name}
+            </h2>
+
+            <p className="mt-1 text-sm text-fg-muted">
+              {dept.headEmployee ? (
+                <>
+                  Headed by{' '}
+                  <strong className="font-medium text-fg">
+                    {dept.headEmployee.firstName} {dept.headEmployee.lastName}
+                  </strong>{' '}
+                  &middot;{' '}
+                </>
+              ) : (
+                'No head assigned · '
+              )}
+              {dept._count.employees} people
+            </p>
           </div>
-        </PermissionWrapper>
+
+          <div className="flex shrink-0 gap-2">
+            <PermissionWrapper permission="departments:write">
+              <Button variant="outline" size="sm" onClick={() => onEdit(dept)}>
+                Reassign head
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(buttonVariants({ variant: 'outline', size: 'icon' }), 'size-8')}
+                  aria-label={`More actions for ${dept.name}`}
+                >
+                  <MoreHorizontalIcon className="size-4" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onEdit(dept)}>
+                    <PencilIcon className="mr-2 size-3.5" aria-hidden />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onAddChild(dept.id)}>
+                    <FolderPlusIcon className="mr-2 size-3.5" aria-hidden />
+                    Add sub-department
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-danger focus:text-danger"
+                    onClick={() => onDelete(dept)}
+                  >
+                    <Trash2Icon className="mr-2 size-3.5" aria-hidden />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </PermissionWrapper>
+          </div>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-subtle bg-surface-2 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">Employees</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">
-            {dept._count.employees}
-          </p>
-        </div>
-        <div className="rounded-lg border border-subtle bg-surface-2 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-            Sub-departments
-          </p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{dept.children.length}</p>
-        </div>
-        {dept.depth > 0 && (
-          <div className="rounded-lg border border-subtle bg-surface-2 p-4">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">Depth</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{dept.depth}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Department head */}
-      {dept.headEmployee && (
-        <div className="rounded-lg border border-subtle bg-surface p-4">
-          <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-            Department head
-          </p>
-          <div className="flex items-center gap-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-medium text-brand">
-              {dept.headEmployee.firstName[0]}
-              {dept.headEmployee.lastName[0]}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-fg">
-                {dept.headEmployee.firstName} {dept.headEmployee.lastName}
-              </p>
-              <p className="text-xs text-fg-muted">{dept.headEmployee.designation}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sub-departments list */}
+      {/* Sub-teams grid */}
       {dept.children.length > 0 && (
-        <div>
-          <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-            Sub-departments
-          </p>
-          <ul className="space-y-2">
+        <div className="rounded-xl border border-subtle bg-surface">
+          <div className="border-b border-subtle px-4 py-3">
+            <h3 className="text-sm font-semibold text-fg">
+              Sub-teams &middot; {dept.children.length}
+            </h3>
+          </div>
+          <div
+            className="grid gap-3 p-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+          >
             {dept.children.map((child) => (
-              <li
+              <div
                 key={child.id}
-                className="flex items-center justify-between rounded-lg border border-subtle bg-surface p-3 text-sm"
+                className="cursor-pointer rounded-lg border border-subtle bg-surface p-3.5 transition-colors duration-[120ms] hover:bg-surface-2"
+                style={{ borderLeft: `3px solid ${color}` }}
               >
-                <div className="flex items-center gap-2">
-                  <Building2Icon className="size-4 shrink-0 text-fg-muted" aria-hidden />
-                  <span className="font-medium text-fg">{child.name}</span>
-                  <Badge variant="outline" className="font-mono text-[10px]">
-                    {child.departmentCode}
-                  </Badge>
-                </div>
-                <span className="flex items-center gap-1 text-xs text-fg-muted">
-                  <UsersIcon className="size-3" aria-hidden />
-                  {child._count.employees}
-                </span>
-              </li>
+                <p className="text-[13px] font-medium leading-[18px] text-fg">{child.name}</p>
+                {child.headEmployee && (
+                  <p className="mt-0.5 text-[12px] leading-[16px] text-fg-muted">
+                    {child.headEmployee.firstName} {child.headEmployee.lastName}
+                  </p>
+                )}
+                <p className="mt-2 text-lg font-semibold tabular-nums text-fg">
+                  {child._count.employees}{' '}
+                  <span className="text-[12px] font-normal text-fg-muted">people</span>
+                </p>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
-      {/* Employee list */}
-      <DepartmentEmployeesTable deptId={dept.id} />
+      {/* Members */}
+      <div className="rounded-xl border border-subtle bg-surface">
+        <div className="border-b border-subtle px-4 py-3">
+          <h3 className="text-sm font-semibold text-fg">Members</h3>
+        </div>
+        <div className="p-4">
+          <DepartmentEmployeesTable deptId={dept.id} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -354,9 +418,9 @@ export function DepartmentTree() {
   const reassignMutation = useReassignAndDeleteDepartment();
 
   const selectedDept = findDepartmentById(departments, selectedId);
-
-  // All departments flattened for use in the reassign target picker
   const flatDepts = flattenDepartmentTree(departments);
+
+  const colorMap = useMemo(() => buildColorMap(departments), [departments]);
 
   function openCreateForm(parentId?: string) {
     setFormMode('create');
@@ -383,7 +447,6 @@ export function DepartmentTree() {
 
   function handleDeleteRequest(dept: Department) {
     if (dept._count.employees > 0) {
-      // Has employees — must reassign before deleting
       setReassignToDeptId('');
       setReassignTarget(dept);
     } else {
@@ -402,7 +465,6 @@ export function DepartmentTree() {
       const axiosErr = err as AxiosError<ApiError>;
       const apiError = axiosErr.response?.data?.error;
       if (apiError?.code === 'DEPARTMENT_NOT_EMPTY') {
-        // Sub-departments exist even though employees = 0 — inform user
         toast.error('Cannot delete: department still has sub-departments. Delete them first.');
       } else {
         toast.error(apiError?.message ?? 'Failed to delete department.');
@@ -440,89 +502,81 @@ export function DepartmentTree() {
     <>
       <PageHeader
         title="Departments"
-        description="Manage your organization's department structure."
+        description="Org tree and team rosters."
         breadcrumbs={[{ label: 'Departments' }]}
         actions={
           <PermissionWrapper permission="departments:write">
-            <Button size="default" onClick={() => openCreateForm()}>
+            <Button size="sm" onClick={() => openCreateForm()}>
               <PlusIcon className="mr-1.5 size-4 shrink-0" aria-hidden />
-              New department
+              Add department
             </Button>
           </PermissionWrapper>
         }
       />
 
-      <div className="px-6 pb-6">
-        <div className="flex min-h-[60vh] gap-0 overflow-hidden rounded-lg border border-subtle">
-          {/* Left: Tree panel */}
-          <div className="flex w-72 shrink-0 flex-col border-r border-subtle bg-surface">
-            <div className="shrink-0 border-b border-subtle px-3 py-3">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-                All departments
-              </p>
+      <div className="grid px-6 pb-6" style={{ gridTemplateColumns: '340px 1fr', gap: 16 }}>
+        {/* Left: Tree panel */}
+        <div className="rounded-xl border border-subtle bg-surface p-3">
+          {isLoading ? (
+            <TreeSkeleton />
+          ) : isError ? (
+            <div className="p-2">
+              <ErrorState message={errorMessage} onRetry={() => refetch()} />
             </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              {isLoading ? (
-                <TreeSkeleton />
-              ) : isError ? (
-                <div className="p-2">
-                  <ErrorState message={errorMessage} onRetry={() => refetch()} />
-                </div>
-              ) : departments.length === 0 ? (
-                <div className="flex h-full items-center justify-center p-4">
-                  <EmptyState
-                    title="No departments yet"
-                    description="Create your first department to get started."
-                    action={
-                      <PermissionWrapper permission="departments:write">
-                        <Button size="default" variant="outline" onClick={() => openCreateForm()}>
-                          <PlusIcon className="mr-1.5 size-4" aria-hidden />
-                          New department
-                        </Button>
-                      </PermissionWrapper>
-                    }
-                  />
-                </div>
-              ) : (
-                <ul role="tree" aria-label="Department tree">
-                  {departments.map((dept) => (
-                    <DepartmentTreeItem
-                      key={dept.id}
-                      dept={dept}
-                      selectedId={selectedId}
-                      expandedIds={expandedIds}
-                      onSelect={setSelectedId}
-                      onToggleExpand={toggleExpand}
-                      onEdit={openEditForm}
-                      onAddChild={openCreateForm}
-                      onDelete={handleDeleteRequest}
-                    />
-                  ))}
-                </ul>
-              )}
+          ) : departments.length === 0 ? (
+            <div className="flex h-full min-h-[200px] items-center justify-center p-4">
+              <EmptyState
+                title="No departments yet"
+                description="Create your first department to get started."
+                action={
+                  <PermissionWrapper permission="departments:write">
+                    <Button size="sm" variant="outline" onClick={() => openCreateForm()}>
+                      <PlusIcon className="mr-1.5 size-4" aria-hidden />
+                      Add department
+                    </Button>
+                  </PermissionWrapper>
+                }
+              />
             </div>
-          </div>
-
-          {/* Right: Detail panel */}
-          <div className="flex flex-1 flex-col overflow-y-auto bg-canvas">
-            {!selectedDept ? (
-              <div className="flex h-full min-h-[40vh] items-center justify-center p-8">
-                <EmptyState
-                  title="Select a department"
-                  description="Click any department in the list to view its details."
-                />
-              </div>
-            ) : (
-              <div className="p-6">
-                <DepartmentDetailPanel
-                  dept={selectedDept}
+          ) : (
+            <ul role="tree" aria-label="Department tree" className="space-y-0.5">
+              {departments.map((dept) => (
+                <DepartmentTreeItem
+                  key={dept.id}
+                  dept={dept}
+                  selectedId={selectedId}
+                  expandedIds={expandedIds}
+                  colorMap={colorMap}
+                  onSelect={setSelectedId}
+                  onToggleExpand={toggleExpand}
                   onEdit={openEditForm}
                   onAddChild={openCreateForm}
                   onDelete={handleDeleteRequest}
                 />
-              </div>
-            )}
-          </div>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Right: Detail panel */}
+        <div className="min-w-0">
+          {!selectedDept ? (
+            <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-subtle bg-surface p-8">
+              <EmptyState
+                title="Select a department"
+                description="Click any department in the tree to view its details."
+              />
+            </div>
+          ) : (
+            <DepartmentDetailPanel
+              dept={selectedDept}
+              colorMap={colorMap}
+              flatDepts={flatDepts}
+              onEdit={openEditForm}
+              onAddChild={openCreateForm}
+              onDelete={handleDeleteRequest}
+            />
+          )}
         </div>
       </div>
 
@@ -552,7 +606,7 @@ export function DepartmentTree() {
         onConfirm={handleDelete}
       />
 
-      {/* Reassign-and-delete dialog — shown when dept has active employees */}
+      {/* Reassign-and-delete dialog */}
       <Dialog
         open={!!reassignTarget}
         onOpenChange={(open) => {
