@@ -3611,7 +3611,7 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 #### Phase 3 Progress tracker
 
 - [ ] Step 73 — Phase 3 docs scaffolding
-- [ ] Step 74 — Foundation: design tokens + primitives
+- [x] Step 74 — Foundation: design tokens + primitives
 - [ ] Step 75 — AppShell / Sidebar / Topbar / PageHeader parity + placeholder nav routes
 - [ ] Step 76 — Login screen restyle
 - [ ] Step 77 — Dashboards restyle (HR / Manager / Employee)
