@@ -976,3 +976,93 @@ invoice download link opens a server-provided URL in a new tab.
 Upgrade/manage-seats/contact-sales actions show an info toast:
 `"Contact your account manager to change your plan."` — no actual billing
 integration is wired up. These screens are information dashboards only.
+
+---
+
+## 25. Phase 3 — Design-system visual alignment
+
+> Read this section before working on any Phase 3 step (Steps 73+). It is the
+> standing context for the whole phase. `BUILD_PLAN.md` "PHASE 3" carries the
+> step-by-step runbook.
+
+### What Phase 3 is
+
+A Claude Design handoff bundle lives at **`docs/ems-design-system/`** — a
+high-fidelity HTML/CSS/JS mock of the entire EMS app under
+`project/ui_kits/ems-app/`. Stakeholders want the **real app's UI to match this
+mock exactly, screen by screen.** The app is already functionally complete
+(Phases 1, 1.5, 2, 2.5), so Phase 3 is mainly a **visual-alignment pass** over
+existing screens, plus building the four design screens that have no app
+equivalent yet, plus wiring up design controls that are currently static.
+
+### Design source files (read the mock before coding a screen)
+
+```
+docs/ems-design-system/project/ui_kits/ems-app/
+  tokens.css            ← full token set (colors, type scale, spacing, palettes)
+  ui.css                ← Button/Badge/Input/Avatar/Card/Table/Switch/Checkbox specs
+  shell.css             ← sidebar, topbar, page header, .tabs, .cal, .perm-cell,
+                          .settings-nav, .form-row, .dept-row, .recruit-board
+  AppShell.jsx          ← sidebar + topbar + PageHeader + StatsCard contracts
+  UIPrimitives.jsx      ← primitive shapes
+  Icons.jsx             ← Lucide subset
+  <Screen>.jsx          ← one file per screen — the per-screen acceptance spec
+```
+
+### Scope decisions (locked)
+
+- **Omit only the literal "Phase 2" divider label** in the sidebar — but **DO
+  build/align the tabs under it** (Payroll, Recruitment, Performance, Assets,
+  Reports, Announcements). They render in one continuous nav list, no divider.
+- **Keep all existing functionality; restyle on top.** Never delete a working
+  feature, panel, tab, or column because the mock shows fewer. Where the app has
+  more than the mock (Settings ~20 panels, extra profile tabs, extra columns),
+  keep it and style it to match.
+- **Do NOT change charts/graphs.** `ChartEngine` (Recharts) stays as-is. The
+  design's `--chart-*` tokens may be added as _available_ variables, but chart
+  rendering code is untouched.
+- **Analytics** has no design mock — keep it, styled to match the Reports family.
+
+### Principles every Phase 3 step follows
+
+1. **Open the design mock first.** For screen X, read
+   `docs/ems-design-system/project/ui_kits/ems-app/XScreen.jsx` top-to-bottom
+   (plus its `ui.css`/`shell.css` rules) before writing code. The mock's layout,
+   control set, copy, badge tints, spacing, and top-to-bottom order are the
+   acceptance criteria.
+2. **Recreate pixel-faithfully in the real stack** (Next.js + Tailwind v4 +
+   shadcn/ui). Do NOT port the prototype's raw CSS classes or inline styles;
+   reproduce the same _visual output_ with existing tokens + shadcn primitives.
+   No raw hex in JSX (§12).
+3. **Keep-all-restyle:** preserve existing wiring (React Query hooks, services,
+   forms, guards). Only the presentation layer changes. Make static design
+   controls actually work.
+4. **All four component states** (loading / empty / error / success) — §13.
+5. **Dark mode + responsive** (768 / 1280 / 1440 / 1920) per screen — §15.
+6. **Permission gates** stay on sensitive actions — §10.
+
+### API policy for Phase 3
+
+- Check **`docs/API_MAPPING.md`** first. If an endpoint is **live**, use it
+  through the existing service / React Query layer.
+- If it is **not** live, document the exact endpoint in **`docs/newreqphase3.md`**
+  (method, path, role, request body, exact success response shape incl. envelope
+  - field casing, error codes, consuming screen), then implement an MSW handler
+    matching that shape and register it in `src/mocks/handlers/index.ts`. Types
+    mirror the documented shape (§22 frontend-first workflow).
+- The four net-new modules (**Recruitment, Performance, Assets, Announcements**)
+  are **entirely MSW-backed** in Phase 3 — all their endpoints are authored in
+  `newreqphase3.md`, field casing **camelCase**.
+- **Backend-live transition:** when the backend ships a documented endpoint, the
+  only change is the MSW intercept no longer matching (flip `NEXT_PUBLIC_USE_MOCKS`
+  or delete the handler). No app code changes.
+
+### Per-step workflow (also embedded in each BUILD_PLAN.md step)
+
+1. Build everything under **Build:** in the step.
+2. Run the **Test Gate** and show full output: `pnpm typecheck` (clean), then
+   `pnpm lint` (clean).
+3. If either fails, fix completely before proceeding.
+4. Commit with the exact conventional-format message in the step.
+5. Mark the step `[x]` in the BUILD_PLAN.md Phase 3 tracker.
+6. **STOP.** Write "Step N complete. Waiting for you to say next." — then wait.

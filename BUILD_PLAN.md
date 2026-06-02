@@ -3578,3 +3578,1264 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 **Commit:** `feat(settings): invoices panel — invoice table, status badges, CSV export`
 
 **STOP.** Wait for "next".
+
+---
+
+### PHASE 3 — Design-system visual alignment
+
+> **Read `CLAUDE.md §25` fully before starting any Phase 3 step.** It contains
+> the locked scope decisions, the principles, and the API policy for the whole
+> phase. Do not skip it — every step below assumes you have read it.
+>
+> **Standing context (do not re-read each step):**
+>
+> - Design source: `docs/ems-design-system/project/ui_kits/ems-app/`
+> - Mock for screen X = `<XScreen>.jsx` + `ui.css` + `shell.css` in that folder.
+> - **Open the mock first** before writing any code for a screen.
+> - Keep all existing functionality; restyle on top. Never delete working features.
+> - Charts/graphs are untouched.
+> - New endpoints → `docs/newreqphase3.md` + MSW handler + register in index.ts.
+>   Live endpoints → `docs/API_MAPPING.md` + existing service layer.
+> - Four net-new modules (Recruitment, Performance, Assets, Announcements) are
+>   100% MSW-backed in Phase 3.
+>
+> **Per-step protocol:**
+>
+> 1. Build everything listed under **Build:** in the step.
+> 2. Run Test Gate: `pnpm typecheck` (clean), then `pnpm lint` (clean). Show full output.
+> 3. If either fails, fix completely before proceeding.
+> 4. Commit with the exact conventional-format message in the step.
+> 5. Mark the step `[x]` in the Phase 3 progress tracker below.
+> 6. **STOP.** Write "Step N complete. Waiting for you to say next." — then wait.
+
+#### Phase 3 Progress tracker
+
+- [ ] Step 73 — Phase 3 docs scaffolding
+- [ ] Step 74 — Foundation: design tokens + primitives
+- [ ] Step 75 — AppShell / Sidebar / Topbar / PageHeader parity + placeholder nav routes
+- [ ] Step 76 — Login screen restyle
+- [ ] Step 77 — Dashboards restyle (HR / Manager / Employee)
+- [ ] Step 78 — Employees list restyle
+- [ ] Step 79 — Employee profile restyle
+- [ ] Step 80 — Attendance restyle
+- [ ] Step 81 — Departments restyle
+- [ ] Step 82 — Leave restyle
+- [ ] Step 83 — Holidays restyle
+- [ ] Step 84 — Permissions matrix restyle
+- [ ] Step 85 — Settings restyle
+- [ ] Step 86 — Payroll restyle
+- [ ] Step 87 — Reports + Analytics restyle
+- [ ] Step 88 — Recruitment module (net-new, MSW)
+- [ ] Step 89 — Performance module (net-new, MSW)
+- [ ] Step 90 — Assets module (net-new, MSW)
+- [ ] Step 91 — Announcements module (net-new, MSW)
+- [ ] Step 92 — Phase 3 polish + verification gate
+
+---
+
+### Step 73 — Phase 3 docs scaffolding
+
+**Context recap:** Steps 73–92 implement Phase 3. Step 73 is docs-only: persist the
+plan so any future session can resume cold. Read `CLAUDE.md §25` for standing context.
+
+**Build (docs only — no app code):**
+
+1. Verify `CLAUDE.md §25` exists (it was written as part of this step; do NOT
+   rewrite it unless it is missing).
+
+2. Verify this Phase 3 section is present in `BUILD_PLAN.md` (same — do not
+   rewrite unless missing).
+
+3. **Create `docs/newreqphase3.md`** with the following content — the MSW API
+   contract for the four net-new modules. If the file already exists, do NOT
+   overwrite it; append any missing domains.
+
+````markdown
+# newreqphase3.md — Phase 3 net-new API contracts
+
+> These endpoints are NOT yet on the backend.
+> Frontend implements MSW handlers matching these shapes exactly.
+> When the backend ships, disable MSW (flip NEXT_PUBLIC_USE_MOCKS or delete the handler) — no app code changes.
+>
+> Conventions: all field names camelCase. Envelope for lists: `{ success: true, data: { <collection>[]: ..., pagination: { page, limit, total, totalPages } } }`.
+> Envelope for single objects: `{ success: true, data: { ... } }`.
+> Error envelope (consistent): `{ success: false, error: { code, message, details[], requestId } }`.
+
+---
+
+## Domain A — Recruitment
+
+Role: HR_ADMIN, SUPER_ADMIN (read); MANAGER (pipeline read-only).
+
+### GET /recruitment/summary
+
+Returns stat counts for the 4 StatsCards on the Recruitment screen.
+
+```json
+{
+  "success": true,
+  "data": {
+    "openRequisitions": 6,
+    "activeCandidates": 242,
+    "interviewsThisWeek": 9,
+    "avgDaysToHire": 28
+  }
+}
+```
+````
+
+### GET /recruitment/openings
+
+Returns the open requisitions list (Openings tab).
+Query params: `page` (default 1), `limit` (default 20), `status` (optional filter).
+
+```json
+{
+  "success": true,
+  "data": {
+    "openings": [
+      {
+        "id": "ENG-198",
+        "title": "Senior Backend Engineer",
+        "department": "Engineering",
+        "location": "Bengaluru",
+        "employmentType": "FULL_TIME",
+        "applicantCount": 38,
+        "currentStage": "Interviewing",
+        "status": "Open"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 6, "totalPages": 1 }
+  }
+}
+```
+
+Statuses: `Open` | `Closing` | `On hold` | `Closed`.
+
+### GET /recruitment/candidates
+
+Returns candidates grouped by stage (Pipeline tab) or flat list (Candidates tab).
+Query params: `openingId` (optional), `stage` (optional), `page`, `limit`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "candidates": [
+      {
+        "id": "cand_1",
+        "name": "Fatima Noor",
+        "role": "Senior Backend Engineer",
+        "openingId": "ENG-198",
+        "stage": "interview",
+        "rating": 4,
+        "daysInStage": 6,
+        "isReferral": true,
+        "tag": "ENG-198"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 50, "total": 11, "totalPages": 1 }
+  }
+}
+```
+
+Stages: `applied` | `screening` | `interview` | `offer` | `hired`.
+
+### POST /recruitment/candidates/:id/advance
+
+Advance candidate to next stage.
+Request body: `{ "stage": "interview" }` (the target stage).
+Response: `{ "success": true, "data": { "id": "cand_1", "stage": "interview" } }`.
+Errors: 409 if stage is already at `hired`.
+
+### POST /recruitment/openings
+
+Create a new job opening.
+Request body: `{ "title", "department", "location", "employmentType" }`.
+Response: `{ "success": true, "data": { <opening object> } }`.
+
+---
+
+## Domain B — Performance
+
+Role: HR_ADMIN, SUPER_ADMIN (full); MANAGER (own team read + review write).
+
+### GET /performance/cycles/active
+
+Returns the currently active review cycle.
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "cycle_h1_2026",
+    "name": "H1 2026 Review Cycle",
+    "selfReviewDue": "2026-06-07",
+    "managerReviewDue": "2026-06-14",
+    "calibrationDate": "2026-06-21",
+    "progressPct": 58,
+    "status": "In progress"
+  }
+}
+```
+
+### GET /performance/summary
+
+Returns stat counts for the 4 StatsCards.
+
+```json
+{
+  "success": true,
+  "data": {
+    "reviewsComplete": 42,
+    "reviewsTotal": 73,
+    "goalsOnTrackPct": 81,
+    "avgRating": 3.4,
+    "overdueReviews": 7
+  }
+}
+```
+
+### GET /performance/reviews
+
+Returns review progress rows (Reviews tab).
+Query params: `departmentId` (optional), `status` (optional).
+
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "employeeId": "emp_1",
+        "employeeName": "Priya Sharma",
+        "department": "Engineering",
+        "reviewerName": "Aman Khanna",
+        "status": "Calibrated",
+        "rating": "Exceeds",
+        "selfComplete": true,
+        "managerComplete": true
+      }
+    ],
+    "pagination": { "page": 1, "limit": 50, "total": 7, "totalPages": 1 }
+  }
+}
+```
+
+Statuses: `Not started` | `Self review` | `Manager review` | `Calibrated`.
+Ratings: `Exceeds` | `Strong` | `Meets` | `Developing` | `Below` | null.
+
+### GET /performance/goals
+
+Returns team goals (Goals tab).
+
+```json
+{
+  "success": true,
+  "data": {
+    "goals": [
+      {
+        "id": "goal_1",
+        "employeeName": "Priya Sharma",
+        "title": "Ship design-system v2 to all squads",
+        "progressPct": 80,
+        "dueDate": "2026-06-30",
+        "status": "On track"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 50, "total": 6, "totalPages": 1 }
+  }
+}
+```
+
+Goal statuses: `On track` | `At risk` | `Done`.
+
+### GET /performance/calibration
+
+Returns rating distribution (Calibration tab).
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalReviewed": 73,
+    "distribution": [
+      { "rating": "Exceeds", "count": 8, "pct": 11 },
+      { "rating": "Strong", "count": 19, "pct": 26 },
+      { "rating": "Meets", "count": 33, "pct": 45 },
+      { "rating": "Developing", "count": 10, "pct": 14 },
+      { "rating": "Below", "count": 3, "pct": 4 }
+    ],
+    "notes": [
+      {
+        "tone": "warning",
+        "title": "Engineering skews high",
+        "body": "41% rated Strong or above vs 37% org-wide."
+      },
+      {
+        "tone": "success",
+        "title": "Distribution within band",
+        "body": "Below + Developing held under 20% target."
+      }
+    ]
+  }
+}
+```
+
+### POST /performance/goals
+
+Create a team goal.
+Request body: `{ "title", "employeeId", "dueDate", "progressPct": 0 }`.
+Response: `{ "success": true, "data": { <goal object> } }`.
+
+---
+
+## Domain C — Assets
+
+Role: HR_ADMIN, SUPER_ADMIN, IT_ADMIN.
+
+### GET /assets/summary
+
+Returns stat counts for the 4 StatsCards.
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalAssets": 248,
+    "assigned": 201,
+    "available": 38,
+    "inRepair": 9
+  }
+}
+```
+
+### GET /assets
+
+Returns the asset inventory (Inventory tab) and assigned view (Assigned tab).
+Query params: `type` (Laptop|Monitor|Phone|Other), `status`, `page`, `limit`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "assets": [
+      {
+        "id": "asset_1",
+        "tag": "LAP-0192",
+        "name": "MacBook Pro 14\" M3",
+        "type": "Laptop",
+        "status": "Assigned",
+        "assignedTo": { "employeeId": "emp_1", "name": "Priya Sharma" },
+        "assignedSince": "2025-01-15"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 8, "totalPages": 1 }
+  }
+}
+```
+
+Types: `Laptop` | `Monitor` | `Phone` | `Other`.
+Statuses: `Assigned` | `Available` | `Repair` | `Retired`.
+
+### GET /assets/requests
+
+Returns asset requests (Requests tab).
+Query params: `status` (optional), `page`, `limit`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [
+      {
+        "id": "req_1",
+        "requestedBy": { "employeeId": "emp_3", "name": "Nisha Iyer" },
+        "item": "Monitor — 27\" 4K",
+        "reason": "New hire setup",
+        "requestedAt": "2026-05-27",
+        "status": "Pending"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 4, "totalPages": 1 }
+  }
+}
+```
+
+Request statuses: `Pending` | `Approved` | `Fulfilled` | `Declined`.
+
+### PATCH /assets/requests/:id/approve
+
+Approve a pending asset request.
+Request body: `{}`.
+Response: `{ "success": true, "data": { "id": "req_1", "status": "Approved" } }`.
+
+### PATCH /assets/requests/:id/decline
+
+Decline a pending asset request.
+Request body: `{ "reason": "string (optional)" }`.
+Response: `{ "success": true, "data": { "id": "req_1", "status": "Declined" } }`.
+
+### POST /assets
+
+Add a new asset.
+Request body: `{ "tag", "name", "type" }`.
+Response: `{ "success": true, "data": { <asset object> } }`.
+
+---
+
+## Domain D — Announcements
+
+Role: HR_ADMIN, SUPER_ADMIN (full); MANAGER (read + post to own team channel);
+EMPLOYEE (read own channels).
+
+### GET /announcements
+
+Returns pinned announcement + chronological feed.
+Query params: `channelId` (optional), `page`, `limit`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "pinned": {
+      "id": "ann_0",
+      "category": "Company",
+      "title": "Q2 All-Hands — Thursday 4 PM IST",
+      "body": "Join the leadership team for the Q2 business review…",
+      "author": { "name": "Aman Khanna", "role": "Chief People Officer" },
+      "audience": "All employees",
+      "readCount": 182,
+      "postedAt": "2026-06-02T09:00:00Z",
+      "isPinned": true
+    },
+    "feed": [
+      {
+        "id": "ann_1",
+        "category": "IT",
+        "title": "Mandatory password rotation by Jun 5",
+        "body": "Single sign-on credentials must be rotated…",
+        "author": { "name": "Security Team", "role": null },
+        "audience": "All employees",
+        "readCount": 211,
+        "postedAt": "2026-06-01T14:00:00Z",
+        "isPinned": false
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 5, "totalPages": 1 }
+  }
+}
+```
+
+Categories: `Company` | `People` | `Product` | `IT` | `Office`.
+
+### GET /announcements/channels
+
+Returns channel list for the sidebar.
+
+```json
+{
+  "success": true,
+  "data": {
+    "channels": [
+      { "id": "ch_1", "name": "Company-wide", "postCount": 142, "color": "#3b5bdb" },
+      { "id": "ch_2", "name": "People & Culture", "postCount": 38 },
+      { "id": "ch_3", "name": "Product updates", "postCount": 51 },
+      { "id": "ch_4", "name": "IT & Security", "postCount": 24 },
+      { "id": "ch_5", "name": "Office & Facilities", "postCount": 17 }
+    ]
+  }
+}
+```
+
+### GET /announcements/events
+
+Returns upcoming events for the sidebar.
+
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "id": "ev_1",
+        "date": "2026-06-02",
+        "title": "Q2 All-Hands",
+        "meta": "4:00 PM · Main hall + Zoom"
+      },
+      {
+        "id": "ev_2",
+        "date": "2026-06-06",
+        "title": "New-hire orientation",
+        "meta": "10:00 AM · 7 joining"
+      },
+      {
+        "id": "ev_3",
+        "date": "2026-06-14",
+        "title": "Manager review deadline",
+        "meta": "H1 2026 cycle"
+      }
+    ]
+  }
+}
+```
+
+### POST /announcements
+
+Create a new announcement.
+Request body: `{ "title", "body", "category", "channelId", "audience", "isPinned": false }`.
+Response: `{ "success": true, "data": { <announcement object> } }`.
+
+````
+
+4. **No app code changes in Step 73.**
+
+**Test Gate:**
+```bash
+pnpm typecheck
+pnpm lint
+````
+
+(Both should be clean — no code was changed.)
+
+**Commit:** `docs(phase3): scaffold design-alignment plan, CLAUDE §25, newreqphase3`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 74 — Foundation: design tokens + primitive parity
+
+**Context:** Read `CLAUDE.md §25`. Design source for tokens:
+`docs/ems-design-system/project/ui_kits/ems-app/tokens.css` and `ui.css`.
+
+**What this step does:** Extend `src/styles/tokens.css` with the token sets the
+design defines but the app doesn't yet have — without changing any existing token
+values. Then audit shadcn primitives to match `ui.css` visual specs.
+
+**Acceptance criteria:**
+
+- [ ] `tokens.css` gains `--space-0`…`--space-14` spacing scale (0/2/4/6/8/12/16/20/24/32/40/48/64/80/96 px).
+- [ ] `tokens.css` gains `--dept-engineering` through `--dept-it` (9 dept colors, all HSL).
+- [ ] `tokens.css` gains `--leave-casual` through `--leave-unpaid` (7 leave-type colors).
+- [ ] `tokens.css` gains `--status-active`, `--status-onleave`, `--status-terminated`,
+      `--status-approved`, `--status-pending`, `--status-rejected`, `--status-withdrawn`
+      (all pointing at existing semantic tokens — no new colors).
+- [ ] `tokens.css` gains `--chart-1`…`--chart-8` (pointing at existing tokens).
+- [ ] `globals.css` gains utility classes `.text-display`, `.text-h1`, `.text-h2`, `.text-h3`,
+      `.text-body`, `.text-body-sm`, `.text-caption`, `.text-overline`, `.text-mono` matching the
+      design's type scale (sizes, weights, line-heights, letter-spacing from `tokens.css`).
+- [ ] `globals.css` gains `.kbd` (keyboard shortcut chip visual per `ui.css`).
+- [ ] Fonts: verify Inter + JetBrains Mono load (via `next/font` or existing font setup); if
+      not loading, wire them up. Check `--font-sans` and `--font-mono` CSS vars resolve correctly.
+- [ ] **Primitive audit** — for each primitive below, open `ui.css` and confirm the app's
+      shadcn component produces the same visual output. If a variant/size is missing, add it
+      (component styles only — no API or behavior changes):
+  - `Button`: `xs` size (h-7 / px-2.5 / text-xs), `icon-xs` size (w-7 h-7), `destructive`
+    variant as tinted (bg danger/10, text danger).
+  - `Badge`: `dot` prop (6px circle `bg-current`), all six variants match design tints
+    (success 12% bg, warning 16% bg, danger 12% bg, info 12% bg, secondary bg-surface-2,
+    outline border-default).
+  - `Avatar`: `brand` variant (`bg-brand-500 text-white`); `sm` (28px), `lg` (40px),
+    `xl` (56px) sizes.
+  - `StatsCard` (`src/components/data-display/StatsCard.tsx`): 2px top-accent bar, icon chip
+    with `color-mix` 14% tint background, `delta` ±trend row — match design exactly.
+- [ ] `pnpm typecheck` clean, `pnpm lint` clean.
+- [ ] Light and dark mode: spot-check tokens render correctly (surfaces, text, brand tints).
+
+**Build:**
+
+1. Append new token groups to `src/styles/tokens.css` (spacing, dept, leave, status, chart).
+2. Add type-scale utility classes + `.kbd` to `src/styles/globals.css`.
+3. Verify/wire fonts.
+4. Audit and fix the four shadcn primitives + StatsCard (styles only).
+
+**Files to modify:** `src/styles/tokens.css`, `src/styles/globals.css`,
+`src/components/ui/button.tsx` (if xs/icon-xs missing), `src/components/ui/badge.tsx` (dot prop),
+`src/components/ui/avatar.tsx` (brand/size variants), `src/components/data-display/StatsCard.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): design tokens — spacing, category palettes, type scale; primitive parity`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 75 — AppShell / Sidebar / Topbar / PageHeader parity + placeholder nav routes
+
+**Context:** Read `CLAUDE.md §25`. Design mocks:
+`docs/ems-design-system/project/ui_kits/ems-app/AppShell.jsx` + `shell.css`.
+
+**What this step does:** Make the sidebar, topbar, and page header match the design exactly,
+reorder nav items, add the four new module nav entries (Recruitment, Performance, Assets,
+Announcements), and create placeholder routes so the nav never 404s before Steps 88–91.
+
+**Acceptance criteria:**
+
+- [ ] **NAV_ITEMS order** in `AppShell.tsx`:
+  1. Dashboard · 2. Employees · 3. Departments · 4. Attendance · 5. Leave
+     · 6. Holidays · 7. Payroll · 8. Reports · 9. Analytics · 10. Permissions · 11. Settings
+     _(Phase 2 divider label removed; continue list with:)_
+     · 12. Recruitment · 13. Performance · 14. Assets · 15. Announcements
+     No divider label between items 11 and 12 — just a thin `<hr>`-style separator line (same
+     border-subtle color, 1px) above item 12 is acceptable if it was already there; if not,
+     omit entirely.
+- [ ] **Sidebar** visual: logo "EMS" (expanded) / "E" (collapsed, brand-500); 240px/64px widths;
+      active nav item `bg-brand-50 text-brand-500`; hover `bg-surface-2 text-primary`;
+      Collapse/expand toggle button at bottom; transition `width 180ms var(--ease-out)`.
+- [ ] **Topbar**: centered search (max-w-[480px], `bg-surface-2`, border, ⌘K chips), dark-mode
+      toggle, notification bell with red dot badge, avatar — layout matches design.
+- [ ] **PageHeader**: sticky + blurred backdrop; breadcrumb nav; h1 title (20px 600 -0.01em
+      tracking); optional description; right-aligned actions slot.
+- [ ] **Placeholder pages** (4 new routes — renders `<PageHeader>` + `<EmptyState>` only):
+  - `src/app/(dashboard)/recruitment/page.tsx`
+  - `src/app/(dashboard)/performance/page.tsx`
+  - `src/app/(dashboard)/assets/page.tsx`
+  - `src/app/(dashboard)/announcements/page.tsx`
+    Each placeholder's EmptyState title: "Recruitment / Performance / Assets / Announcements"
+    description: "Building in a later step."
+
+**Build:**
+
+1. Update `src/shared/layouts/AppShell.tsx`: reorder NAV_ITEMS, add 4 new entries.
+2. Verify sidebar/topbar/PageHeader match design (adjust Tailwind classes as needed).
+3. Create the 4 placeholder page files.
+
+**Files to modify:** `src/shared/layouts/AppShell.tsx`, `src/shared/layouts/PageHeader.tsx`.
+**Files to create:** 4 placeholder `page.tsx` files under `src/app/(dashboard)/`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): sidebar nav reorder + 4 new modules + placeholder routes`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 76 — Login screen restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/LoginScreen.jsx`.
+
+**What this step does:** Restyle `src/modules/auth/components/LoginForm.tsx` and the login page
+to match the design. The auth flow (real backend, cookies, redirects) is untouched.
+
+**Acceptance criteria:**
+
+- [ ] Left column: EMS logo mark + "Sign in to your workspace" heading + email/password fields
+  - "Forgot password?" link + submit button — order and copy match design.
+- [ ] Right column (desktop only, lg:block): brand-colored panel with radial grid texture,
+      headline copy, feature bullet list — matches `AuthShell`.
+- [ ] Form inputs match design (h-8/32px, border-default, radius-md, placeholder text-disabled).
+- [ ] Submit button: full-width, default variant, spinner while pending, disabled while pending.
+- [ ] Error message below the form (not inside a toast) for invalid credentials.
+- [ ] All four states: loading (button spinner), empty (initial), error (message shown),
+      success (redirect).
+- [ ] Dark mode correct.
+
+**Build:** Restyle `src/modules/auth/components/LoginForm.tsx` and
+`src/shared/layouts/AuthShell.tsx` (presentation only — no logic changes).
+
+**Files to modify:** `src/modules/auth/components/LoginForm.tsx`,
+`src/shared/layouts/AuthShell.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): login screen matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 77 — Dashboards restyle (HR / Manager / Employee)
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/HRDashboard.jsx`.
+The design shows the HR dashboard; apply the same shell/card style to all three
+(HR, Manager, Employee). Charts are untouched.
+
+**Acceptance criteria:**
+
+- [ ] **HR Dashboard**: 4 StatsCards row (Total Employees / On Leave / Attendance Rate /
+      Open Positions) → then chart cards (Attendance Trends, Department Distribution) → then
+      Recent Activity table + Quick Actions sidebar. Order matches design top-to-bottom.
+- [ ] StatsCards: top accent bar (`--brand-500`), icon chip (color-mix 14% tint), delta row
+      with TrendingUp/Down + sub-text — all match design.
+- [ ] Section cards: `bg-surface border border-subtle rounded-xl`, card-header
+      (`border-b border-subtle px-5 py-3`), card-body (`px-5 py-5`).
+- [ ] Recent Activity: avatar + name + action + timestamp columns; table hover-row.
+- [ ] **Manager Dashboard** and **Employee Dashboard**: apply same card/StatsCard style —
+      keep their unique widgets (approvals, team calendar, etc.) but style them to match.
+- [ ] Personalized greeting ("Welcome back, <name>") in page header or top of content.
+- [ ] All four states per widget; dark mode.
+
+**Build:** Restyle components in `src/modules/dashboard/components/` (keep all logic).
+
+**Files to modify:** Components under `src/modules/dashboard/components/` and
+`src/app/(dashboard)/dashboard/page.tsx`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): dashboards match design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 78 — Employees list restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/EmployeesScreen.jsx`.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Employees" title + "Add Employee" primary button (right).
+- [ ] Toolbar row below header: search input + Department filter + Status filter + right-side
+      Density/Columns/Export overflow buttons — order and spacing match design.
+- [ ] Table: avatar + name/code + department + designation + status badge + joined date +
+      actions column. Row hover highlight. Clickable rows open profile.
+- [ ] Status badges use correct tints: Active=success, On Leave=warning, Terminated=secondary.
+- [ ] Bulk-select checkbox column; bulk-action bar appears when rows selected.
+- [ ] Pagination row below table (prev/next + page info).
+- [ ] Empty state (no employees): `NoData` illustration, title "No employees found".
+- [ ] Loading: `SkeletonTable` (existing).
+- [ ] Error state with retry.
+- [ ] Dark mode.
+
+**Build:** Restyle `src/modules/employees/components/EmployeeTable.tsx` and related
+toolbar/filter components (keep all data wiring).
+
+**Files to modify:** `src/modules/employees/components/EmployeeTable.tsx` and toolbar
+components.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): employees list matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 79 — Employee profile restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/EmployeeProfileScreen.jsx`.
+
+**Acceptance criteria:**
+
+- [ ] **Profile header card**: large avatar (56px), name (h2), designation + department badge,
+      employee code (mono), action buttons (Edit / Deactivate) — layout matches design.
+- [ ] **Tabs** (shell.css `.tabs` pattern): Overview · Personal · Job · Compensation ·
+      Documents · Attendance · Leave · Activity — active tab has brand-500 underline, 2px.
+- [ ] **Overview tab**: split layout — left (contact info grid) + right sidebar (summary cards).
+- [ ] All existing tabs kept and styled (keep-all-restyle).
+- [ ] Dark mode; all four states.
+
+**Build:** Restyle `src/modules/employees/components/EmployeeProfile.tsx` and its tab
+components (keep all data wiring + permission gates).
+
+**Files to modify:** `src/modules/employees/components/EmployeeProfile.tsx` and tabs under
+`src/modules/employees/components/`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): employee profile matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 80 — Attendance restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/AttendanceScreen.jsx`.
+Shell CSS: `shell.css` `.cal`, `.cal-day`, `.status-pill`, `.status-present` / `.status-absent`
+/ `.status-leave` / `.status-wfh` / `.status-weekend` / `.status-holiday`.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Attendance" + month nav (← May 2026 →) + Calendar/Table toggle + "Check In"
+      button — order matches design.
+- [ ] **Summary cards** row: Present / Absent / On Leave / Work From Home counts — StatsCard
+      style.
+- [ ] **Calendar grid** (`.cal`): 7-column grid, day cells (1:1 aspect ratio, border, radius-md),
+      status pill (10px, tinted bg) in bottom-left of cell, today with brand border-width 1.5px,
+      out-of-month cells muted.
+- [ ] Status pill tints match design: Present=success, Absent=danger, Leave=warning,
+      WFH=info, Weekend=muted, Holiday=dept-product tint.
+- [ ] **Table view** (toggle): columns Date / Day / Check-in / Check-out / Duration / Status.
+- [ ] Check-in card (if today not checked in): visible in sidebar/top area.
+- [ ] All four states; dark mode.
+
+**Build:** Restyle components in `src/modules/attendance/components/` and
+`src/app/(dashboard)/attendance/page.tsx` (keep all logic + nuqs URL state).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): attendance matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 81 — Departments restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/DepartmentsScreen.jsx`.
+Shell CSS: `.dept-row`.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Departments" + "Add Department" button.
+- [ ] Tree renders `children[]` server-returned nesting. Each row: indent level marker +
+      department name + employee count badge + actions (Edit / Delete). `.dept-row` hover.
+- [ ] Expand/collapse subtree chevrons.
+- [ ] Add/Edit dialog with name + parent + manager fields.
+- [ ] All four states; dark mode.
+
+**Build:** Restyle `src/modules/departments/components/DepartmentTree.tsx` and related
+form/dialog (keep all data wiring).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): departments match design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 82 — Leave restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/LeaveScreen.jsx`.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Leave" + "New Request" button.
+- [ ] Tabs: My Requests · Team Calendar · Approvals (shown to managers/HR only).
+- [ ] **My Requests tab**: balance cards row (Casual/Sick/Earned/etc. with used/total chip) +
+      requests table (Type · From · To · Days · Status badge · Actions).
+- [ ] Leave-type chips use `--leave-*` palette tokens.
+- [ ] Status badges: Pending=warning, Approved=success, Rejected=danger, Withdrawn=secondary.
+- [ ] **Team Calendar tab**: month grid with leave events.
+- [ ] **Approvals tab**: table with Approve/Reject inline buttons.
+- [ ] All four states; dark mode.
+
+**Build:** Restyle components in `src/modules/leave/components/` (keep all data wiring +
+dialogs).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): leave matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 83 — Holidays restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/HolidaysScreen.jsx`.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Holidays" + year picker + "Add Holiday" button + "Import .ics" button.
+- [ ] Year overview: 12 month mini-calendars in a grid; holiday dates highlighted with
+      brand-50 bg + brand-500 border dot.
+- [ ] Holiday list table: Date (mono) · Name · Type badge · Actions.
+- [ ] Holiday types: Public (brand), Optional (secondary), Restricted (warning).
+- [ ] All four states; dark mode.
+
+**Build:** Restyle `src/modules/holidays/components/` (keep all data wiring + dialogs).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): holidays match design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 84 — Permissions matrix restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/PermissionsScreen.jsx`.
+Shell CSS: `.perm-cell`.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Permissions" + "Add Role" button (SUPER_ADMIN only).
+- [ ] Matrix: rows = permission groups (Employees / Leave / Attendance / …), columns = roles.
+      Each cell = `.perm-cell` style: rounded-md, min-w-[88px], h-7, cursor-pointer, scale hover.
+- [ ] Cell values: Full Access (brand bg), Read Only (info bg), No Access (muted). On click,
+      cycles through allowed values.
+- [ ] Sticky first column (permission name) + sticky header row.
+- [ ] "Add Role" dialog with name + description.
+- [ ] All four states; dark mode.
+
+**Build:** Restyle `src/modules/permissions/components/PermissionsMatrix.tsx` (keep all data
+wiring).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): permissions matrix matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 85 — Settings restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/SettingsScreen.jsx`.
+Shell CSS: `.settings-nav`, `.settings-nav-section`, `.settings-nav-item`, `.form-row`.
+
+**Acceptance criteria:**
+
+- [ ] **Left nav** (`.settings-nav`): sections (COMPANY / PEOPLE / PAY & COMPLIANCE /
+      SECURITY / NOTIFICATIONS / INTEGRATIONS & BILLING) with nav items. Active item:
+      `bg-brand-50 text-brand-500 font-medium`. Section labels: 11px uppercase tertiary.
+- [ ] **Form rows** (`.form-row`): 200px label column + 1fr field column, `border-b
+border-subtle`, last row no border. Label: 500 13px. Help text: 12px tertiary. Max-width
+      field 480px.
+- [ ] All existing panels kept (keep-all-restyle). Each panel uses `.form-row` layout.
+- [ ] Phase-2 badge removed from all panels that have been built (already done in Steps 68–72;
+      verify and clean up any remaining ones).
+- [ ] Dark mode; all four states per panel.
+
+**Build:** Restyle `src/modules/settings/components/SettingsNav.tsx` and apply `.form-row`
+pattern to panel components (layout only — keep all data wiring).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): settings match design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 86 — Payroll restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/PayrollScreen.jsx`.
+Charts untouched.
+
+**Acceptance criteria:**
+
+- [ ] PageHeader: "Payroll" + "Initiate Run" button (HR_ADMIN / SUPER_ADMIN only).
+- [ ] Tabs: Runs · Components · Groups · Schedules · My Payslips — match design order.
+- [ ] **Runs tab**: StatsCards row + runs table (Period / Status badge / Employees / Total
+      amount / Actions). Status badges: Draft/secondary, Calculating/info, Review/warning,
+      Approved/success, Paid/success dot, Cancelled/secondary.
+- [ ] Section cards match design (card-header + card-body).
+- [ ] All four states; dark mode.
+
+**Build:** Restyle components in `src/modules/payroll/components/` (keep all data wiring).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): payroll matches design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 87 — Reports + Analytics restyle
+
+**Context:** Read `CLAUDE.md §25`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/ReportsScreen.jsx`.
+Charts untouched.
+
+**Acceptance criteria:**
+
+- [ ] **Reports**: PageHeader "Reports" + left nav (report categories) + right content area.
+      Left nav items match design order. Active item highlighted brand. Report shell (title +
+      date-range filter + Export button + chart card + table card) matches design.
+- [ ] **Analytics page**: styled to match the Reports family (same card/shell pattern) since
+      there is no design mock for Analytics — it should feel consistent.
+- [ ] All four states; dark mode.
+
+**Build:** Restyle `src/modules/reports/components/` and `src/modules/analytics/` (keep all
+data wiring; charts untouched).
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): reports and analytics match design`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 88 — Recruitment module (net-new, MSW-backed)
+
+**Context:** Read `CLAUDE.md §25` + `§22`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/RecruitmentScreen.jsx`.
+Shell CSS: `.recruit-board`, `.recruit-col`, `.recruit-col-head`, `.recruit-col-body`.
+API contracts: `docs/newreqphase3.md` Domain A.
+
+**Acceptance criteria:**
+
+- [ ] `src/app/(dashboard)/recruitment/page.tsx` — replaces the Step-75 placeholder with the
+      full screen.
+- [ ] **PageHeader**: "Recruitment" + description + Export + "Post a Job" button.
+- [ ] **Tabs**: Pipeline · Openings · Candidates.
+- [ ] **StatsCards row** (all tabs): Open requisitions / Active candidates / Interviews this
+      week / Avg time to hire.
+- [ ] **Pipeline tab**: Role + Recruiter selects (filter controls) + kanban board (5 stage
+      columns). Each column: stage label (uppercase 12px + colored dot) + count (mono) +
+      candidate cards. CandidateCard: avatar + name + role + star rating + days-in-stage +
+      opening tag chip + Referral label.
+- [ ] **Openings tab**: table (Role/ID · Department · Location · Type · Applicants · Stage ·
+      Status badge · overflow menu).
+- [ ] **Candidates tab**: table (Candidate + Referral label · Applied for + opening code ·
+      Stage dot · Rating stars · In-stage days · Email icon + Advance button).
+- [ ] "Advance" and "Post a Job" buttons show a success toast (MSW handler responds).
+- [ ] All four states per tab; dark mode.
+
+**Build:**
+
+1. Add `src/mocks/handlers/recruitment.ts` (MSW) with endpoints from `newreqphase3.md` Domain A.
+   Register in `src/mocks/handlers/index.ts`.
+2. `src/modules/recruitment/` — full module anatomy: types, services, hooks, validations,
+   components (RecruitmentScreen, PipelineBoard, CandidateCard, OpeningsTable,
+   CandidatesTable, PostJobDialog), index.ts.
+3. `src/app/(dashboard)/recruitment/page.tsx` — replace placeholder.
+
+**Files to create:** `src/mocks/handlers/recruitment.ts`, full `src/modules/recruitment/`,
+updated `src/app/(dashboard)/recruitment/page.tsx`.
+**Files to modify:** `src/mocks/handlers/index.ts`.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+**Commit:** `feat(phase3): recruitment module — pipeline, openings, candidates (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 89 — Performance module (net-new, MSW-backed)
+
+**Context:** Read `CLAUDE.md §25` + `§22`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/PerformanceScreen.jsx`.
+API contracts: `docs/newreqphase3.md` Domain B.
+
+**Acceptance criteria:**
+
+- [ ] **PageHeader**: "Performance" + description + Export + "Start a Review" button.
+- [ ] **Active-cycle banner**: icon chip + cycle name + due dates (mono) + progress bar + In
+      progress badge — appears above tabs.
+- [ ] **Tabs**: Reviews · Goals · Calibration.
+- [ ] **StatsCards row**: Reviews complete (X/Y) / Goals on track % / Avg rating / Overdue.
+- [ ] **Reviews tab**: dept filter + table (Employee + dept · Reviewer · Self ✓/— · Manager ✓/—
+      · Status dot+label · Rating colored label · Review/View/Open button).
+- [ ] **Goals tab**: status filter + Add goal button + table (Owner avatar+name · Goal title ·
+      Progress bar + % (mono) · Due date (mono) · Status badge).
+- [ ] **Calibration tab**: 2-col layout — rating distribution (horizontal progress bars with
+      count + pct) + calibration notes (colored left-border accent cards).
+- [ ] ProgressBar component: 6px height, rounded-full, color prop, bg-surface-2 track.
+- [ ] All four states; dark mode.
+
+**Build:**
+
+1. `src/mocks/handlers/performance.ts` + register in index.ts.
+2. `src/modules/performance/` full module.
+3. `src/app/(dashboard)/performance/page.tsx` — replace placeholder.
+
+**Commit:** `feat(phase3): performance module — reviews, goals, calibration (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 90 — Assets module (net-new, MSW-backed)
+
+**Context:** Read `CLAUDE.md §25` + `§22`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/AssetsScreen.jsx`.
+API contracts: `docs/newreqphase3.md` Domain C.
+
+**Acceptance criteria:**
+
+- [ ] **PageHeader**: "Assets" + description + Export + "Add Asset" button.
+- [ ] **Tabs**: Inventory · Assigned · Requests.
+- [ ] **StatsCards**: Total assets / Assigned / Available / In repair.
+- [ ] **Inventory tab**: Type + Status selects + Filter button + table (Asset name+icon glyph ·
+      Tag mono · Type · Status badge · Assigned to avatar+name or — · Since · overflow menu).
+- [ ] **AssetGlyph**: 30×30 bg-surface-2 rounded chip containing Laptop/Monitor/Smartphone/Box
+      Lucide icon (16px text-secondary).
+- [ ] **Assigned tab**: table (Employee avatar+name · Asset name+glyph · Tag · Since · Recall
+      button).
+- [ ] **Requests tab**: status filter + table (Requestor avatar+name · Item · Reason ·
+      Date mono · Status badge · Approve/Decline or View actions).
+- [ ] Approve/Decline → MSW → optimistic update or refetch; success toast.
+- [ ] All four states; dark mode.
+
+**Build:**
+
+1. `src/mocks/handlers/assets.ts` + register in index.ts.
+2. `src/modules/assets/` full module.
+3. `src/app/(dashboard)/assets/page.tsx` — replace placeholder.
+
+**Commit:** `feat(phase3): assets module — inventory, assigned, requests (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 91 — Announcements module (net-new, MSW-backed)
+
+**Context:** Read `CLAUDE.md §25` + `§22`. Design mock:
+`docs/ems-design-system/project/ui_kits/ems-app/AnnouncementsScreen.jsx`.
+API contracts: `docs/newreqphase3.md` Domain D.
+
+**Acceptance criteria:**
+
+- [ ] **PageHeader**: "Announcements" + description + "New Announcement" button.
+- [ ] **Two-column layout** (1fr 300px): feed column (left) + sidebar (right, sticky).
+- [ ] **Feed column**:
+  - Composer entry: avatar + placeholder input "Share an update with the company…" + Post
+    button — clicking Post opens a create dialog or inline form.
+  - Pinned card (left 3px colored border, larger title 18px) + feed cards (15px title) — each
+    card: category label (colored dot + uppercase 11px) + Pinned chip (pin icon) if pinned +
+    timestamp (right) + title + body (max 68ch) + author (avatar+name+role) + audience +
+    read-count footer row.
+- [ ] **Sidebar**: Channels card (colored dot + name + post count; first item bg-surface-2
+      active state) + Upcoming events card (date-number/month-abbr + title + meta, border-l
+      separator between date and text).
+- [ ] Category accent colors use `--dept-*` / `--brand-500` tokens (Company=brand, People=dept-people,
+      Product=dept-product, IT=dept-engineering, Office=dept-operations).
+- [ ] "New Announcement" dialog: title + body + category select + audience select + Post button.
+- [ ] All four states; dark mode.
+
+**Build:**
+
+1. `src/mocks/handlers/announcements.ts` + register in index.ts.
+2. `src/modules/announcements/` full module.
+3. `src/app/(dashboard)/announcements/page.tsx` — replace placeholder.
+
+**Commit:** `feat(phase3): announcements module — feed, channels, events (MSW)`
+
+**STOP.** Wait for "next".
+
+---
+
+### Step 92 — Phase 3 polish + verification gate
+
+**Context:** Read `CLAUDE.md §25`. This is the final Phase 3 step.
+
+**What this step does:** A full cross-screen sweep to catch any remaining visual gaps,
+a11y issues, and dark-mode/responsive problems. Then a clean build confirms the entire
+codebase compiles.
+
+**Acceptance criteria:**
+
+- [ ] All Phase 3 screens render correctly at 768 / 1280 / 1440 / 1920 px (responsive).
+- [ ] Light and dark mode verified on every Phase 3 screen (no stuck-light or stuck-dark
+      surfaces, no white-on-white, no invisible borders).
+- [ ] Keyboard navigable: Tab moves through interactive elements in logical order; Enter/Space
+      activates buttons; Escape closes dialogs/drawers; focus rings visible.
+- [ ] No `console.error` or React warnings in the browser console on any screen.
+- [ ] `pnpm typecheck` — zero errors.
+- [ ] `pnpm lint` — zero errors/warnings.
+- [ ] `pnpm build` — succeeds with no TS/lint errors (Next.js production build).
+- [ ] `docs/newreqphase3.md` is complete: every MSW-backed endpoint added in Steps 88–91
+      is documented (method, path, role, request/response shapes, error codes, consuming screen).
+- [ ] **Backend-live transition check**: confirm all new handlers are gated behind
+      `NEXT_PUBLIC_USE_MOCKS` so flipping it to `false` cleanly passes requests to the BFF.
+
+**Build:**
+
+1. Sweep each Phase 3 screen in dev (dark + light, each breakpoint); fix visual gaps.
+2. Fix any a11y issues found (focus management, aria-labels on icon-only buttons).
+3. Fix any TypeScript or lint errors.
+4. Finalize `docs/newreqphase3.md` (add any missing endpoint entries).
+5. Run `pnpm build` — fix any build-only errors not caught by typecheck.
+
+**Test Gate:**
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
+All three must be clean.
+
+**Commit:** `chore(phase3): polish pass — dark mode, responsive, a11y, final build clean`
+
+**STOP.** Phase 3 complete. 🎉
