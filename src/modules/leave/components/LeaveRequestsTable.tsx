@@ -4,10 +4,10 @@ import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { type ColumnDef } from '@tanstack/react-table';
 import { parseAsInteger, parseAsString, useQueryState } from 'nuqs';
-import { PlusIcon, UndoIcon } from 'lucide-react';
+import { UndoIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -17,12 +17,11 @@ import {
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
-import { cn } from '@/lib/utils';
 
 import { useLeaveRequests } from '../hooks/useLeave';
 import { useWithdrawLeaveRequest } from '../hooks/useLeaveMutations';
-import { LeaveStatusBadge } from './LeaveStatusBadge';
-import { NewLeaveRequestDialog } from './NewLeaveRequestDialog';
+import { LeaveStatusBadge, LeaveTypePill } from './LeaveStatusBadge';
+import { LeaveBalanceRow } from './LeaveBalanceCards';
 import type { LeaveRequest, LeaveStatus } from '../types/leave.types';
 
 const PAGE_SIZE = 10;
@@ -35,11 +34,13 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'WITHDRAWN', label: 'Withdrawn' },
 ];
 
-export function LeaveRequestsTable() {
+interface LeaveRequestsTableProps {
+  onNewRequest: () => void;
+}
+
+export function LeaveRequestsTable({ onNewRequest }: LeaveRequestsTableProps) {
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
   const [statusFilter, setStatusFilter] = useQueryState('status', parseAsString.withDefault(''));
-
-  const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState<LeaveRequest | null>(null);
 
   const { data, isLoading, isError, refetch } = useLeaveRequests({
@@ -67,23 +68,23 @@ export function LeaveRequestsTable() {
     () => [
       {
         id: 'type',
-        header: 'Leave Type',
-        cell: ({ row }) => (
-          <span className="text-sm font-medium text-fg">{row.original.leaveTypeName}</span>
-        ),
+        header: 'Type',
+        cell: ({ row }) => <LeaveTypePill name={row.original.leaveTypeName} />,
       },
       {
         id: 'dates',
         header: 'Dates',
         cell: ({ row }) => {
           const { startDate, endDate, totalDays } = row.original;
-          const start = format(parseISO(startDate), 'MMM d, yyyy');
+          const start = format(parseISO(startDate), 'MMM d');
           const end = format(parseISO(endDate), 'MMM d, yyyy');
-          const same = start === end;
+          const same = startDate.slice(0, 10) === endDate.slice(0, 10);
           return (
             <div>
-              <p className="text-sm text-fg">{same ? start : `${start} – ${end}`}</p>
-              <p className="text-xs text-fg-muted">
+              <p className="text-[13px] text-fg">
+                {same ? format(parseISO(startDate), 'MMM d, yyyy') : `${start} – ${end}`}
+              </p>
+              <p className="text-[11px] text-fg-muted">
                 {totalDays} day{totalDays !== 1 ? 's' : ''}
               </p>
             </div>
@@ -95,19 +96,10 @@ export function LeaveRequestsTable() {
         header: 'Reason',
         cell: ({ row }) => (
           <span
-            className="max-w-[200px] truncate text-sm text-fg-muted"
+            className="max-w-[200px] truncate text-[13px] text-fg-muted"
             title={row.original.reason}
           >
-            {row.original.reason}
-          </span>
-        ),
-      },
-      {
-        id: 'submitted',
-        header: 'Submitted',
-        cell: ({ row }) => (
-          <span className="text-sm text-fg-muted">
-            {format(parseISO(row.original.submittedAt), 'MMM d, yyyy')}
+            {row.original.reason || '—'}
           </span>
         ),
       },
@@ -143,6 +135,9 @@ export function LeaveRequestsTable() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Balance row */}
+      <LeaveBalanceRow />
+
       {/* Filter bar */}
       <div className="flex items-center justify-between gap-3">
         <Select
@@ -166,8 +161,7 @@ export function LeaveRequestsTable() {
           </SelectContent>
         </Select>
 
-        <Button size="default" className="gap-1.5" onClick={() => setNewRequestOpen(true)}>
-          <PlusIcon className="size-4" aria-hidden />
+        <Button size="sm" onClick={onNewRequest}>
           New Request
         </Button>
       </div>
@@ -187,13 +181,9 @@ export function LeaveRequestsTable() {
         }
         emptyAction={
           !statusFilter ? (
-            <button
-              onClick={() => setNewRequestOpen(true)}
-              className={cn(buttonVariants({ size: 'sm' }), 'gap-1')}
-            >
-              <PlusIcon className="size-4" aria-hidden />
+            <Button size="sm" onClick={onNewRequest}>
               New Request
-            </button>
+            </Button>
           ) : undefined
         }
         pagination={
@@ -204,8 +194,6 @@ export function LeaveRequestsTable() {
         onPageChange={(p) => void setPage(p)}
         rowLabel="requests"
       />
-
-      <NewLeaveRequestDialog open={newRequestOpen} onOpenChange={setNewRequestOpen} />
 
       <ConfirmDialog
         open={!!withdrawTarget}

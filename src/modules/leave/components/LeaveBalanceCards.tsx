@@ -2,26 +2,25 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { cn } from '@/lib/utils';
-
 import { useLeaveBalance } from '../hooks/useLeave';
+import { leaveTypeColor } from './LeaveStatusBadge';
 
-export function LeaveBalanceCards() {
+/* ── Compact balance row (embedded in My Requests tab) ───────────────────── */
+
+export function LeaveBalanceRow() {
   const { data: balances, isLoading, isError, refetch } = useLeaveBalance();
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-subtle bg-surface p-5 space-y-3">
-            <Skeleton className="h-4 w-32" />
-            <div className="grid grid-cols-3 gap-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-            <Skeleton className="h-2 w-full rounded-full" />
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex-none w-44 rounded-xl border border-subtle bg-surface p-3.5 space-y-2"
+          >
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-1.5 w-full rounded-full" />
           </div>
         ))}
       </div>
@@ -29,64 +28,49 @@ export function LeaveBalanceCards() {
   }
 
   if (isError) {
-    return <ErrorState message="Failed to load leave balances." onRetry={() => refetch()} />;
+    return <ErrorState compact message="Failed to load balances." onRetry={() => refetch()} />;
   }
 
-  if (!balances || balances.length === 0) {
-    return (
-      <EmptyState
-        title="No leave balances"
-        description="Your leave balances will appear here once configured."
-      />
-    );
-  }
+  if (!balances || balances.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {balances.map((balance) => {
-        const usedPct = balance.total > 0 ? Math.round((balance.used / balance.total) * 100) : 0;
+    <div className="flex gap-3 overflow-x-auto pb-1">
+      {balances.map((b) => {
+        const color = leaveTypeColor(b.leaveTypeCode, b.leaveTypeName);
+        const usedPct = b.total > 0 ? (b.used / b.total) * 100 : 0;
+        const left = b.available;
 
         return (
           <div
-            key={balance.id}
-            className="rounded-lg border border-subtle bg-surface p-5 space-y-4"
+            key={b.id}
+            className="flex-none w-44 rounded-xl border border-subtle bg-surface p-3.5"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-fg">{balance.leaveTypeName}</h3>
-              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-fg-muted">
-                {balance.leaveTypeCode}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: color }}
+                aria-hidden
+              />
+              <span className="text-[12px] font-medium leading-[16px] text-fg truncate">
+                {b.leaveTypeName}
               </span>
             </div>
-
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <BalanceStat label="Total" value={balance.total} />
-              <BalanceStat label="Used" value={balance.used} highlight="used" />
-              <BalanceStat label="Available" value={balance.available} highlight="available" />
+            <p className="text-[13px] leading-[18px] font-medium text-fg tabular-nums">
+              <strong>{left}</strong>
+              <span className="text-fg-muted font-normal"> / {b.total} days</span>
+            </p>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${usedPct}%`, background: color }}
+                role="progressbar"
+                aria-valuenow={Math.round(usedPct)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${b.leaveTypeName}: ${Math.round(usedPct)}% used`}
+              />
             </div>
-
-            {/* Progress bar */}
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[11px] text-fg-subtle">{usedPct}% used</span>
-                {balance.pending > 0 && (
-                  <span className="text-[11px] text-warning">{balance.pending} pending</span>
-                )}
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    usedPct > 80 ? 'bg-danger' : usedPct > 60 ? 'bg-warning' : 'bg-success',
-                  )}
-                  style={{ width: `${usedPct}%` }}
-                  role="progressbar"
-                  aria-valuenow={usedPct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${balance.leaveTypeName} used: ${usedPct}%`}
-                />
-              </div>
-            </div>
+            {b.pending > 0 && <p className="mt-1 text-[11px] text-warning">{b.pending} pending</p>}
           </div>
         );
       })}
@@ -94,28 +78,12 @@ export function LeaveBalanceCards() {
   );
 }
 
-function BalanceStat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  highlight?: 'used' | 'available';
-}) {
+/* ── Legacy full-page grid (kept for backward compat) ────────────────────── */
+
+export function LeaveBalanceCards() {
   return (
-    <div className="rounded-md bg-surface-2 px-2 py-2">
-      <p className="text-xs text-fg-subtle mb-1">{label}</p>
-      <p
-        className={cn(
-          'text-lg font-semibold tabular-nums',
-          highlight === 'available' && 'text-success',
-          highlight === 'used' && 'text-fg',
-          !highlight && 'text-fg',
-        )}
-      >
-        {value}
-      </p>
+    <div className="px-6 pb-6">
+      <LeaveBalanceRow />
     </div>
   );
 }
