@@ -220,7 +220,7 @@ function PermCell({ checked, isLocked, isSaving, onClick }: PermCellProps) {
       title={isLocked ? 'Super Admin always has all permissions' : undefined}
       className={[
         'inline-flex items-center justify-center',
-        'min-w-[88px] h-7 px-2.5',
+        'min-w-[88px] h-7',
         'rounded-md text-[12px] font-medium',
         'border transition-transform duration-[60ms]',
         isLocked
@@ -507,7 +507,7 @@ export function PermissionsMatrix() {
     <div className="flex flex-col">
       <PageHeader
         title="Permissions"
-        description="Role × permission matrix. UI affordance only — server enforces."
+        description="Manage what each role can access across the system."
         breadcrumbs={[{ label: 'Permissions' }]}
         actions={
           <div className="flex items-center gap-2">
