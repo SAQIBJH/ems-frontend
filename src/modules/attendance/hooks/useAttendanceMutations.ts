@@ -39,6 +39,7 @@ export function useApproveRegularization() {
       attendanceApi.approveRegularization({ id, comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'approvals'] });
     },
   });
 }
@@ -50,6 +51,7 @@ export function useDenyRegularization() {
       attendanceApi.denyRegularization({ id, comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'approvals'] });
     },
   });
 }

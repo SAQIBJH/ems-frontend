@@ -28,6 +28,7 @@ import {
   useHeadcountByDepartment,
   useRecentActivity,
 } from '../hooks/useDashboard';
+import { PendingApprovalsPanel } from './PendingApprovalsPanel';
 import type { AttendanceRange, RecentActivityItem } from '../types/dashboard.types';
 
 const RANGE_OPTIONS: { label: string; value: AttendanceRange }[] = [
@@ -336,6 +337,9 @@ export function HRDashboard() {
         </div>
         <HeadcountChart />
       </div>
+
+      {/* Pending Approvals */}
+      <PendingApprovalsPanel />
 
       {/* Recent Activity */}
       <RecentActivityTable />

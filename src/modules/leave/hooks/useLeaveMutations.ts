@@ -51,6 +51,7 @@ export function useApproveLeaveRequest() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'approvals'] });
     },
   });
 }
@@ -86,6 +87,7 @@ export function useRejectLeaveRequest() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'approvals'] });
     },
   });
 }
@@ -96,6 +98,7 @@ export function useBulkApproveLeave() {
     mutationFn: (vars: { ids: string[]; comment?: string }) => leaveApi.bulkApprove(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'approvals'] });
     },
     onError: (err) => {
       toast.error(extractMessage(err, 'Bulk approve failed'));
@@ -109,6 +112,7 @@ export function useBulkRejectLeave() {
     mutationFn: (vars: { ids: string[]; comment?: string }) => leaveApi.bulkReject(vars),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'approvals'] });
     },
     onError: (err) => {
       toast.error(extractMessage(err, 'Bulk deny failed'));
