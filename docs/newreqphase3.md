@@ -637,11 +637,18 @@ Returns `null` in `data` if no active cycle exists.
   "name": "Engineering",
   "departmentCode": "ENG",
   "parentId": null,
-  "headEmployeeId": "emp_abc123"
+  "headEmployeeId": "emp_abc123",
+  "headEmployeeFirstName": "Aman",
+  "headEmployeeLastName": "Khanna"
 }
 ```
 
-Setting `headEmployeeId: null` clears the department head.
+`headEmployeeFirstName` and `headEmployeeLastName` are sent alongside `headEmployeeId` for
+denormalization / audit purposes. The backend should treat them as informational — the
+authoritative name is always resolved from the employee record via `headEmployeeId`.
+
+Setting `headEmployeeId: null` clears the department head (send `headEmployeeFirstName: null,
+headEmployeeLastName: null` in the same call).
 The employee must exist and be `ACTIVE`; otherwise return `422` with field error `headEmployeeId`.
 
 **Success response:** `200`, `data` = updated department object (unchanged shape — `headEmployeeId` and `headEmployee` already present)

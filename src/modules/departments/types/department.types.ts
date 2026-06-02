@@ -23,6 +23,8 @@ export interface DepartmentCreateInput {
   departmentCode: string;
   parentId?: string | null;
   headEmployeeId?: string | null;
+  headEmployeeFirstName?: string | null;
+  headEmployeeLastName?: string | null;
 }
 
 export type DepartmentUpdateInput = Partial<DepartmentCreateInput>;

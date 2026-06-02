@@ -111,13 +111,23 @@ export function DepartmentForm({
   }, [open, mode, initialDept, parentId, reset]);
 
   async function onSubmit(values: DepartmentCreateFormValues) {
+    const selectedHead = values.headEmployeeId
+      ? employees.find((e) => e.id === values.headEmployeeId)
+      : null;
+
     const payload = {
       name: values.name,
       departmentCode: values.departmentCode,
       parentId: values.parentId || null,
-      // Only send headEmployeeId on edit — backend does not yet accept it on POST.
+      // Only send head fields on edit — backend does not yet accept them on POST.
       // When Domain E ships, remove this condition.
-      ...(mode === 'edit' ? { headEmployeeId: values.headEmployeeId || null } : {}),
+      ...(mode === 'edit'
+        ? {
+            headEmployeeId: values.headEmployeeId || null,
+            headEmployeeFirstName: selectedHead?.firstName ?? null,
+            headEmployeeLastName: selectedHead?.lastName ?? null,
+          }
+        : {}),
     };
 
     try {
