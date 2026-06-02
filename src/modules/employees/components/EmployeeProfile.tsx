@@ -5,21 +5,11 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
-import {
-  BriefcaseIcon,
-  CalendarIcon,
-  EditIcon,
-  MailIcon,
-  MapPinIcon,
-  PhoneIcon,
-  UserIcon,
-} from 'lucide-react';
+import { BriefcaseIcon, EditIcon, MailIcon, PhoneIcon } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -78,26 +68,34 @@ function StatusBadge({ status }: { status: EmploymentStatus }) {
   );
 }
 
-/* ── Detail row ───────────────────────────────────────────────────────────── */
+/* ── Section card ─────────────────────────────────────────────────────────── */
 
-function DetailRow({
-  icon: Icon,
-  label,
-  value,
+function SectionCard({
+  title,
+  noPad = false,
+  children,
 }: {
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
-  label: string;
-  value: string | null | undefined;
+  title: string;
+  noPad?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 py-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-2">
-        <Icon className="size-4 text-fg-muted" aria-hidden />
+    <div className="rounded-xl border border-subtle bg-surface">
+      <div className="border-b border-subtle px-5 py-3">
+        <h3 className="text-sm font-medium text-fg">{title}</h3>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-fg-muted">{label}</p>
-        <p className="text-sm font-medium text-fg">{value ?? '—'}</p>
-      </div>
+      <div className={noPad ? '' : 'p-5'}>{children}</div>
+    </div>
+  );
+}
+
+/* ── Info row (definition-table style) ───────────────────────────────────── */
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-4 border-b border-subtle py-2.5 last:border-0">
+      <span className="w-40 shrink-0 text-sm text-fg-muted">{label}</span>
+      <span className="flex-1 text-sm text-fg">{children ?? '—'}</span>
     </div>
   );
 }
@@ -105,39 +103,96 @@ function DetailRow({
 /* ── Overview tab ─────────────────────────────────────────────────────────── */
 
 function OverviewTab({ employee }: { employee: EmployeeDetail }) {
+  const managerName = employee.manager
+    ? `${employee.manager.firstName} ${employee.manager.lastName}`
+    : null;
+
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <div className="rounded-lg border border-subtle bg-surface p-4">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          Contact
-        </h3>
-        <Separator className="mb-2" />
-        <DetailRow icon={MailIcon} label="Work email" value={employee.workEmail} />
-        <DetailRow icon={MailIcon} label="Personal email" value={employee.personalEmail} />
-        <DetailRow icon={PhoneIcon} label="Phone" value={employee.phone} />
-        <DetailRow icon={MapPinIcon} label="Address" value={employee.address} />
+    <div className="grid gap-4 xl:grid-cols-3">
+      {/* Left — personal details */}
+      <div className="xl:col-span-2">
+        <SectionCard title="Personal details" noPad>
+          <div className="px-5">
+            <InfoRow label="Employee code">
+              <span className="font-mono text-xs">{employee.employeeCode}</span>
+            </InfoRow>
+            <InfoRow label="Work email">
+              <a href={`mailto:${employee.workEmail}`} className="text-brand hover:underline">
+                {employee.workEmail}
+              </a>
+            </InfoRow>
+            {employee.personalEmail && (
+              <InfoRow label="Personal email">
+                <a href={`mailto:${employee.personalEmail}`} className="text-brand hover:underline">
+                  {employee.personalEmail}
+                </a>
+              </InfoRow>
+            )}
+            {employee.phone && <InfoRow label="Phone">{employee.phone}</InfoRow>}
+            {employee.address && <InfoRow label="Address">{employee.address}</InfoRow>}
+            {employee.dateOfBirth && (
+              <InfoRow label="Date of birth">{formatDate(employee.dateOfBirth)}</InfoRow>
+            )}
+            {employee.gender && (
+              <InfoRow label="Gender">
+                {employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase()}
+              </InfoRow>
+            )}
+            {employee.location && <InfoRow label="Location">{employee.location}</InfoRow>}
+          </div>
+        </SectionCard>
       </div>
 
-      <div className="rounded-lg border border-subtle bg-surface p-4">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          Personal
-        </h3>
-        <Separator className="mb-2" />
-        <DetailRow
-          icon={CalendarIcon}
-          label="Date of birth"
-          value={formatDate(employee.dateOfBirth)}
-        />
-        <DetailRow
-          icon={UserIcon}
-          label="Gender"
-          value={
-            employee.gender
-              ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase()
-              : null
-          }
-        />
-        <DetailRow icon={MapPinIcon} label="Location" value={employee.location} />
+      {/* Right sidebar */}
+      <div className="flex flex-col gap-4">
+        <SectionCard title="Employment" noPad>
+          <div className="px-5">
+            <InfoRow label="Designation">{employee.designation}</InfoRow>
+            <InfoRow label="Department">{employee.department?.name}</InfoRow>
+            <InfoRow label="Type">
+              {EMPLOYMENT_TYPE_LABELS[employee.employmentType as EmploymentType]}
+            </InfoRow>
+            <InfoRow label="Joined">{formatDate(employee.joinedOn)}</InfoRow>
+            {managerName && <InfoRow label="Manager">{managerName}</InfoRow>}
+          </div>
+        </SectionCard>
+
+        {employee.documents.length > 0 && (
+          <SectionCard title="Documents" noPad>
+            {employee.documents.slice(0, 4).map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between border-b border-subtle px-5 py-2.5 last:border-0"
+              >
+                <span className="truncate text-sm text-fg">
+                  {doc.documentType.replace(/_/g, ' ')}
+                </span>
+                {doc.verificationStatus === 'VERIFIED' ? (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-success/40 bg-success/10 text-success text-[11px]"
+                  >
+                    Verified
+                  </Badge>
+                ) : doc.verificationStatus === 'REJECTED' ? (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-danger/40 bg-danger/10 text-danger text-[11px]"
+                  >
+                    Rejected
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-warning/40 bg-warning/10 text-warning text-[11px]"
+                  >
+                    Pending
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </SectionCard>
+        )}
       </div>
     </div>
   );
@@ -151,31 +206,24 @@ function JobTab({ employee }: { employee: EmployeeDetail }) {
     : null;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <div className="rounded-lg border border-subtle bg-surface p-4">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          Employment
-        </h3>
-        <Separator className="mb-2" />
-        <DetailRow icon={BriefcaseIcon} label="Employee code" value={employee.employeeCode} />
-        <DetailRow icon={BriefcaseIcon} label="Designation" value={employee.designation} />
-        <DetailRow
-          icon={BriefcaseIcon}
-          label="Employment type"
-          value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as EmploymentType]}
-        />
-        <DetailRow icon={CalendarIcon} label="Joined on" value={formatDate(employee.joinedOn)} />
-      </div>
-
-      <div className="rounded-lg border border-subtle bg-surface p-4">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          Organisation
-        </h3>
-        <Separator className="mb-2" />
-        <DetailRow icon={BriefcaseIcon} label="Department" value={employee.department?.name} />
-        <DetailRow icon={MapPinIcon} label="Work location" value={employee.location} />
-        <DetailRow icon={UserIcon} label="Manager" value={managerName} />
-        <DetailRow icon={BriefcaseIcon} label="Pay currency" value={employee.payCurrency} />
+    <div className="grid gap-4 xl:grid-cols-3">
+      <div className="xl:col-span-2">
+        <SectionCard title="Employment" noPad>
+          <div className="px-5">
+            <InfoRow label="Employee code">
+              <span className="font-mono text-xs">{employee.employeeCode}</span>
+            </InfoRow>
+            <InfoRow label="Designation">{employee.designation}</InfoRow>
+            <InfoRow label="Department">{employee.department?.name}</InfoRow>
+            <InfoRow label="Employment type">
+              {EMPLOYMENT_TYPE_LABELS[employee.employmentType as EmploymentType]}
+            </InfoRow>
+            <InfoRow label="Joined">{formatDate(employee.joinedOn)}</InfoRow>
+            {managerName && <InfoRow label="Manager">{managerName}</InfoRow>}
+            {employee.location && <InfoRow label="Work location">{employee.location}</InfoRow>}
+            {employee.payCurrency && <InfoRow label="Pay currency">{employee.payCurrency}</InfoRow>}
+          </div>
+        </SectionCard>
       </div>
     </div>
   );
@@ -185,25 +233,23 @@ function JobTab({ employee }: { employee: EmployeeDetail }) {
 
 function ProfileSkeleton() {
   return (
-    <>
-      <div className="border-b border-subtle bg-surface px-6 py-6">
-        <div className="flex items-start gap-5">
-          <Skeleton className="size-16 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-2 pt-1">
+    <div className="flex flex-col gap-6 p-6">
+      <div className="rounded-xl border border-subtle bg-surface p-6">
+        <div className="flex items-center gap-5">
+          <Skeleton className="size-14 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
             <Skeleton className="h-5 w-48" />
             <Skeleton className="h-4 w-64" />
-            <Skeleton className="mt-2 h-5 w-24" />
+            <Skeleton className="mt-1 h-4 w-80" />
           </div>
         </div>
       </div>
-      <div className="space-y-4 px-6 py-6">
-        <Skeleton className="h-9 w-80" />
-        <div className="mt-4 grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-52 rounded-lg" />
-          <Skeleton className="h-52 rounded-lg" />
-        </div>
+      <Skeleton className="h-10 w-full rounded-none" />
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Skeleton className="xl:col-span-2 h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -211,10 +257,24 @@ function ProfileSkeleton() {
 
 export function EmployeeProfile({ id }: { id: string }) {
   const { permissions, user: viewer } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
   const [showTerminate, setShowTerminate] = useState(false);
 
   const { data: employee, isLoading, isError, error, refetch } = useEmployee(id);
   const deleteMutation = useDeleteEmployee();
+
+  const showCompensation =
+    viewer?.memberType === 'HR_ADMIN' || viewer?.memberType === 'SUPER_ADMIN';
+
+  const TABS = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'job', label: 'Job' },
+    ...(showCompensation ? [{ value: 'compensation', label: 'Compensation' }] : []),
+    { value: 'documents', label: 'Documents' },
+    { value: 'attendance', label: 'Attendance' },
+    { value: 'leave', label: 'Leave' },
+    { value: 'activity', label: 'Activity' },
+  ];
 
   async function handleTerminate() {
     if (!employee) return;
@@ -262,7 +322,7 @@ export function EmployeeProfile({ id }: { id: string }) {
     );
   }
 
-  /* Empty (should not happen but keeps the four-state contract) */
+  /* Empty */
   if (!employee) {
     return (
       <>
@@ -306,7 +366,7 @@ export function EmployeeProfile({ id }: { id: string }) {
               <PermissionWrapper permission="employees:delete">
                 <Button
                   variant="outline"
-                  size="default"
+                  size="sm"
                   className="border-danger/30 text-danger hover:bg-danger/5 hover:text-danger"
                   onClick={() => setShowTerminate(true)}
                 >
@@ -318,87 +378,91 @@ export function EmployeeProfile({ id }: { id: string }) {
         }
       />
 
-      {/* Profile header */}
-      <div className="border-b border-subtle bg-surface px-6 py-6">
-        <div className="flex flex-wrap items-start gap-5">
-          <Avatar className="size-16 shrink-0">
-            <AvatarFallback className="text-lg font-semibold">{initials}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold text-fg">{fullName}</h2>
-              <StatusBadge status={employee.employmentStatus} />
-            </div>
-            <p className="mt-0.5 text-sm text-fg-muted">
-              {employee.designation}
-              {employee.department && (
-                <span className="text-fg-subtle"> · {employee.department.name}</span>
-              )}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-fg-muted">
-              <span>{employee.employeeCode}</span>
-              {employee.location && (
-                <span className="flex items-center gap-1">
-                  <MapPinIcon className="size-3" aria-hidden />
-                  {employee.location}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <CalendarIcon className="size-3" aria-hidden />
-                Joined {formatDate(employee.joinedOn)}
-              </span>
-              {employee.user && <span>{employee.user.memberType.replace(/_/g, ' ')}</span>}
+      <div className="flex flex-col gap-6 p-6">
+        {/* Identity card */}
+        <div className="rounded-xl border border-subtle bg-surface p-6">
+          <div className="flex flex-wrap items-center gap-5">
+            <Avatar className="size-14 shrink-0">
+              <AvatarFallback className="bg-brand-50 text-base font-semibold text-brand">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold tracking-[-0.01em] text-fg">{fullName}</h2>
+                <StatusBadge status={employee.employmentStatus} />
+                <Badge variant="outline" className="text-[11px]">
+                  {EMPLOYMENT_TYPE_LABELS[employee.employmentType as EmploymentType]}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-fg-muted">
+                {employee.designation}
+                {employee.department && (
+                  <span className="text-fg-subtle"> · {employee.department.name}</span>
+                )}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-fg-muted">
+                {employee.workEmail && (
+                  <span className="flex items-center gap-1.5">
+                    <MailIcon className="size-3.5 shrink-0" aria-hidden />
+                    {employee.workEmail}
+                  </span>
+                )}
+                {employee.phone && (
+                  <span className="flex items-center gap-1.5">
+                    <PhoneIcon className="size-3.5 shrink-0" aria-hidden />
+                    {employee.phone}
+                  </span>
+                )}
+                {employee.manager && (
+                  <span className="flex items-center gap-1.5">
+                    <BriefcaseIcon className="size-3.5 shrink-0" aria-hidden />
+                    Reports to {employee.manager.firstName} {employee.manager.lastName}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Terminated banner */}
-      {employee.employmentStatus === 'TERMINATED' && (
-        <div className="border-b border-warning/20 bg-warning/5 px-6 py-3">
-          <p className="text-sm text-warning">
-            This employee has been terminated. Their account access has been revoked.
-          </p>
+        {/* Terminated banner */}
+        {employee.employmentStatus === 'TERMINATED' && (
+          <div className="-mt-2 rounded-lg border border-warning/20 bg-warning/5 px-5 py-3">
+            <p className="text-sm text-warning">
+              This employee has been terminated. Their account access has been revoked.
+            </p>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="-mt-2 flex gap-0 border-b border-subtle" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.value}
+              onClick={() => setActiveTab(t.value)}
+              className={cn(
+                '-mb-px cursor-pointer border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
+                activeTab === t.value
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-fg-muted hover:text-fg',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Tabs */}
-      <div className="px-6 py-6">
-        <Tabs defaultValue="overview">
-          <TabsList className="mb-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="job">Job</TabsTrigger>
-            {(viewer?.memberType === 'HR_ADMIN' || viewer?.memberType === 'SUPER_ADMIN') && (
-              <TabsTrigger value="compensation">Compensation</TabsTrigger>
-            )}
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="leave">Leave</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <OverviewTab employee={employee} />
-          </TabsContent>
-          <TabsContent value="job">
-            <JobTab employee={employee} />
-          </TabsContent>
-          <TabsContent value="compensation">
-            <CompensationTab employeeId={id} />
-          </TabsContent>
-          <TabsContent value="documents">
-            <DocumentsTab employeeId={id} />
-          </TabsContent>
-          <TabsContent value="attendance">
-            <AttendanceTab employeeId={id} />
-          </TabsContent>
-          <TabsContent value="leave">
-            <LeaveTab balances={employee.leaveBalances} employeeId={id} />
-          </TabsContent>
-          <TabsContent value="activity">
-            <ActivityTab employeeId={id} />
-          </TabsContent>
-        </Tabs>
+        {/* Tab content */}
+        {activeTab === 'overview' && <OverviewTab employee={employee} />}
+        {activeTab === 'job' && <JobTab employee={employee} />}
+        {activeTab === 'compensation' && <CompensationTab employeeId={id} />}
+        {activeTab === 'documents' && <DocumentsTab employeeId={id} />}
+        {activeTab === 'attendance' && <AttendanceTab employeeId={id} />}
+        {activeTab === 'leave' && <LeaveTab balances={employee.leaveBalances} employeeId={id} />}
+        {activeTab === 'activity' && <ActivityTab employeeId={id} />}
       </div>
 
       <TypeToConfirmDialog
