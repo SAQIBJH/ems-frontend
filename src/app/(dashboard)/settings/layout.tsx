@@ -9,9 +9,18 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         description="Manage your organisation's configuration."
         breadcrumbs={[{ label: 'Settings' }]}
       />
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <SettingsNav />
-        <main className="flex-1 overflow-auto px-7 pt-1 pb-7">{children}</main>
+      {/* Canvas background — matches design's bg-canvas on .ems-page */}
+      <div className="flex-1 overflow-auto bg-canvas p-6">
+        <div className="grid grid-cols-[240px_1fr] gap-4 items-start">
+          {/* Nav card */}
+          <div className="rounded-xl border border-subtle bg-surface overflow-hidden">
+            <SettingsNav />
+          </div>
+          {/* Content card */}
+          <div className="rounded-xl border border-subtle bg-surface px-7 pt-1 pb-7 min-h-[600px]">
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   );
