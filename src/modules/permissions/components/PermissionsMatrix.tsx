@@ -3,19 +3,25 @@
 import { Fragment, useState, useCallback } from 'react';
 import {
   AlertTriangleIcon,
+  BarChart2Icon,
+  Building2Icon,
+  CalendarDaysIcon,
+  ClockIcon,
+  FileSearchIcon,
   LockIcon,
   PlusIcon,
   RotateCcwIcon,
   SaveIcon,
-  ShieldCheckIcon,
+  ShieldIcon,
   Trash2Icon,
+  UsersIcon,
 } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -46,12 +52,52 @@ import type {
   RolesPermissionsData,
 } from '../types/permissions.types';
 
+// ── Role color palette ────────────────────────────────────────────────────────
+
+const ROLE_COLORS: Record<string, string> = {
+  SUPER_ADMIN: 'var(--dept-product)',
+  HR_ADMIN: 'var(--brand-500)',
+  MANAGER: 'var(--dept-finance)',
+  EMPLOYEE: 'var(--text-tertiary)',
+  AUDITOR: 'var(--dept-people)',
+};
+
+// ── Permission group icons ────────────────────────────────────────────────────
+
+type IconComponent = React.ComponentType<LucideProps>;
+
+const GROUP_ICONS: Record<string, IconComponent> = {
+  Employees: UsersIcon,
+  Departments: Building2Icon,
+  Attendance: ClockIcon,
+  Leave: CalendarDaysIcon,
+  Analytics: BarChart2Icon,
+  Audit: FileSearchIcon,
+  Permissions: ShieldIcon,
+};
+
+// ── Level metadata ────────────────────────────────────────────────────────────
+
+const LEVEL_META = {
+  full: {
+    label: 'Full Access',
+    symbol: '●',
+    color: 'var(--success-500)',
+  },
+  none: {
+    label: '—',
+    symbol: '○',
+    color: 'var(--text-disabled)',
+  },
+} as const;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function getRoleLabel(role: string, customRoles: CustomRoleInfo[]): string {
   if (role in BUILT_IN_ROLE_LABELS) return BUILT_IN_ROLE_LABELS[role];
   return customRoles.find((r) => r.key === role)?.name ?? role;
 }
 
-/** Local edits per role — only roles touched by the user appear here. */
 type PendingOverrides = Map<string, Set<PermissionKey>>;
 
 function getEffective(
@@ -98,48 +144,114 @@ function computeImpact(
   return { totalGainUsers, totalLoseUsers, details };
 }
 
+// ── Loading skeleton ──────────────────────────────────────────────────────────
+
 function MatrixSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-5 w-48" />
-        <Skeleton className="h-8 w-32" />
+      <div className="grid grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="rounded-lg border border-subtle bg-surface p-3.5">
+            <Skeleton className="h-[14px] w-20 mb-1" />
+            <Skeleton className="h-3 w-16 mb-3" />
+            <Skeleton className="h-5 w-12" />
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-20" />
       </div>
       <div className="overflow-hidden rounded-lg border border-subtle">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-subtle bg-surface-raised">
-                <th className="w-56 px-4 py-3 text-left">
-                  <Skeleton className="h-4 w-24" />
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-subtle bg-surface-raised">
+              <th className="w-[32%] px-5 py-3 text-left">
+                <Skeleton className="h-4 w-24" />
+              </th>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <th key={i} className="min-w-[110px] px-3 py-3 text-center">
+                  <Skeleton className="mx-auto h-[13px] w-16 mb-1" />
+                  <Skeleton className="mx-auto h-[10px] w-20" />
                 </th>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <th key={i} className="w-32 px-4 py-3 text-center">
-                    <Skeleton className="mx-auto h-4 w-20" />
-                  </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <tr key={i} className="border-b border-subtle last:border-0">
+                <td className="px-5 py-2.5">
+                  <Skeleton className="h-[13px] w-28 mb-1" />
+                  <Skeleton className="h-[11px] w-24" />
+                </td>
+                {Array.from({ length: 5 }).map((_, j) => (
+                  <td key={j} className="px-3 py-2 text-center">
+                    <Skeleton className="mx-auto h-7 w-[88px] rounded-md" />
+                  </td>
                 ))}
               </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 14 }).map((_, i) => (
-                <tr key={i} className="border-b border-subtle last:border-0">
-                  <td className="px-4 py-2.5">
-                    <Skeleton className="h-4 w-36" />
-                  </td>
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <td key={j} className="px-4 py-2.5 text-center">
-                      <Skeleton className="mx-auto h-4 w-4 rounded" />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
+
+// ── Permission cell ───────────────────────────────────────────────────────────
+
+interface PermCellProps {
+  checked: boolean;
+  isLocked: boolean;
+  isSaving: boolean;
+  onClick: () => void;
+}
+
+function PermCell({ checked, isLocked, isSaving, onClick }: PermCellProps) {
+  const meta = checked ? LEVEL_META.full : LEVEL_META.none;
+  const activeColor = meta.color;
+
+  return (
+    <button
+      type="button"
+      onClick={isLocked || isSaving ? undefined : onClick}
+      disabled={isLocked || isSaving}
+      title={isLocked ? 'Super Admin always has all permissions' : undefined}
+      className={[
+        'inline-flex items-center justify-center',
+        'min-w-[88px] h-7 px-2.5',
+        'rounded-md text-[12px] font-medium',
+        'border transition-transform duration-[60ms]',
+        isLocked
+          ? 'cursor-default'
+          : isSaving
+            ? 'cursor-not-allowed opacity-60'
+            : 'cursor-pointer hover:scale-[1.04] active:scale-[0.96]',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{
+        backgroundColor: checked
+          ? `color-mix(in oklab, ${activeColor} 14%, transparent)`
+          : 'transparent',
+        color: activeColor,
+        borderColor: checked
+          ? `color-mix(in oklab, ${activeColor} 26%, transparent)`
+          : 'var(--border-subtle)',
+      }}
+    >
+      {checked && (
+        <span className="mr-1" style={{ fontSize: 11 }}>
+          {meta.symbol}
+        </span>
+      )}
+      {meta.label}
+    </button>
+  );
+}
+
+// ── Matrix table ──────────────────────────────────────────────────────────────
 
 interface MatrixContentProps {
   data: RolesPermissionsData;
@@ -163,42 +275,42 @@ function MatrixContent({
   return (
     <div className="overflow-hidden rounded-lg border border-subtle">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr className="border-b border-subtle bg-surface-raised">
-              <th className="w-56 px-4 py-3 text-left text-xs font-medium text-fg-subtle">
+              <th className="sticky left-0 z-10 bg-surface-raised w-[32%] px-5 py-3 text-left text-xs font-medium text-fg-subtle">
                 Permission
               </th>
               {data.roles.map((role) => {
                 const isCustom = customRoles.some((r) => r.key === role);
+                const roleColor = ROLE_COLORS[role] ?? 'var(--brand-500)';
                 return (
-                  <th
-                    key={role}
-                    className="min-w-[120px] px-4 py-3 text-center text-xs font-semibold text-fg"
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      {role === 'SUPER_ADMIN' && (
-                        <ShieldCheckIcon className="size-3.5 text-brand" />
-                      )}
-                      <span>{getRoleLabel(role, customRoles)}</span>
+                  <th key={role} className="min-w-[110px] px-3 py-3 text-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[13px] font-semibold text-fg">
+                        {getRoleLabel(role, customRoles)}
+                      </span>
+                      <span
+                        className="font-mono text-[10px] font-medium"
+                        style={{ color: roleColor }}
+                      >
+                        {role}
+                      </span>
                       {isCustom && (
-                        <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-                          Custom
-                        </span>
-                      )}
-                      {role !== 'SUPER_ADMIN' && overrides.has(role) && !isCustom && (
-                        <span className="size-1.5 rounded-full bg-warning" />
-                      )}
-                      {isCustom && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteRole(role)}
-                          disabled={deletingRole === role}
-                          className="mt-0.5 rounded p-0.5 text-fg-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
-                          title={`Delete ${getRoleLabel(role, customRoles)} role`}
-                        >
-                          <Trash2Icon className="size-3" />
-                        </button>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                            Custom
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteRole(role)}
+                            disabled={deletingRole === role}
+                            className="rounded p-0.5 text-fg-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                            title={`Delete ${getRoleLabel(role, customRoles)} role`}
+                          >
+                            <Trash2Icon className="size-3" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </th>
@@ -207,68 +319,60 @@ function MatrixContent({
             </tr>
           </thead>
           <tbody>
-            {PERMISSION_GROUPS.map((group) => (
-              <Fragment key={group.label}>
-                <tr className="border-b border-subtle bg-surface-raised/60">
-                  <td
-                    colSpan={data.roles.length + 1}
-                    className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle"
-                  >
-                    {group.label}
-                  </td>
-                </tr>
-                {group.permissions.map((permission) => (
-                  <tr
-                    key={permission}
-                    className="border-b border-subtle last:border-0 hover:bg-surface-raised/40 transition-colors"
-                  >
-                    <td className="py-2.5 pl-6 pr-4 text-fg-subtle">
-                      {PERMISSION_LABELS[permission]}
-                      <span className="ml-2 font-mono text-xs text-fg-muted">{permission}</span>
+            {PERMISSION_GROUPS.map((group) => {
+              const GroupIcon = GROUP_ICONS[group.label];
+              return (
+                <Fragment key={group.label}>
+                  <tr className="border-b border-subtle bg-surface-raised/60">
+                    <td colSpan={data.roles.length + 1} className="px-5 py-2.5">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
+                        {GroupIcon && <GroupIcon size={12} />}
+                        {group.label}
+                      </div>
                     </td>
-                    {data.roles.map((role) => {
-                      const effective = getEffective(role, data, overrides);
-                      const checked = effective.has(permission);
-                      const isLocked = role === 'SUPER_ADMIN';
-                      const isSavingRole = savingRoles.has(role);
-                      return (
-                        <td key={role} className="px-4 py-2.5 text-center">
-                          {isLocked ? (
-                            <div
-                              className="flex items-center justify-center"
-                              title="Super Admin always has all permissions"
-                            >
-                              {checked ? (
-                                <Checkbox
-                                  checked
-                                  disabled
-                                  className="cursor-not-allowed opacity-60"
-                                />
-                              ) : (
-                                <LockIcon className="size-3.5 text-fg-muted" />
-                              )}
-                            </div>
-                          ) : (
-                            <Checkbox
-                              checked={checked}
-                              disabled={isSavingRole}
-                              onCheckedChange={() => onToggle(role, permission)}
-                              className="mx-auto"
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
                   </tr>
-                ))}
-              </Fragment>
-            ))}
+                  {group.permissions.map((permission) => (
+                    <tr
+                      key={permission}
+                      className="border-b border-subtle last:border-0 hover:bg-surface-raised/30 transition-colors"
+                    >
+                      <td className="sticky left-0 z-10 bg-surface px-5 py-2.5">
+                        <div className="text-[13px] font-medium text-fg">
+                          {PERMISSION_LABELS[permission]}
+                        </div>
+                        <div className="font-mono text-[11px] text-fg-muted mt-0.5">
+                          {permission}
+                        </div>
+                      </td>
+                      {data.roles.map((role) => {
+                        const effective = getEffective(role, data, overrides);
+                        const checked = effective.has(permission);
+                        const isLocked = role === 'SUPER_ADMIN';
+                        const isSavingRole = savingRoles.has(role);
+                        return (
+                          <td key={role} className="px-3 py-2 text-center">
+                            <PermCell
+                              checked={checked}
+                              isLocked={isLocked}
+                              isSaving={isSavingRole}
+                              onClick={() => onToggle(role, permission)}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
   );
 }
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function PermissionsMatrix() {
   const { user } = useAuth();
@@ -355,7 +459,6 @@ export function PermissionsMatrix() {
       }
     }
 
-    // Custom role permission changes are MSW-only — update React Query cache directly
     if (customRolesToSave.length > 0) {
       queryClient.setQueryData<RolesPermissionsData>(['settings', 'roles-permissions'], (old) => {
         if (!old) return old;
@@ -404,7 +507,7 @@ export function PermissionsMatrix() {
     <div className="flex flex-col">
       <PageHeader
         title="Permissions"
-        description="Manage what each role can access across the system."
+        description="Role × permission matrix. UI affordance only — server enforces."
         breadcrumbs={[{ label: 'Permissions' }]}
         actions={
           <div className="flex items-center gap-2">
@@ -414,21 +517,24 @@ export function PermissionsMatrix() {
                 Add Role
               </Button>
             )}
-            {isDirty && (
-              <Button variant="outline" size="default" onClick={handleReset} disabled={isSaving}>
-                <RotateCcwIcon className="size-3.5 mr-1.5" />
-                Reset
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="default"
+              onClick={handleReset}
+              disabled={isSaving || !isDirty}
+            >
+              <RotateCcwIcon className="size-3.5 mr-1.5" />
+              Reset to defaults
+            </Button>
             <Button size="default" onClick={handleSaveClick} disabled={!isDirty || isSaving}>
               <SaveIcon className="size-3.5 mr-1.5" />
-              {isSaving ? 'Saving…' : 'Save Changes'}
+              {isSaving ? 'Saving…' : 'Save changes'}
             </Button>
           </div>
         }
       />
 
-      <div className="p-6">
+      <div className="p-6 space-y-6">
         {isError ? (
           <ErrorState message="Failed to load permissions." onRetry={() => void refetch()} />
         ) : isLoading || !data ? (
@@ -439,10 +545,70 @@ export function PermissionsMatrix() {
             description="No roles or permissions have been configured."
           />
         ) : (
-          <div className="space-y-4">
+          <>
+            {/* Role summary cards */}
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(data.roles.length, 5)}, minmax(0, 1fr))`,
+              }}
+            >
+              {data.roles.map((role) => {
+                const customRoles = data.customRoles ?? [];
+                const isCustom = customRoles.some((r) => r.key === role);
+                const roleColor = ROLE_COLORS[role] ?? 'var(--brand-500)';
+                const count = isCustom ? 0 : (DEMO_USER_COUNTS[role] ?? 0);
+                return (
+                  <div
+                    key={role}
+                    className="rounded-lg border border-subtle bg-surface p-3.5"
+                    style={{ borderTop: `3px solid ${roleColor}` }}
+                  >
+                    <div className="text-[14px] font-semibold leading-5 text-fg">
+                      {getRoleLabel(role, customRoles)}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[12px] font-medium text-fg-muted">
+                      {role}
+                    </div>
+                    <div className="mt-2.5 flex items-baseline gap-1.5">
+                      <span
+                        className="text-[20px] font-semibold leading-[26px] tabular-nums"
+                        style={{ color: roleColor }}
+                      >
+                        {count}
+                      </span>
+                      <span className="text-[12px] font-medium text-fg-muted">members</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-4 text-[12px] font-medium text-fg-subtle">
+              <span>Permission levels:</span>
+              <span
+                className="inline-flex items-center gap-1.5"
+                style={{ color: LEVEL_META.full.color }}
+              >
+                <span style={{ fontSize: 14 }}>{LEVEL_META.full.symbol}</span>
+                <span>{LEVEL_META.full.label}</span>
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5"
+                style={{ color: LEVEL_META.none.color }}
+              >
+                <span style={{ fontSize: 14 }}>{LEVEL_META.none.symbol}</span>
+                <span>No Access</span>
+              </span>
+              <span className="ml-auto text-[12px] italic text-fg-muted">
+                Click a cell to toggle access.
+              </span>
+            </div>
+
             {isDirty && (
               <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-                <span className="size-1.5 rounded-full bg-warning" />
+                <span className="size-1.5 shrink-0 rounded-full bg-warning" />
                 You have unsaved changes.
               </div>
             )}
@@ -460,13 +626,12 @@ export function PermissionsMatrix() {
               <LockIcon className="mr-1 inline size-3 align-middle" />
               Super Admin permissions cannot be modified.
             </p>
-          </div>
+          </>
         )}
       </div>
 
       <AddRoleDialog open={addRoleOpen} onOpenChange={setAddRoleOpen} />
 
-      {/* Impact confirmation dialog */}
       <Dialog
         open={impactDialog.open}
         onOpenChange={(isOpen) => setImpactDialog((prev) => ({ ...prev, open: isOpen }))}
