@@ -99,3 +99,11 @@ export interface UpdateRatingResult {
   id: string;
   rating: number;
 }
+
+export interface UpdateOpeningInput {
+  title?: string;
+  department?: string;
+  location?: string;
+  employmentType?: EmploymentType;
+  status?: OpeningStatus;
+}

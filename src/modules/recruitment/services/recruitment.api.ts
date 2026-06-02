@@ -10,6 +10,7 @@ import type {
   CandidatesParams,
   RecruitersResponse,
   UpdateRatingResult,
+  UpdateOpeningInput,
 } from '../types/recruitment.types';
 
 export const recruitmentApi = {
@@ -47,6 +48,11 @@ export const recruitmentApi = {
 
   getRecruiters: async (): Promise<RecruitersResponse> => {
     const { data } = await apiClient.get<{ data: RecruitersResponse }>('/recruitment/recruiters');
+    return data.data;
+  },
+
+  updateOpening: async (id: string, input: UpdateOpeningInput): Promise<Opening> => {
+    const { data } = await apiClient.patch<{ data: Opening }>(`/recruitment/openings/${id}`, input);
     return data.data;
   },
 

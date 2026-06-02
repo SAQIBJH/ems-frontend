@@ -15,6 +15,7 @@ export type {
   Recruiter,
   RecruitersResponse,
   UpdateRatingResult,
+  UpdateOpeningInput,
 } from './types/recruitment.types';
 
 // Services
@@ -29,6 +30,7 @@ export {
   useAdvanceCandidate,
   usePostJob,
   useUpdateRating,
+  useUpdateOpening,
   RECRUITMENT_KEYS,
 } from './hooks/useRecruitment';
 

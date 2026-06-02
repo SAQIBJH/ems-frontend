@@ -360,6 +360,28 @@ export const recruitmentHandlers = [
     return HttpResponse.json({ success: true, data: newOpening }, { status: 201 });
   }),
 
+  // PATCH /recruitment/openings/:id
+  http.patch(`${BASE}/openings/:id`, async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json()) as Partial<Opening>;
+    const opening = OPENINGS.find((o) => o.id === id);
+
+    if (!opening) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Opening not found' } },
+        { status: 404 },
+      );
+    }
+
+    if (body.title !== undefined) opening.title = body.title;
+    if (body.department !== undefined) opening.department = body.department;
+    if (body.location !== undefined) opening.location = body.location;
+    if (body.employmentType !== undefined) opening.employmentType = body.employmentType;
+    if (body.status !== undefined) opening.status = body.status;
+
+    return HttpResponse.json({ success: true, data: opening });
+  }),
+
   // GET /recruitment/recruiters
   http.get(`${BASE}/recruiters`, () => {
     return HttpResponse.json({ success: true, data: { recruiters: RECRUITERS } });

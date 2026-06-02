@@ -156,6 +156,18 @@
 
 ---
 
+### PATCH /recruitment/openings/:id
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:** any subset of `{ title, department, location, employmentType, status }`
+**Success response:** `{ "success": true, "data": { <updated opening object> } }`
+**Error codes:**
+
+- `404` — opening not found
+- `422` — validation failure
+
+---
+
 ### GET /recruitment/recruiters
 
 **Role:** HR_ADMIN, SUPER_ADMIN, MANAGER

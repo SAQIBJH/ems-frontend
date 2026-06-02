@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { recruitmentApi } from '../services/recruitment.api';
-import type { OpeningsParams, CandidatesParams } from '../types/recruitment.types';
+import type {
+  OpeningsParams,
+  CandidatesParams,
+  UpdateOpeningInput,
+} from '../types/recruitment.types';
 
 export const RECRUITMENT_KEYS = {
   summary: ['recruitment', 'summary'] as const,
@@ -53,6 +57,18 @@ export function usePostJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: recruitmentApi.postJob,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['recruitment', 'openings'] });
+      void qc.invalidateQueries({ queryKey: ['recruitment', 'summary'] });
+    },
+  });
+}
+
+export function useUpdateOpening() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateOpeningInput }) =>
+      recruitmentApi.updateOpening(id, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['recruitment', 'openings'] });
       void qc.invalidateQueries({ queryKey: ['recruitment', 'summary'] });
