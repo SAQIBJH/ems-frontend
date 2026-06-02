@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart } from '@/shared/engines/ChartEngine/AreaChart';
 import { DonutChart } from '@/shared/engines/ChartEngine/DonutChart';
 import type { DonutSlice } from '@/shared/engines/ChartEngine/DonutChart';
+import { SectionCard } from '@/components/data-display/SectionCard';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
 import { useAuth } from '@/providers';
 import { cn } from '@/lib/utils';
@@ -45,26 +46,6 @@ const DEPT_COLORS = [
   'hsl(340 70% 50%)',
   'hsl(60 80% 42%)',
 ];
-
-function SectionCard({
-  title,
-  actions,
-  children,
-}: {
-  title: string;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-subtle bg-surface">
-      <div className="flex items-center justify-between border-b border-subtle px-5 py-3">
-        <h2 className="text-sm font-medium text-fg">{title}</h2>
-        {actions && <div className="flex items-center gap-1">{actions}</div>}
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
-  );
-}
 
 function AttendanceTrendChart() {
   const [range, setRange] = useState<AttendanceRange>('30d');

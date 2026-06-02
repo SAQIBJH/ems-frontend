@@ -24,7 +24,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Select,
@@ -67,7 +66,8 @@ import type {
   EmploymentStatus,
   EmploymentType,
 } from '../types/employee.types';
-import { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS } from '../constants';
+import { EMPLOYMENT_TYPE_LABELS } from '../constants';
+import { StatusBadge } from './StatusBadge';
 import { useDepartments, flattenDepartmentTree } from '@/modules/departments';
 import type { ApiError } from '@/types/api';
 
@@ -136,29 +136,6 @@ interface SelectionMeta {
 }
 
 type SelectionMap = Record<string, SelectionMeta>;
-
-/* ── Status badge ─────────────────────────────────────────────────────────── */
-
-function StatusBadge({ status }: { status: EmploymentStatus }) {
-  if (status === 'ACTIVE') {
-    return (
-      <Badge
-        variant="outline"
-        className="border-success/40 bg-success/10 text-success text-[11px] font-medium"
-      >
-        {EMPLOYMENT_STATUS_LABELS.ACTIVE}
-      </Badge>
-    );
-  }
-  return (
-    <Badge
-      variant="outline"
-      className="border-fg-disabled/40 bg-surface-2 text-fg-muted text-[11px] font-medium"
-    >
-      {EMPLOYMENT_STATUS_LABELS.TERMINATED}
-    </Badge>
-  );
-}
 
 /* ── Row actions ──────────────────────────────────────────────────────────── */
 
@@ -763,7 +740,7 @@ export function EmployeeTable() {
               setSearchInput(e.target.value);
               setSelection({});
             }}
-            className="pl-9"
+            className="pl-9 bg-surface-2 border-default-border"
             aria-label="Search employees"
           />
         </div>

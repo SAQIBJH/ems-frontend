@@ -3,6 +3,7 @@ export { EmployeeTable } from './components/EmployeeTable';
 export { EmployeeProfile } from './components/EmployeeProfile';
 export { EmployeeForm } from './components/EmployeeForm';
 export { EmployeeFormStepper } from './components/EmployeeFormStepper';
+export { StatusBadge as EmploymentStatusBadge } from './components/StatusBadge';
 
 // Constants
 export { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS } from './constants';

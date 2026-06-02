@@ -98,7 +98,7 @@ export function DynamicTable<TData>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody>
+        <TableBody className="bg-surface">
           {table.getRowModel().rows.map((row) => (
             <TableRow
               key={row.id}

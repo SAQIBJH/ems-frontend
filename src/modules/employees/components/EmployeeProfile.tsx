@@ -10,6 +10,8 @@ import { BriefcaseIcon, EditIcon, MailIcon, PhoneIcon } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { SectionCard } from '@/components/data-display/SectionCard';
+import { InfoRow } from '@/components/data-display/InfoRow';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -22,8 +24,9 @@ import { cn } from '@/lib/utils';
 
 import { useEmployee } from '../hooks/useEmployee';
 import { useDeleteEmployee } from '../hooks/useEmployeeMutations';
-import { EMPLOYMENT_TYPE_LABELS, EMPLOYMENT_STATUS_LABELS } from '../constants';
-import type { EmployeeDetail, EmploymentStatus, EmploymentType } from '../types/employee.types';
+import { EMPLOYMENT_TYPE_LABELS } from '../constants';
+import type { EmployeeDetail, EmploymentType } from '../types/employee.types';
+import { StatusBadge } from './StatusBadge';
 import { DocumentsTab } from './DocumentsTab';
 import { AttendanceTab } from './AttendanceTab';
 import { LeaveTab } from './LeaveTab';
@@ -43,61 +46,6 @@ function formatDate(iso: string | null | undefined): string {
 
 function getInitials(first: string, last: string): string {
   return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
-}
-
-/* ── Status badge ─────────────────────────────────────────────────────────── */
-
-function StatusBadge({ status }: { status: EmploymentStatus }) {
-  if (status === 'ACTIVE') {
-    return (
-      <Badge
-        variant="outline"
-        className="border-success/40 bg-success/10 text-success text-[11px] font-medium"
-      >
-        {EMPLOYMENT_STATUS_LABELS.ACTIVE}
-      </Badge>
-    );
-  }
-  return (
-    <Badge
-      variant="outline"
-      className="border-fg-disabled/40 bg-surface-2 text-fg-muted text-[11px] font-medium"
-    >
-      {EMPLOYMENT_STATUS_LABELS.TERMINATED}
-    </Badge>
-  );
-}
-
-/* ── Section card ─────────────────────────────────────────────────────────── */
-
-function SectionCard({
-  title,
-  noPad = false,
-  children,
-}: {
-  title: string;
-  noPad?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-subtle bg-surface">
-      <div className="border-b border-subtle px-5 py-3">
-        <h3 className="text-sm font-medium text-fg">{title}</h3>
-      </div>
-      <div className={noPad ? '' : 'p-5'}>{children}</div>
-    </div>
-  );
-}
-
-/* ── Info row (definition-table style) ───────────────────────────────────── */
-
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-4 border-b border-subtle py-2.5 last:border-0">
-      <span className="w-40 shrink-0 text-sm text-fg-muted">{label}</span>
-      <span className="flex-1 text-sm text-fg">{children ?? '—'}</span>
-    </div>
-  );
 }
 
 /* ── Overview tab ─────────────────────────────────────────────────────────── */
