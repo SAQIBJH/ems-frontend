@@ -1,0 +1,45 @@
+import { apiClient } from '@/lib/api-client';
+import type {
+  RecruitmentSummary,
+  OpeningsPage,
+  CandidatesPage,
+  AdvanceCandidateResult,
+  PostJobInput,
+  Opening,
+  OpeningsParams,
+  CandidatesParams,
+} from '../types/recruitment.types';
+
+export const recruitmentApi = {
+  getSummary: async (): Promise<RecruitmentSummary> => {
+    const { data } = await apiClient.get<{ data: RecruitmentSummary }>('/recruitment/summary');
+    return data.data;
+  },
+
+  getOpenings: async (params?: OpeningsParams): Promise<OpeningsPage> => {
+    const { data } = await apiClient.get<{ data: OpeningsPage }>('/recruitment/openings', {
+      params,
+    });
+    return data.data;
+  },
+
+  getCandidates: async (params?: CandidatesParams): Promise<CandidatesPage> => {
+    const { data } = await apiClient.get<{ data: CandidatesPage }>('/recruitment/candidates', {
+      params,
+    });
+    return data.data;
+  },
+
+  advanceCandidate: async (id: string, stage: string): Promise<AdvanceCandidateResult> => {
+    const { data } = await apiClient.post<{ data: AdvanceCandidateResult }>(
+      `/recruitment/candidates/${id}/advance`,
+      { stage },
+    );
+    return data.data;
+  },
+
+  postJob: async (input: PostJobInput): Promise<Opening> => {
+    const { data } = await apiClient.post<{ data: Opening }>('/recruitment/openings', input);
+    return data.data;
+  },
+};

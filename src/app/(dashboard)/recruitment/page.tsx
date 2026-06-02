@@ -1,13 +1,9 @@
-import { PageHeader } from '@/shared/layouts/PageHeader';
-import { EmptyState } from '@/components/feedback/EmptyState';
+import { RecruitmentScreen } from '@/modules/recruitment';
+
+export const metadata = {
+  title: 'Recruitment',
+};
 
 export default function RecruitmentPage() {
-  return (
-    <>
-      <PageHeader title="Recruitment" />
-      <div className="p-6">
-        <EmptyState title="Recruitment" description="Building in a later step." />
-      </div>
-    </>
-  );
+  return <RecruitmentScreen />;
 }
