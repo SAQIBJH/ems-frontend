@@ -25,13 +25,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ApiError } from '@/types/api';
-import { useEmployees } from '@/modules/employees';
 
 import {
   departmentCreateSchema,
   type DepartmentCreateFormValues,
 } from '../validations/department.schema';
 import { useCreateDepartment, useUpdateDepartment } from '../hooks/useDepartmentMutations';
+import { useDepartmentEmployees } from '../hooks/useDepartments';
 import type { Department } from '../types/department.types';
 import { flattenDepartmentTree } from '../utils/department.utils';
 
@@ -68,14 +68,11 @@ export function DepartmentForm({
 
   const isSubDept = mode === 'create' ? !!parentId : (initialDept?.depth ?? 0) > 0;
 
-  // For edit: filter employees to only those in this department.
-  // For create: no employees yet in the new department — field is hidden.
-  const deptIdForFilter = mode === 'edit' ? initialDept?.id : undefined;
-
-  const { data: employeesData } = useEmployees(
-    deptIdForFilter ? { departmentId: deptIdForFilter, status: 'ACTIVE', limit: 200 } : undefined,
-  );
-  const employees = employeesData?.data ?? [];
+  // Reuse the same endpoint the Members table uses — only fetches in edit mode.
+  const deptIdForFilter = mode === 'edit' ? (initialDept?.id ?? null) : null;
+  const { data: deptEmployeesData } = useDepartmentEmployees(deptIdForFilter, { limit: 200 });
+  const employees = deptEmployeesData?.data ?? [];
+  console.log('Employees for department form:', employees);
 
   const {
     register,

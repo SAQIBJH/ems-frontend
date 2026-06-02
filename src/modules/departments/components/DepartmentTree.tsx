@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRightIcon,
   MoreHorizontalIcon,
@@ -43,8 +42,6 @@ import { PageHeader } from '@/shared/layouts/PageHeader';
 import { PermissionWrapper } from '@/shared/guards/PermissionWrapper';
 import { cn } from '@/lib/utils';
 import type { ApiError } from '@/types/api';
-
-import { employeesApi } from '@/modules/employees';
 
 import { useDepartments } from '../hooks/useDepartments';
 import {
@@ -416,22 +413,11 @@ export function DepartmentTree() {
   const [reassignTarget, setReassignTarget] = useState<Department | null>(null);
   const [reassignToDeptId, setReassignToDeptId] = useState('');
 
-  const queryClient = useQueryClient();
-
   const { data: departments = [], isLoading, isError, error, refetch } = useDepartments();
   const deleteMutation = useDeleteDepartment();
   const reassignMutation = useReassignAndDeleteDepartment();
 
   const selectedDept = findDepartmentById(departments, selectedId);
-
-  function prefetchDeptEmployees(deptId: string) {
-    const params = { departmentId: deptId, status: 'ACTIVE' as const, limit: 200 };
-    queryClient.prefetchQuery({
-      queryKey: ['employees', params],
-      queryFn: () => employeesApi.list(params),
-      staleTime: 30_000,
-    });
-  }
   const flatDepts = flattenDepartmentTree(departments);
 
   const colorMap = useMemo(() => buildColorMap(departments), [departments]);
@@ -444,7 +430,6 @@ export function DepartmentTree() {
   }
 
   function openEditForm(dept: Department) {
-    prefetchDeptEmployees(dept.id);
     setFormMode('edit');
     setFormParentId(undefined);
     setFormInitialDept(dept);
@@ -562,10 +547,7 @@ export function DepartmentTree() {
                   selectedId={selectedId}
                   expandedIds={expandedIds}
                   colorMap={colorMap}
-                  onSelect={(id) => {
-                    setSelectedId(id);
-                    prefetchDeptEmployees(id);
-                  }}
+                  onSelect={setSelectedId}
                   onToggleExpand={toggleExpand}
                   onEdit={openEditForm}
                   onAddChild={openCreateForm}
