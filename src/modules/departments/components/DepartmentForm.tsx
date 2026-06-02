@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ApiError } from '@/types/api';
-import { useEmployees } from '@/modules/employees/hooks/useEmployees';
+import { useEmployees } from '@/modules/employees';
 
 import {
   departmentCreateSchema,
@@ -66,7 +66,15 @@ export function DepartmentForm({
 
   const flatDepts = flattenDepartmentTree(departments);
 
-  const { data: employeesData } = useEmployees({ limit: 200, status: 'ACTIVE' });
+  const isSubDept = mode === 'create' ? !!parentId : (initialDept?.depth ?? 0) > 0;
+
+  // For edit: filter employees to only those in this department.
+  // For create: no employees yet in the new department — field is hidden.
+  const deptIdForFilter = mode === 'edit' ? initialDept?.id : undefined;
+
+  const { data: employeesData } = useEmployees(
+    deptIdForFilter ? { departmentId: deptIdForFilter, status: 'ACTIVE', limit: 200 } : undefined,
+  );
   const employees = employeesData?.data ?? [];
 
   const {
@@ -111,13 +119,15 @@ export function DepartmentForm({
       name: values.name,
       departmentCode: values.departmentCode,
       parentId: values.parentId || null,
-      headEmployeeId: values.headEmployeeId || null,
+      // Only send headEmployeeId on edit — backend does not yet accept it on POST.
+      // When Domain E ships, remove this condition.
+      ...(mode === 'edit' ? { headEmployeeId: values.headEmployeeId || null } : {}),
     };
 
     try {
       if (mode === 'create') {
         await createMutation.mutateAsync(payload);
-        toast.success('Department created.');
+        toast.success(isSubDept ? 'Sub-department created.' : 'Department created.');
       } else {
         await updateMutation.mutateAsync({ id: initialDept!.id, ...payload });
         toast.success('Department updated.');
@@ -159,11 +169,17 @@ export function DepartmentForm({
 
   const isPending = isSubmitting || createMutation.isPending || updateMutation.isPending;
 
+  const dialogTitle =
+    mode === 'edit' ? 'Edit department' : isSubDept ? 'Add sub-department' : 'New department';
+
+  const submitLabel =
+    mode === 'edit' ? 'Save changes' : isSubDept ? 'Create sub-department' : 'Create department';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? 'New department' : 'Edit department'}</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4 pt-2">
@@ -236,39 +252,45 @@ export function DepartmentForm({
             <FieldError message={errors.parentId?.message} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="dept-manager-trigger">Manager / Head</Label>
-            <Controller
-              control={control}
-              name="headEmployeeId"
-              render={({ field }) => (
-                <Select
-                  value={field.value ?? ''}
-                  onValueChange={(v) => field.onChange(v === '_none' ? '' : v)}
-                >
-                  <SelectTrigger id="dept-manager-trigger" className="w-full">
-                    <SelectValue placeholder="No head assigned">
-                      {(v) => {
-                        if (!v || v === '_none') return 'No head assigned';
-                        const emp = employees.find((e) => e.id === v);
-                        return emp ? `${emp.firstName} ${emp.lastName}` : v;
-                      }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">No head assigned</SelectItem>
-                    {employees.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.firstName} {emp.lastName}
-                        {emp.designation ? ` — ${emp.designation}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* Manager/Head — only shown on edit, filtered to dept members */}
+          {mode === 'edit' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="dept-manager-trigger">Manager / Head</Label>
+              <Controller
+                control={control}
+                name="headEmployeeId"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ''}
+                    onValueChange={(v) => field.onChange(v === '_none' ? '' : v)}
+                  >
+                    <SelectTrigger id="dept-manager-trigger" className="w-full">
+                      <SelectValue placeholder="No head assigned">
+                        {(v) => {
+                          if (!v || v === '_none') return 'No head assigned';
+                          const emp = employees.find((e) => e.id === v);
+                          return emp ? `${emp.firstName} ${emp.lastName}` : v;
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">No head assigned</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName}
+                          {emp.designation ? ` — ${emp.designation}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {employees.length === 0 && (
+                <p className="text-xs text-fg-muted">No active employees in this department yet.</p>
               )}
-            />
-            <FieldError message={errors.headEmployeeId?.message} />
-          </div>
+              <FieldError message={errors.headEmployeeId?.message} />
+            </div>
+          )}
 
           <DialogFooter className="pt-2">
             <Button
@@ -281,7 +303,7 @@ export function DepartmentForm({
             </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending && <Loader2Icon className="mr-1.5 size-3.5 animate-spin" aria-hidden />}
-              {mode === 'create' ? 'Create department' : 'Save changes'}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>

@@ -614,3 +614,63 @@ Returns `null` in `data` if no active cycle exists.
 
 - `403` — EMPLOYEE role cannot create announcements
 - `422` — validation failure (missing title / body / category)
+
+---
+
+## Domain E — Departments (existing endpoint extensions)
+
+> These are **changes to existing live endpoints**, not new routes.
+> The backend must be updated to accept the `headEmployeeId` field.
+> MSW is not needed — the existing handlers pass through to the live backend.
+> When the backend ships support, the frontend will work automatically (the field
+> is already sent in the request payload).
+
+### PATCH /departments/:id — add headEmployeeId
+
+**Change:** Accept `headEmployeeId` in the request body (already in the response shape).
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Updated body (any subset — existing fields unchanged):**
+
+```json
+{
+  "name": "Engineering",
+  "departmentCode": "ENG",
+  "parentId": null,
+  "headEmployeeId": "emp_abc123"
+}
+```
+
+Setting `headEmployeeId: null` clears the department head.
+The employee must exist and be `ACTIVE`; otherwise return `422` with field error `headEmployeeId`.
+
+**Success response:** `200`, `data` = updated department object (unchanged shape — `headEmployeeId` and `headEmployee` already present)
+
+**New error codes:**
+
+| Code                    | Status | When                             |
+| ----------------------- | ------ | -------------------------------- |
+| `INVALID_HEAD_EMPLOYEE` | 422    | Employee not found or not ACTIVE |
+
+---
+
+### POST /departments — add headEmployeeId
+
+**Change:** Accept optional `headEmployeeId` on create (same validation as PATCH above).
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Updated body:**
+
+```json
+{
+  "name": "Design",
+  "departmentCode": "DES",
+  "parentId": "dept_engineering_id",
+  "headEmployeeId": "emp_abc123"
+}
+```
+
+`headEmployeeId` is optional — omit or pass `null` to create with no head.
+
+**Success response:** `201`, `data` = created department object
+**New error codes:** same `INVALID_HEAD_EMPLOYEE` (422) as PATCH above.
