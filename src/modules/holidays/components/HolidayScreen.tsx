@@ -1,26 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
   PencilIcon,
   Trash2Icon,
-  LayoutGridIcon,
-  ListIcon,
   UploadIcon,
+  MoreHorizontalIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { NoHolidaysIllustration } from '@/components/feedback/illustrations';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { useAuth } from '@/providers';
 import { cn } from '@/lib/utils';
@@ -34,16 +39,125 @@ import { HolidayFormDialog } from './HolidayFormDialog';
 import { MonthDetailModal } from './MonthDetailModal';
 import { IcsImportDialog } from './IcsImportDialog';
 
-type View = 'grid' | 'list';
+/* ── Type config ─────────────────────────────────────────────────────────── */
+
+const TYPE_PUBLIC = { label: 'Public', color: 'var(--brand-500)' };
+const TYPE_OPTIONAL = { label: 'Optional', color: 'var(--info-500)' };
+
+function holidayTypeMeta(h: Holiday) {
+  return h.isOptional ? TYPE_OPTIONAL : TYPE_PUBLIC;
+}
+
+/* ── Type badge ──────────────────────────────────────────────────────────── */
+
+function TypeBadge({ holiday }: { holiday: Holiday }) {
+  const meta = holidayTypeMeta(holiday);
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-medium leading-[16px]"
+      style={{
+        background: `color-mix(in oklab, ${meta.color} 14%, transparent)`,
+        color: meta.color,
+      }}
+    >
+      <span className="size-1.5 rounded-full" style={{ background: 'currentColor' }} aria-hidden />
+      {meta.label}
+    </span>
+  );
+}
+
+/* ── Selected holiday detail card ────────────────────────────────────────── */
+
+function HolidayDetailCard({
+  holiday,
+  canManage,
+  onEdit,
+  onDelete,
+}: {
+  holiday: Holiday;
+  canManage: boolean;
+  onEdit: (h: Holiday) => void;
+  onDelete: (h: Holiday) => void;
+}) {
+  const meta = holidayTypeMeta(holiday);
+  const date = parseISO(holiday.holidayDate);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Hero */}
+      <div
+        className="rounded-xl border p-5 text-center"
+        style={{
+          background: `color-mix(in oklab, ${meta.color} 10%, transparent)`,
+          borderColor: `color-mix(in oklab, ${meta.color} 22%, transparent)`,
+        }}
+      >
+        <p
+          className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest"
+          style={{ color: meta.color }}
+        >
+          {meta.label}
+        </p>
+        <h2 className="text-[22px] font-semibold leading-[30px] tracking-tight text-fg">
+          {holiday.name}
+        </h2>
+        <p className="mt-1.5 font-mono text-sm text-fg-muted">
+          {format(date, 'EEEE, MMMM d, yyyy')}
+        </p>
+      </div>
+
+      {/* Info */}
+      {holiday.location && (
+        <p className="text-[13px] leading-[20px] text-fg-muted">
+          Applies to <strong className="font-medium text-fg">{holiday.location}</strong>. Eligible
+          employees will see this as a non-working day on their attendance calendar.
+        </p>
+      )}
+
+      {/* Actions */}
+      {canManage && (
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(holiday)}>
+            <PencilIcon className="mr-1.5 size-3.5" aria-hidden />
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-danger hover:bg-danger/10 hover:text-danger border-danger/20"
+            onClick={() => onDelete(holiday)}
+          >
+            <Trash2Icon className="mr-1.5 size-3.5" aria-hidden />
+            Remove
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Loading skeleton ────────────────────────────────────────────────────── */
+
+function YearGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <Skeleton key={i} className="h-44 rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
+/* ── Main screen ─────────────────────────────────────────────────────────── */
 
 export function HolidayScreen() {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
-  const [view, setView] = useState<View>('grid');
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Holiday | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Holiday | null>(null);
+  const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [monthModalOpen, setMonthModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -52,6 +166,10 @@ export function HolidayScreen() {
   const deleteMutation = useDeleteHoliday(year);
 
   const canManage = user?.memberType === 'HR_ADMIN' || user?.memberType === 'SUPER_ADMIN';
+
+  const holidays = data?.holidays ?? [];
+  const sortedHolidays = [...holidays].sort((a, b) => a.holidayDate.localeCompare(b.holidayDate));
+  const today = startOfDay(new Date());
 
   function openAdd() {
     setEditTarget(null);
@@ -68,6 +186,7 @@ export function HolidayScreen() {
     deleteMutation.mutate(deleteTarget.id, {
       onSuccess: () => {
         toast.success('Holiday deleted');
+        if (selectedHoliday?.id === deleteTarget.id) setSelectedHoliday(null);
         setDeleteTarget(null);
       },
       onError: (err) => {
@@ -83,25 +202,24 @@ export function HolidayScreen() {
     setMonthModalOpen(true);
   }
 
-  const holidays = data?.holidays ?? [];
-
-  const sortedHolidays = [...holidays].sort((a, b) => a.holidayDate.localeCompare(b.holidayDate));
+  const publicCount = holidays.filter((h) => !h.isOptional).length;
+  const optionalCount = holidays.filter((h) => h.isOptional).length;
 
   return (
     <div className="flex flex-col">
       <PageHeader
         title="Holidays"
-        description="Public and optional holidays for the year."
+        description="Company holiday calendar for the year."
         breadcrumbs={[{ label: 'Holidays' }]}
         actions={
           canManage ? (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="default" onClick={() => setImportOpen(true)}>
-                <UploadIcon className="size-4 mr-1.5" />
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <UploadIcon className="mr-1.5 size-4 shrink-0" aria-hidden />
                 Import .ics
               </Button>
-              <Button size="default" onClick={openAdd}>
-                <PlusIcon className="size-4 mr-1.5" />
+              <Button size="sm" onClick={openAdd}>
+                <PlusIcon className="mr-1.5 size-4 shrink-0" aria-hidden />
                 Add Holiday
               </Button>
             </div>
@@ -109,198 +227,234 @@ export function HolidayScreen() {
         }
       />
 
-      <div className="p-6 space-y-6">
-        {/* Toolbar: year navigator + view toggle */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            onClick={() => setYear((y) => y - 1)}
-          >
-            <ChevronLeftIcon className="size-4" />
-          </Button>
-          <span className="text-sm font-semibold text-fg w-12 text-center">{year}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            onClick={() => setYear((y) => y + 1)}
-          >
-            <ChevronRightIcon className="size-4" />
-          </Button>
-          {data && (
-            <span className="text-xs text-fg-subtle">
-              {data.total} holiday{data.total !== 1 ? 's' : ''}
-            </span>
-          )}
-
-          {/* View toggle — right-aligned */}
-          <div className="ml-auto flex items-center rounded-md border border-subtle p-0.5 gap-0.5">
-            <button
-              type="button"
-              onClick={() => setView('grid')}
-              className={cn(
-                'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
-                view === 'grid'
-                  ? 'bg-surface-raised text-fg shadow-xs'
-                  : 'text-fg-subtle hover:text-fg',
-              )}
-              aria-pressed={view === 'grid'}
+      <div className="space-y-6 px-6 pb-6">
+        {/* Year navigation + type legend */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Year nav */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              onClick={() => setYear((y) => y - 1)}
+              aria-label="Previous year"
             >
-              <LayoutGridIcon className="size-3.5" />
-              Grid
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('list')}
-              className={cn(
-                'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer',
-                view === 'list'
-                  ? 'bg-surface-raised text-fg shadow-xs'
-                  : 'text-fg-subtle hover:text-fg',
-              )}
-              aria-pressed={view === 'list'}
+              <ChevronLeftIcon className="size-4" />
+            </Button>
+            <span className="w-12 text-center text-sm font-semibold text-fg">{year}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              onClick={() => setYear((y) => y + 1)}
+              aria-label="Next year"
             >
-              <ListIcon className="size-3.5" />
-              List
-            </button>
+              <ChevronRightIcon className="size-4" />
+            </Button>
+            {data && (
+              <span className="ml-1 text-xs text-fg-muted">
+                {data.total} holiday{data.total !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
+
+          {/* Type legend */}
+          {(publicCount > 0 || optionalCount > 0) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {publicCount > 0 && (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-medium"
+                  style={{
+                    background: `color-mix(in oklab, ${TYPE_PUBLIC.color} 14%, transparent)`,
+                    color: TYPE_PUBLIC.color,
+                  }}
+                >
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ background: 'currentColor' }}
+                    aria-hidden
+                  />
+                  Public
+                  <span className="font-mono text-[11px] opacity-70">{publicCount}</span>
+                </span>
+              )}
+              {optionalCount > 0 && (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-medium"
+                  style={{
+                    background: `color-mix(in oklab, ${TYPE_OPTIONAL.color} 14%, transparent)`,
+                    color: TYPE_OPTIONAL.color,
+                  }}
+                >
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ background: 'currentColor' }}
+                    aria-hidden
+                  />
+                  Optional
+                  <span className="font-mono text-[11px] opacity-70">{optionalCount}</span>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Loading skeletons */}
-        {isLoading && (
-          <div
-            className={
-              view === 'grid'
-                ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                : 'space-y-2'
-            }
-          >
-            {Array.from({ length: view === 'grid' ? 12 : 6 }).map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'rounded-lg border border-subtle bg-surface animate-pulse',
-                  view === 'grid' ? 'h-44' : 'h-10',
-                )}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Error state */}
+        {/* Year grid */}
+        {isLoading && <YearGridSkeleton />}
         {isError && (
           <ErrorState message="Failed to load holidays." onRetry={() => void refetch()} />
         )}
-
-        {/* Grid view — default */}
-        {!isLoading && !isError && view === 'grid' && (
-          <HolidayYearGrid year={year} holidays={holidays} onMonthClick={handleMonthClick} />
+        {!isLoading && !isError && (
+          <HolidayYearGrid
+            year={year}
+            holidays={holidays}
+            onMonthClick={handleMonthClick}
+            onHolidayClick={setSelectedHoliday}
+            selectedDate={
+              selectedHoliday
+                ? format(parseISO(selectedHoliday.holidayDate), 'yyyy-MM-dd')
+                : undefined
+            }
+          />
         )}
 
-        {/* List view */}
-        {!isLoading && !isError && view === 'list' && (
-          <section>
-            {holidays.length === 0 ? (
-              <EmptyState
-                illustration={<NoHolidaysIllustration />}
-                title="No holidays defined"
-                description={`No holidays have been added for ${year} yet.`}
-                action={
-                  canManage ? (
-                    <Button size="default" onClick={openAdd}>
-                      <PlusIcon className="size-4 mr-1.5" />
-                      Add Holiday
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              <div className="rounded-lg border border-subtle overflow-hidden">
+        {/* Bottom: list + detail */}
+        {!isLoading && !isError && (
+          <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
+            {/* Holiday list table */}
+            <div className="rounded-xl border border-subtle bg-surface">
+              <div className="border-b border-subtle px-4 py-3">
+                <h3 className="text-sm font-semibold text-fg">All holidays &middot; {year}</h3>
+              </div>
+              {sortedHolidays.length === 0 ? (
+                <div className="p-8">
+                  <EmptyState
+                    title="No holidays defined"
+                    description={`No holidays have been added for ${year} yet.`}
+                    action={
+                      canManage ? (
+                        <button onClick={openAdd} className={cn(buttonVariants({ size: 'sm' }))}>
+                          <PlusIcon className="mr-1.5 size-4" aria-hidden />
+                          Add Holiday
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                </div>
+              ) : (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-subtle bg-surface-raised">
-                      <th className="px-4 py-2.5 text-left text-xs font-medium text-fg-subtle">
+                    <tr className="border-b border-subtle bg-surface-2">
+                      <th className="w-28 px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted">
                         Date
                       </th>
-                      <th className="px-4 py-2.5 text-left text-xs font-medium text-fg-subtle">
-                        Name
+                      <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted">
+                        Holiday
                       </th>
-                      <th className="px-4 py-2.5 text-left text-xs font-medium text-fg-subtle">
-                        Location
-                      </th>
-                      <th className="px-4 py-2.5 text-left text-xs font-medium text-fg-subtle">
+                      <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted">
                         Type
                       </th>
-                      {canManage && (
-                        <th className="px-4 py-2.5 text-right text-xs font-medium text-fg-subtle">
-                          Actions
-                        </th>
-                      )}
+                      <th className="hidden px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted sm:table-cell">
+                        Location
+                      </th>
+                      {canManage && <th className="w-14 px-4 py-2.5" />}
                     </tr>
                   </thead>
-                  <tbody>
-                    {sortedHolidays.map((h) => (
-                      <tr
-                        key={h.id}
-                        className="border-b border-subtle last:border-0 hover:bg-surface-raised/50 transition-colors"
-                      >
-                        <td className="px-4 py-2.5 text-fg-subtle tabular-nums">
-                          {format(parseISO(h.holidayDate), 'dd MMM')}
-                        </td>
-                        <td className="px-4 py-2.5 font-medium text-fg">{h.name}</td>
-                        <td className="px-4 py-2.5 text-fg-subtle">{h.location ?? '—'}</td>
-                        <td className="px-4 py-2.5">
-                          {h.isOptional ? (
-                            <Badge
-                              variant="outline"
-                              className="text-info border-info/30 bg-info/10 text-xs"
-                            >
-                              Optional
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-success border-success/30 bg-success/10 text-xs"
-                            >
-                              Public
-                            </Badge>
+                  <tbody className="divide-y divide-subtle">
+                    {sortedHolidays.map((h) => {
+                      const date = parseISO(h.holidayDate);
+                      const isPast = isBefore(date, today);
+                      const isSelected = selectedHoliday?.id === h.id;
+
+                      return (
+                        <tr
+                          key={h.id}
+                          onClick={() => setSelectedHoliday(isSelected ? null : h)}
+                          className={cn(
+                            'cursor-pointer transition-colors',
+                            isSelected ? 'bg-brand/5' : 'hover:bg-surface-2',
+                            isPast && 'opacity-55',
                           )}
-                        </td>
-                        {canManage && (
+                        >
                           <td className="px-4 py-2.5">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7"
-                                onClick={() => openEdit(h)}
-                              >
-                                <PencilIcon className="size-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7 text-danger hover:text-danger"
-                                onClick={() => setDeleteTarget(h)}
-                              >
-                                <Trash2Icon className="size-3.5" />
-                              </Button>
-                            </div>
+                            <p className="font-mono text-[13px] font-medium text-fg tabular-nums">
+                              {format(date, 'MMM d')}
+                            </p>
+                            <p className="text-[11px] text-fg-muted">{format(date, 'EEE')}</p>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td className="px-4 py-2.5">
+                            <span className="text-[13px] font-medium text-fg">{h.name}</span>
+                            {isPast && <span className="ml-2 text-[11px] text-fg-muted">past</span>}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <TypeBadge holiday={h} />
+                          </td>
+                          <td className="hidden px-4 py-2.5 text-[13px] text-fg-muted sm:table-cell">
+                            {h.location ?? '—'}
+                          </td>
+                          {canManage && (
+                            <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  className={cn(
+                                    buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                    'size-7',
+                                  )}
+                                  aria-label={`Actions for ${h.name}`}
+                                >
+                                  <MoreHorizontalIcon className="size-3.5" aria-hidden />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEdit(h)}>
+                                    <PencilIcon className="mr-2 size-3.5" aria-hidden />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-danger focus:text-danger"
+                                    onClick={() => setDeleteTarget(h)}
+                                  >
+                                    <Trash2Icon className="mr-2 size-3.5" aria-hidden />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+              )}
+            </div>
+
+            {/* Detail panel */}
+            <div className="rounded-xl border border-subtle bg-surface">
+              <div className="border-b border-subtle px-4 py-3">
+                <h3 className="text-sm font-semibold text-fg">Selected</h3>
               </div>
-            )}
-          </section>
+              <div className="p-4">
+                {selectedHoliday ? (
+                  <HolidayDetailCard
+                    holiday={selectedHoliday}
+                    canManage={canManage}
+                    onEdit={openEdit}
+                    onDelete={setDeleteTarget}
+                  />
+                ) : (
+                  <EmptyState
+                    title="No holiday selected"
+                    description="Click any holiday in the calendar or list to view details."
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Add / Edit dialog */}
+      {/* Dialogs */}
       <HolidayFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -308,7 +462,6 @@ export function HolidayScreen() {
         holiday={editTarget ?? undefined}
       />
 
-      {/* Delete confirmation */}
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
@@ -326,7 +479,6 @@ export function HolidayScreen() {
         loading={deleteMutation.isPending}
       />
 
-      {/* Month detail modal */}
       <MonthDetailModal
         open={monthModalOpen}
         onOpenChange={setMonthModalOpen}
@@ -335,7 +487,6 @@ export function HolidayScreen() {
         holidays={holidays}
       />
 
-      {/* .ics import dialog */}
       {canManage && (
         <IcsImportDialog
           open={importOpen}
