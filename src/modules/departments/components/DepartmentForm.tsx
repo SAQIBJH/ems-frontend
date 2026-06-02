@@ -72,7 +72,6 @@ export function DepartmentForm({
   const deptIdForFilter = mode === 'edit' ? (initialDept?.id ?? null) : null;
   const { data: deptEmployeesData } = useDepartmentEmployees(deptIdForFilter, { limit: 200 });
   const employees = deptEmployeesData?.data ?? [];
-  console.log('Employees for department form:', employees);
 
   const {
     register,
