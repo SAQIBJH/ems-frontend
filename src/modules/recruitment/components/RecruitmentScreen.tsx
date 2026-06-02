@@ -19,7 +19,12 @@ import { PipelineBoard } from './PipelineBoard';
 import { OpeningsTable } from './OpeningsTable';
 import { CandidatesTable } from './CandidatesTable';
 import { PostJobDialog } from './PostJobDialog';
-import { useRecruitmentSummary, useOpenings, useCandidates } from '../hooks/useRecruitment';
+import {
+  useRecruitmentSummary,
+  useOpenings,
+  useCandidates,
+  useRecruiters,
+} from '../hooks/useRecruitment';
 
 export function RecruitmentScreen() {
   const [postJobOpen, setPostJobOpen] = useState(false);
@@ -27,14 +32,12 @@ export function RecruitmentScreen() {
   const summaryQuery = useRecruitmentSummary();
   const openingsQuery = useOpenings();
   const candidatesQuery = useCandidates();
+  const recruitersQuery = useRecruiters();
 
   const summary = summaryQuery.data;
   const openings = openingsQuery.data?.openings ?? [];
   const candidates = candidatesQuery.data?.candidates ?? [];
-
-  const handleExport = () => {
-    toast.success('Export started — your file will download shortly.');
-  };
+  const recruiters = recruitersQuery.data?.recruiters ?? [];
 
   return (
     <>
@@ -44,7 +47,11 @@ export function RecruitmentScreen() {
         breadcrumbs={[{ label: 'Recruitment' }]}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toast.success('Export started — your file will download shortly.')}
+            >
               <DownloadIcon className="size-3.5" aria-hidden />
               Export
             </Button>
@@ -99,25 +106,26 @@ export function RecruitmentScreen() {
           />
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — line variant matches design mock underline style */}
         <Tabs defaultValue="pipeline">
-          <TabsList className="mb-4">
+          <TabsList variant="line" className="mb-2 w-full justify-start">
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="openings">Openings</TabsTrigger>
             <TabsTrigger value="candidates">Candidates</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pipeline">
+          <TabsContent value="pipeline" className="mt-4">
             <PipelineBoard
               candidates={candidates}
               openings={openings}
+              recruiters={recruiters}
               isLoading={candidatesQuery.isLoading}
               isError={candidatesQuery.isError}
               onRetry={() => void candidatesQuery.refetch()}
             />
           </TabsContent>
 
-          <TabsContent value="openings">
+          <TabsContent value="openings" className="mt-4">
             <OpeningsTable
               openings={openings}
               isLoading={openingsQuery.isLoading}
@@ -126,7 +134,7 @@ export function RecruitmentScreen() {
             />
           </TabsContent>
 
-          <TabsContent value="candidates">
+          <TabsContent value="candidates" className="mt-4">
             <CandidatesTable
               candidates={candidates}
               isLoading={candidatesQuery.isLoading}

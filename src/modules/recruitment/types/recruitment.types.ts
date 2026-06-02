@@ -84,3 +84,18 @@ export interface CandidatesParams {
   page?: number;
   limit?: number;
 }
+
+export interface Recruiter {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface RecruitersResponse {
+  recruiters: Recruiter[];
+}
+
+export interface UpdateRatingResult {
+  id: string;
+  rating: number;
+}

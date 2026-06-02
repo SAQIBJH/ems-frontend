@@ -12,6 +12,9 @@ export type {
   PostJobInput,
   OpeningsParams,
   CandidatesParams,
+  Recruiter,
+  RecruitersResponse,
+  UpdateRatingResult,
 } from './types/recruitment.types';
 
 // Services
@@ -22,8 +25,10 @@ export {
   useRecruitmentSummary,
   useOpenings,
   useCandidates,
+  useRecruiters,
   useAdvanceCandidate,
   usePostJob,
+  useUpdateRating,
   RECRUITMENT_KEYS,
 } from './hooks/useRecruitment';
 

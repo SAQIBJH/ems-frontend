@@ -1,21 +1,37 @@
 'use client';
 
-import { MapPinIcon, MoreHorizontalIcon, FilterIcon, ArrowUpDownIcon } from 'lucide-react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { useState } from 'react';
+import {
+  MapPinIcon,
+  MoreHorizontalIcon,
+  FilterIcon,
+  ArrowUpDownIcon,
+  CheckIcon,
+  XIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { SectionCard } from '@/components/data-display/SectionCard';
-import type { Opening } from '../types/recruitment.types';
+import type { Opening, OpeningStatus } from '../types/recruitment.types';
 import { OPENING_STATUS_CONFIG, EMPLOYMENT_TYPE_LABELS } from '../constants';
+
+type SortField = 'title' | 'applicantCount' | 'createdAt';
+type SortDir = 'asc' | 'desc';
+
+const ALL_STATUSES: OpeningStatus[] = ['Open', 'Closing', 'On hold', 'Closed'];
 
 interface OpeningsTableProps {
   openings: Opening[];
@@ -25,34 +41,138 @@ interface OpeningsTableProps {
 }
 
 export function OpeningsTable({ openings, isLoading, isError, onRetry }: OpeningsTableProps) {
-  const actions = (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm">
-        <FilterIcon className="size-3.5" aria-hidden />
-        Filter
-      </Button>
-      <Button variant="outline" size="sm">
-        <ArrowUpDownIcon className="size-3.5" aria-hidden />
-        Sort
-      </Button>
-    </div>
-  );
+  const [filterStatuses, setFilterStatuses] = useState<OpeningStatus[]>([]);
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const toggleStatus = (s: OpeningStatus) =>
+    setFilterStatuses((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+
+  const filtered = filterStatuses.length
+    ? openings.filter((o) => filterStatuses.includes(o.status))
+    : openings;
+
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === 'title') cmp = a.title.localeCompare(b.title);
+    else if (sortField === 'applicantCount') cmp = a.applicantCount - b.applicantCount;
+    else cmp = a.createdAt.localeCompare(b.createdAt);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const hasFilter = filterStatuses.length > 0;
 
   if (isError) {
     return <ErrorState message="Failed to load openings" onRetry={onRetry} />;
   }
 
+  const headerActions = (
+    <div className="flex gap-2">
+      {/* Filter popover */}
+      <Popover>
+        <PopoverTrigger
+          className={cn(buttonVariants({ variant: hasFilter ? 'default' : 'outline', size: 'sm' }))}
+        >
+          <FilterIcon className="size-3.5" aria-hidden />
+          Filter{hasFilter ? ` (${filterStatuses.length})` : ''}
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-52 gap-1 p-2">
+          <p className="px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
+            Status
+          </p>
+          {ALL_STATUSES.map((s) => {
+            const active = filterStatuses.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleStatus(s)}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-[13px] text-fg transition-colors',
+                  active ? 'bg-surface-raised font-medium' : 'hover:bg-surface-raised',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex size-4 items-center justify-center rounded border',
+                    active ? 'border-brand bg-brand text-white' : 'border-default-border',
+                  )}
+                >
+                  {active && <CheckIcon className="size-3" strokeWidth={3} aria-hidden />}
+                </span>
+                {s}
+              </button>
+            );
+          })}
+          {hasFilter && (
+            <>
+              <div className="my-1 h-px bg-subtle" />
+              <button
+                type="button"
+                onClick={() => setFilterStatuses([])}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[13px] text-danger hover:bg-surface-raised"
+              >
+                <XIcon className="size-3.5" aria-hidden />
+                Clear filter
+              </button>
+            </>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      {/* Sort dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+          <ArrowUpDownIcon className="size-3.5" aria-hidden />
+          Sort
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          {(
+            [
+              { field: 'title', label: 'Role (A–Z)' },
+              { field: 'applicantCount', label: 'Applicants' },
+              { field: 'createdAt', label: 'Date posted' },
+            ] as { field: SortField; label: string }[]
+          ).map(({ field, label }) => (
+            <DropdownMenuItem
+              key={field}
+              onClick={() => {
+                if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                else {
+                  setSortField(field);
+                  setSortDir('asc');
+                }
+              }}
+              className={cn(
+                'flex items-center justify-between',
+                sortField === field && 'font-medium',
+              )}
+            >
+              {label}
+              {sortField === field && (
+                <span className="text-[11px] text-fg-muted">{sortDir === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
   return (
     <SectionCard
-      title={`Open requisitions · ${isLoading ? '…' : openings.length}`}
-      actions={actions}
+      title={`Open requisitions · ${isLoading ? '…' : sorted.length}`}
+      actions={headerActions}
       noPad
     >
       {isLoading ? (
         <OpeningsTableSkeleton />
-      ) : openings.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="px-5 py-8">
-          <EmptyState title="No openings" description="Post a job to get started." />
+          <EmptyState
+            title={hasFilter ? 'No matching openings' : 'No openings'}
+            description={hasFilter ? 'Try adjusting your filters.' : 'Post a job to get started.'}
+          />
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -78,14 +198,14 @@ export function OpeningsTable({ openings, isLoading, isError, onRetry }: Opening
               </tr>
             </thead>
             <tbody>
-              {openings.map((o) => {
+              {sorted.map((o) => {
                 const statusCfg = OPENING_STATUS_CONFIG[o.status] ?? {
                   variant: 'secondary' as const,
                 };
                 return (
                   <tr
                     key={o.id}
-                    className="border-b border-subtle last:border-0 hover:bg-surface-raised transition-colors duration-[120ms]"
+                    className="border-b border-subtle last:border-0 transition-colors duration-[120ms] hover:bg-surface-raised"
                   >
                     <td className="px-4 py-3">
                       <p className="text-[13px] font-medium leading-[18px] text-fg">{o.title}</p>
@@ -94,7 +214,7 @@ export function OpeningsTable({ openings, isLoading, isError, onRetry }: Opening
                     <td className="px-4 py-3 text-[13px] text-fg-secondary">{o.department}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5 text-[13px] text-fg-secondary">
-                        <MapPinIcon size={13} className="text-fg-muted shrink-0" aria-hidden />
+                        <MapPinIcon size={13} className="shrink-0 text-fg-muted" aria-hidden />
                         {o.location}
                       </span>
                     </td>
@@ -122,9 +242,23 @@ export function OpeningsTable({ openings, isLoading, isError, onRetry }: Opening
                           <MoreHorizontalIcon size={14} aria-hidden />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View details</DropdownMenuItem>
-                          <DropdownMenuItem>Edit opening</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem
+                            onClick={() => toast.info(`Viewing details for ${o.title}`)}
+                          >
+                            View details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              toast.info(`Edit opening — form coming soon for ${o.title}`)
+                            }
+                          >
+                            Edit opening
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => toast.success(`${o.title} has been closed.`)}
+                          >
                             Close opening
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -153,7 +287,7 @@ function OpeningsTableSkeleton() {
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-8" />
+          <Skeleton className="ml-auto h-4 w-8" />
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-5 w-16 rounded-full" />
         </div>

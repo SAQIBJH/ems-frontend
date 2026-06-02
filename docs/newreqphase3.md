@@ -156,6 +156,38 @@
 
 ---
 
+### GET /recruitment/recruiters
+
+**Role:** HR_ADMIN, SUPER_ADMIN, MANAGER
+**Query params:** none
+**Success response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "recruiters": [
+      { "id": "rec_1", "name": "Ananya Sharma", "email": "ananya@acme.test" },
+      { "id": "rec_2", "name": "Rohan Mehta", "email": "rohan@acme.test" }
+    ]
+  }
+}
+```
+
+---
+
+### PATCH /recruitment/candidates/:id/rating
+
+**Role:** HR_ADMIN, SUPER_ADMIN, MANAGER
+**Request body:** `{ "rating": 4 }` — integer 1–5
+**Success response:** `{ "success": true, "data": { "id": "cand_1", "rating": 4 } }`
+**Error codes:**
+
+- `422` — rating out of range (must be 1–5)
+- `404` — candidate not found
+
+---
+
 ## Domain B — Performance
 
 > Screens: `/performance` — Reviews, Goals, Calibration tabs.

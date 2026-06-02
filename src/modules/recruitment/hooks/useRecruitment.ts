@@ -6,6 +6,7 @@ export const RECRUITMENT_KEYS = {
   summary: ['recruitment', 'summary'] as const,
   openings: (params?: OpeningsParams) => ['recruitment', 'openings', params] as const,
   candidates: (params?: CandidatesParams) => ['recruitment', 'candidates', params] as const,
+  recruiters: ['recruitment', 'recruiters'] as const,
 };
 
 export function useRecruitmentSummary() {
@@ -29,6 +30,13 @@ export function useCandidates(params?: CandidatesParams) {
   });
 }
 
+export function useRecruiters() {
+  return useQuery({
+    queryKey: RECRUITMENT_KEYS.recruiters,
+    queryFn: () => recruitmentApi.getRecruiters(),
+  });
+}
+
 export function useAdvanceCandidate() {
   const qc = useQueryClient();
   return useMutation({
@@ -48,6 +56,17 @@ export function usePostJob() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['recruitment', 'openings'] });
       void qc.invalidateQueries({ queryKey: ['recruitment', 'summary'] });
+    },
+  });
+}
+
+export function useUpdateRating() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, rating }: { id: string; rating: number }) =>
+      recruitmentApi.updateRating(id, rating),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['recruitment', 'candidates'] });
     },
   });
 }

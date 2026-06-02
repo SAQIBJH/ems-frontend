@@ -8,6 +8,8 @@ import type {
   Opening,
   OpeningsParams,
   CandidatesParams,
+  RecruitersResponse,
+  UpdateRatingResult,
 } from '../types/recruitment.types';
 
 export const recruitmentApi = {
@@ -40,6 +42,19 @@ export const recruitmentApi = {
 
   postJob: async (input: PostJobInput): Promise<Opening> => {
     const { data } = await apiClient.post<{ data: Opening }>('/recruitment/openings', input);
+    return data.data;
+  },
+
+  getRecruiters: async (): Promise<RecruitersResponse> => {
+    const { data } = await apiClient.get<{ data: RecruitersResponse }>('/recruitment/recruiters');
+    return data.data;
+  },
+
+  updateRating: async (id: string, rating: number): Promise<UpdateRatingResult> => {
+    const { data } = await apiClient.patch<{ data: UpdateRatingResult }>(
+      `/recruitment/candidates/${id}/rating`,
+      { rating },
+    );
     return data.data;
   },
 };

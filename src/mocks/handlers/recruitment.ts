@@ -7,6 +7,7 @@ import type {
   Opening,
   Candidate,
   RecruitmentStage,
+  Recruiter,
 } from '@/modules/recruitment/types/recruitment.types';
 
 const BASE = '/api/recruitment';
@@ -244,6 +245,12 @@ const CANDIDATES: Candidate[] = [
 
 const STAGE_SEQUENCE: RecruitmentStage[] = ['applied', 'screening', 'interview', 'offer', 'hired'];
 
+const RECRUITERS: Recruiter[] = [
+  { id: 'rec_1', name: 'Ananya Sharma', email: 'ananya@acme.test' },
+  { id: 'rec_2', name: 'Rohan Mehta', email: 'rohan@acme.test' },
+  { id: 'rec_3', name: 'Priya Kapoor', email: 'priya@acme.test' },
+];
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 export const recruitmentHandlers = [
@@ -351,5 +358,37 @@ export const recruitmentHandlers = [
 
     OPENINGS.unshift(newOpening);
     return HttpResponse.json({ success: true, data: newOpening }, { status: 201 });
+  }),
+
+  // GET /recruitment/recruiters
+  http.get(`${BASE}/recruiters`, () => {
+    return HttpResponse.json({ success: true, data: { recruiters: RECRUITERS } });
+  }),
+
+  // PATCH /recruitment/candidates/:id/rating
+  http.patch(`${BASE}/candidates/:id/rating`, async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json()) as { rating: number };
+    const candidate = CANDIDATES.find((c) => c.id === id);
+
+    if (!candidate) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Candidate not found' } },
+        { status: 404 },
+      );
+    }
+
+    if (body.rating < 1 || body.rating > 5) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'Rating must be 1–5' } },
+        { status: 422 },
+      );
+    }
+
+    candidate.rating = body.rating;
+    return HttpResponse.json({
+      success: true,
+      data: { id: candidate.id, rating: candidate.rating },
+    });
   }),
 ];
