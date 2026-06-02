@@ -3,21 +3,21 @@ import { SettingsNav } from '@/modules/settings/components/SettingsNav';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col min-h-0 h-full">
+    <div className="flex flex-col min-h-full">
       <PageHeader
         title="Settings"
         description="Manage your organisation's configuration."
         breadcrumbs={[{ label: 'Settings' }]}
       />
-      {/* Canvas background — matches design's bg-canvas on .ems-page */}
-      <div className="flex-1 min-h-0 overflow-y-auto bg-canvas p-6">
+      {/* Canvas background — content flows naturally; AppShell main handles scroll */}
+      <div className="flex-1 bg-canvas p-6">
         <div className="grid grid-cols-[240px_1fr] gap-4 items-start">
           {/* Nav card */}
           <aside className="rounded-xl border border-subtle bg-surface overflow-hidden">
             <SettingsNav />
           </aside>
           {/* Content card */}
-          <div className="rounded-xl border border-subtle bg-surface p-7 shadow-sm">{children}</div>
+          <div className="rounded-xl border border-subtle bg-surface p-7">{children}</div>
         </div>
       </div>
     </div>
