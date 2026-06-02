@@ -1,10 +1,19 @@
-/** All fields use snake_case — matches wire format exactly. Do NOT normalize. */
+/** All fields use snake_case — matches wire format exactly. Do NOT normalize.
+ *  Extended identity fields (camelCase) come from the Tenant model, not TenantConfig. */
 export interface TenantSettings {
   company_name: string;
   timezone: string;
   working_hours_start: string;
   working_hours_end: string;
   fiscal_year_start: number;
+  /** Tenant identity fields — camelCase per API_MAPPING.md */
+  legalName?: string;
+  displayName?: string;
+  country?: string;
+  defaultCurrency?: string;
+  primaryContactEmail?: string;
+  supportPhone?: string;
+  logoUrl?: string | null;
 }
 
 /** Audit log entry — all fields are snake_case (API_MAPPING.md §Audit Logs). */
@@ -38,12 +47,19 @@ export interface AuditLogsParams {
   action?: string;
 }
 
-/** Only these four fields are accepted by PATCH /settings/tenant. */
+/** PATCH /settings/tenant — snake_case operational fields + camelCase identity fields. */
 export interface TenantSettingsUpdateInput {
   company_name?: string;
   timezone?: string;
   working_hours_start?: string;
   working_hours_end?: string;
+  legalName?: string;
+  displayName?: string;
+  country?: string;
+  defaultCurrency?: string;
+  primaryContactEmail?: string;
+  supportPhone?: string;
+  logoUrl?: string;
 }
 
 export type EmailTemplateType = 'LEAVE_APPROVAL' | 'LEAVE_REJECTION' | 'ATTENDANCE_ALERT';

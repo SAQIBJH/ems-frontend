@@ -3,13 +3,12 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ClockIcon, SaveIcon, SunriseIcon, SunsetIcon } from 'lucide-react';
+import { SaveIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import type { ApiError } from '@/types/api';
@@ -17,6 +16,7 @@ import type { ApiError } from '@/types/api';
 import { useTenantSettings } from '../hooks/useSettings';
 import { useUpdateTenantSettings } from '../hooks/useSettingsMutations';
 import { workingHoursSchema, type WorkingHoursFormValues } from '../validations/settings.schema';
+import { FormRow, PanelHeader } from './FormRow';
 
 // ── Duration helper ───────────────────────────────────────────────────────────
 
@@ -78,20 +78,24 @@ function DayBar({ start, end }: { start: string; end: string }) {
 
 function WorkingHoursSkeleton() {
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-4 w-64" />
-      <div className="grid grid-cols-2 gap-5">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-9 w-full" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-9 w-full" />
-        </div>
+    <div className="space-y-0 divide-y divide-subtle">
+      <div className="pb-5 space-y-1.5">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-4 w-72" />
       </div>
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-9 w-28" />
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-[200px_1fr] gap-6 py-5">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <Skeleton className="h-9 max-w-[480px] w-full" />
+        </div>
+      ))}
+      <div className="pt-6 flex gap-3">
+        <Skeleton className="h-9 w-32" />
+      </div>
     </div>
   );
 }
@@ -146,66 +150,67 @@ export function WorkingHoursPanel() {
   const duration = formatDuration(watchStart, watchEnd);
 
   return (
-    <div className="space-y-6 max-w-lg">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <ClockIcon className="size-4 text-fg-subtle" />
-          <h2 className="text-sm font-semibold text-fg">Working Hours</h2>
-        </div>
-        <p className="text-sm text-fg-muted">
-          Define the standard work day for your organisation. Used for attendance tracking and
-          late-arrival calculations.
-        </p>
-      </div>
+    <div>
+      <PanelHeader
+        section="Organization"
+        title="Working Hours"
+        description="Standard work day for attendance tracking."
+      />
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-        <div className="grid grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="working_hours_start" className="flex items-center gap-1.5">
-              <SunriseIcon className="size-3.5 text-fg-disabled" />
-              Day Starts
-            </Label>
-            <Input id="working_hours_start" type="time" {...form.register('working_hours_start')} />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="divide-y divide-subtle">
+          {/* Day starts */}
+          <FormRow label="Day starts" help="Employees check in from this time.">
+            <Input
+              id="working_hours_start"
+              type="time"
+              className="max-w-[160px]"
+              {...form.register('working_hours_start')}
+            />
             {form.formState.errors.working_hours_start && (
               <p className="text-xs text-danger">
                 {form.formState.errors.working_hours_start.message}
               </p>
             )}
-          </div>
+          </FormRow>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="working_hours_end" className="flex items-center gap-1.5">
-              <SunsetIcon className="size-3.5 text-fg-disabled" />
-              Day Ends
-            </Label>
-            <Input id="working_hours_end" type="time" {...form.register('working_hours_end')} />
+          {/* Day ends */}
+          <FormRow label="Day ends">
+            <Input
+              id="working_hours_end"
+              type="time"
+              className="max-w-[160px]"
+              {...form.register('working_hours_end')}
+            />
             {form.formState.errors.working_hours_end && (
               <p className="text-xs text-danger">
                 {form.formState.errors.working_hours_end.message}
               </p>
             )}
-          </div>
+          </FormRow>
+
+          {/* Visual timeline */}
+          <FormRow label="Visual timeline">
+            <div className="space-y-2">
+              {watchStart && watchEnd ? (
+                <>
+                  <DayBar start={watchStart} end={watchEnd} />
+                  {duration && (
+                    <p className="text-xs text-fg-muted">
+                      Work day duration: <span className="font-semibold text-fg">{duration}</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-fg-muted">
+                  Set start and end times to preview the timeline.
+                </p>
+              )}
+            </div>
+          </FormRow>
         </div>
 
-        {/* Duration summary */}
-        {duration && (
-          <div className="flex items-center gap-2 text-sm text-fg-muted px-1">
-            <ClockIcon className="size-3.5 text-fg-disabled" />
-            <span>
-              Work day duration: <span className="font-semibold text-fg">{duration}</span>
-            </span>
-          </div>
-        )}
-
-        {/* Visual timeline */}
-        {watchStart && watchEnd && (
-          <div className="space-y-1.5 pt-1">
-            <p className="text-xs text-fg-muted font-medium">24-hour view</p>
-            <DayBar start={watchStart} end={watchEnd} />
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 pt-1">
+        <div className="flex items-center gap-3 pt-6">
           <Button
             type="submit"
             size="default"

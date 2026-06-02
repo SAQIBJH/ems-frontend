@@ -209,14 +209,14 @@ export function SettingsNav() {
   const role = user?.memberType ?? '';
 
   return (
-    <aside className="shrink-0 border-r border-subtle bg-surface-raised/40 overflow-y-auto p-3 space-y-4">
+    <aside className="w-[240px] shrink-0 border-r border-subtle bg-surface overflow-y-auto">
       {NAV_GROUPS.map((group) => {
         const visibleItems = group.items.filter((item) => !item.roles || item.roles.includes(role));
         if (visibleItems.length === 0) return null;
 
         return (
-          <div key={group.label}>
-            <p className="px-3 pb-1 text-[0.625rem] font-semibold uppercase tracking-widest text-fg-disabled">
+          <div key={group.label} className="px-2 pb-2">
+            <p className="px-3 pb-1.5 pt-3 text-[11px] font-medium uppercase tracking-[0.05em] text-fg-subtle">
               {group.label}
             </p>
             <div className="space-y-0.5">
@@ -230,13 +230,13 @@ export function SettingsNav() {
                     key={item.slug ?? item.href}
                     href={href}
                     className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer',
+                      'flex items-center gap-[10px] rounded-lg px-3 py-[7px] text-[13px] transition-[background,color] duration-[120ms]',
                       isActive
-                        ? 'bg-brand/10 text-brand'
-                        : 'text-fg-subtle hover:bg-surface-raised hover:text-fg',
+                        ? 'bg-brand-50 font-medium text-brand'
+                        : 'font-normal text-fg-muted hover:bg-surface-raised hover:text-fg',
                     )}
                   >
-                    <Icon className="size-4 shrink-0" />
+                    <Icon className="size-3.5 shrink-0" />
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.external && (
                       <ExternalLinkIcon className="size-3 text-fg-disabled shrink-0" />

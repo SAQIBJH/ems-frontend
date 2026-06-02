@@ -3,14 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { GlobeIcon, SaveIcon, ClockIcon, CalendarIcon } from 'lucide-react';
+import { SaveIcon, ClockIcon, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -29,6 +28,7 @@ import {
   type LocaleTimezoneFormValues,
 } from '../validations/settings.schema';
 import { TIMEZONES, MONTH_NAMES } from '../constants';
+import { FormRow, PanelHeader } from './FormRow';
 
 // ── Live clock ────────────────────────────────────────────────────────────────
 
@@ -61,15 +61,24 @@ function LiveClock({ timezone }: { timezone: string }) {
 
 function LocaleSkeleton() {
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-4 w-64" />
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-9 w-full max-w-sm" />
+    <div className="space-y-0 divide-y divide-subtle">
+      <div className="pb-5 space-y-1.5">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-6 w-44" />
+        <Skeleton className="h-4 w-72" />
       </div>
-      <Skeleton className="h-11 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-9 w-28" />
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-[200px_1fr] gap-6 py-5">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <Skeleton className="h-9 max-w-[480px] w-full" />
+        </div>
+      ))}
+      <div className="pt-6 flex gap-3">
+        <Skeleton className="h-9 w-32" />
+      </div>
     </div>
   );
 }
@@ -115,62 +124,68 @@ export function LocaleTimezonePanel() {
   }
 
   return (
-    <div className="space-y-6 max-w-lg">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <GlobeIcon className="size-4 text-fg-subtle" />
-          <h2 className="text-sm font-semibold text-fg">Locale &amp; Timezone</h2>
-        </div>
-        <p className="text-sm text-fg-muted">
-          Set the default timezone for your organisation. All timestamps and scheduling are based on
-          this setting.
-        </p>
-      </div>
+    <div>
+      <PanelHeader
+        section="Organization"
+        title="Locale & Timezone"
+        description="Default timezone for timestamps and scheduling."
+      />
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="timezone">Timezone</Label>
-          <Controller
-            control={form.control}
-            name="timezone"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={(val) => field.onChange(val ?? '')}>
-                <SelectTrigger id="timezone" className="w-full">
-                  <SelectValue placeholder="Select timezone">
-                    {(v) => TIMEZONES.find((tz) => tz.value === v)?.label ?? v}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="divide-y divide-subtle">
+          {/* Timezone selector */}
+          <FormRow label="Timezone" help="All dates and times display in this zone.">
+            <Controller
+              control={form.control}
+              name="timezone"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={(val) => field.onChange(val ?? '')}>
+                  <SelectTrigger id="timezone">
+                    <SelectValue placeholder="Select timezone">
+                      {(v) => TIMEZONES.find((tz) => tz.value === v)?.label ?? v}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {form.formState.errors.timezone && (
+              <p className="text-xs text-danger">{form.formState.errors.timezone.message}</p>
             )}
-          />
-          {form.formState.errors.timezone && (
-            <p className="text-xs text-danger">{form.formState.errors.timezone.message}</p>
+          </FormRow>
+
+          {/* Live clock */}
+          <FormRow label="Live time" help="Current time in the selected zone.">
+            {watchedTimezone ? (
+              <LiveClock timezone={watchedTimezone} />
+            ) : (
+              <p className="text-sm text-fg-muted">
+                Select a timezone to preview the current time.
+              </p>
+            )}
+          </FormRow>
+
+          {/* Fiscal year — read-only */}
+          {data && (
+            <FormRow label="Fiscal year" help="Contact support to change.">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-subtle bg-surface-raised/50 text-sm">
+                <CalendarIcon className="size-4 text-fg-disabled shrink-0" />
+                <span className="font-medium text-fg">
+                  {MONTH_NAMES[(data.fiscal_year_start ?? 1) - 1] ??
+                    `Month ${data.fiscal_year_start}`}
+                </span>
+              </div>
+            </FormRow>
           )}
         </div>
 
-        {/* Live clock for selected timezone */}
-        {watchedTimezone && <LiveClock timezone={watchedTimezone} />}
-
-        {/* Fiscal year — read-only */}
-        {data && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-subtle bg-surface-raised/50 text-sm">
-            <CalendarIcon className="size-4 text-fg-disabled shrink-0" />
-            <span className="text-fg-muted">Fiscal year starts:</span>
-            <span className="font-medium text-fg">
-              {MONTH_NAMES[(data.fiscal_year_start ?? 1) - 1] ?? `Month ${data.fiscal_year_start}`}
-            </span>
-            <span className="ml-auto text-xs text-fg-disabled">Contact support to change</span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pt-6">
           <Button
             type="submit"
             size="default"

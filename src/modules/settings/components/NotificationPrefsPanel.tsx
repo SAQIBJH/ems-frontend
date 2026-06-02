@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BellIcon, SaveIcon } from 'lucide-react';
+import { SaveIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
@@ -22,6 +22,7 @@ import {
   type NotificationPrefsFormValues,
 } from '../validations/settings.schema';
 import type { NotifChannel } from '../types/settings.types';
+import { FormRow, PanelHeader } from './FormRow';
 
 const EVENT_LABELS: Record<string, string> = {
   leave_approved: 'Leave approved',
@@ -41,39 +42,25 @@ type EventKey = (typeof EVENT_KEYS)[number];
 
 function NotificationPrefsSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <Skeleton className="h-5 w-40" />
+    <div className="space-y-0 divide-y divide-subtle">
+      <div className="pb-5 space-y-1.5">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-6 w-48" />
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="space-y-3">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between"
-          >
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-48" />
-            </div>
-            <Skeleton className="h-6 w-10 rounded-full" />
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-[200px_1fr] gap-6 py-5">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-40" />
           </div>
-        ))}
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-28" />
-        <div className="rounded-lg border border-subtle divide-y divide-subtle">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3">
-              <Skeleton className="h-4 w-48" />
-              <div className="flex gap-6">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-16" />
-              </div>
-            </div>
-          ))}
+          <div className="space-y-3 max-w-[480px]">
+            {Array.from({ length: i === 0 ? 2 : 4 }).map((_, j) => (
+              <Skeleton key={j} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
@@ -139,106 +126,103 @@ export function NotificationPrefsPanel() {
   const email = form.watch('channels.email');
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <BellIcon className="size-4 text-fg-subtle" />
-          <h2 className="text-sm font-semibold text-fg">In-app Preferences</h2>
-        </div>
-        <p className="text-sm text-fg-muted">
-          Choose how and when you receive notifications for leave and attendance events.
-        </p>
-      </div>
+    <div>
+      <PanelHeader
+        section="Notifications"
+        title="In-app Preferences"
+        description="Choose when and how you receive notifications."
+      />
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Global channels */}
-        <section className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-fg-disabled">
-            Channels
-          </p>
-
-          <div className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-fg">In-app notifications</p>
-              <p className="text-xs text-fg-muted mt-0.5">
-                Receive notifications inside the EMS application.
-              </p>
-            </div>
-            <Switch
-              checked={inApp}
-              onCheckedChange={(val) =>
-                form.setValue('channels.in_app', val, { shouldDirty: true })
-              }
-            />
-          </div>
-
-          <div className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-fg">Email notifications</p>
-              <p className="text-xs text-fg-muted mt-0.5">
-                Receive notifications via your registered work email.
-              </p>
-            </div>
-            <Switch
-              checked={email}
-              onCheckedChange={(val) => form.setValue('channels.email', val, { shouldDirty: true })}
-            />
-          </div>
-        </section>
-
-        {/* Per-event preferences */}
-        <section className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-fg-disabled">Events</p>
-
-          <div className="rounded-lg border border-subtle divide-y divide-subtle">
-            {/* Header row */}
-            <div className="flex items-center justify-between px-4 py-2 bg-surface-raised/50 rounded-t-lg">
-              <span className="text-xs font-medium text-fg-subtle">Event</span>
-              <div className="flex gap-8 pr-1">
-                <span className="text-xs font-medium text-fg-subtle w-12 text-center">In-app</span>
-                <span className="text-xs font-medium text-fg-subtle w-12 text-center">Email</span>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="divide-y divide-subtle">
+          {/* Channels */}
+          <FormRow label="Channels" help="Enable or disable notification delivery methods.">
+            {/* In-app */}
+            <div className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-fg">In-app notifications</p>
+                <p className="text-xs text-fg-muted mt-0.5">
+                  Receive notifications inside the EMS application.
+                </p>
               </div>
+              <Switch
+                checked={inApp}
+                onCheckedChange={(val) =>
+                  form.setValue('channels.in_app', val, { shouldDirty: true })
+                }
+              />
             </div>
 
-            {/* Event rows */}
-            {EVENT_KEYS.map((eventKey) => {
-              const currentChannels = form.watch(`events.${eventKey}`) as NotifChannel[];
-              return (
-                <div key={eventKey} className="flex items-center justify-between px-4 py-3">
-                  <Label className="text-sm text-fg font-normal cursor-default">
-                    {EVENT_LABELS[eventKey]}
-                  </Label>
-                  <div className="flex gap-8 pr-1">
-                    <div className="w-12 flex justify-center">
-                      <Checkbox
-                        id={`${eventKey}-in_app`}
-                        checked={currentChannels.includes('in_app')}
-                        onCheckedChange={() => toggleEventChannel(eventKey, 'in_app')}
-                        disabled={!inApp}
-                      />
-                    </div>
-                    <div className="w-12 flex justify-center">
-                      <Checkbox
-                        id={`${eventKey}-email`}
-                        checked={currentChannels.includes('email')}
-                        onCheckedChange={() => toggleEventChannel(eventKey, 'email')}
-                        disabled={!email}
-                      />
+            {/* Email */}
+            <div className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-fg">Email notifications</p>
+                <p className="text-xs text-fg-muted mt-0.5">
+                  Receive notifications via your registered work email.
+                </p>
+              </div>
+              <Switch
+                checked={email}
+                onCheckedChange={(val) =>
+                  form.setValue('channels.email', val, { shouldDirty: true })
+                }
+              />
+            </div>
+          </FormRow>
+
+          {/* Event preferences */}
+          <FormRow
+            label="Event preferences"
+            help="Disabling a channel above also disables its checkboxes."
+          >
+            <div className="rounded-lg border border-subtle divide-y divide-subtle">
+              {/* Header row */}
+              <div className="flex items-center justify-between px-4 py-2 bg-surface-raised/50 rounded-t-lg">
+                <span className="text-xs font-medium text-fg-subtle">Event</span>
+                <div className="flex gap-8 pr-1">
+                  <span className="text-xs font-medium text-fg-subtle w-12 text-center">
+                    In-app
+                  </span>
+                  <span className="text-xs font-medium text-fg-subtle w-12 text-center">Email</span>
+                </div>
+              </div>
+
+              {/* Event rows */}
+              {EVENT_KEYS.map((eventKey) => {
+                const currentChannels = form.watch(`events.${eventKey}`) as NotifChannel[];
+                return (
+                  <div key={eventKey} className="flex items-center justify-between px-4 py-3">
+                    <Label className="text-sm text-fg font-normal cursor-default">
+                      {EVENT_LABELS[eventKey]}
+                    </Label>
+                    <div className="flex gap-8 pr-1">
+                      <div className="w-12 flex justify-center">
+                        <Checkbox
+                          id={`${eventKey}-in_app`}
+                          checked={currentChannels.includes('in_app')}
+                          onCheckedChange={() => toggleEventChannel(eventKey, 'in_app')}
+                          disabled={!inApp}
+                        />
+                      </div>
+                      <div className="w-12 flex justify-center">
+                        <Checkbox
+                          id={`${eventKey}-email`}
+                          checked={currentChannels.includes('email')}
+                          onCheckedChange={() => toggleEventChannel(eventKey, 'email')}
+                          disabled={!email}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <p className="text-xs text-fg-muted">
-            Disabling a channel above also disables all per-event checkboxes for that channel.
-          </p>
-        </section>
+                );
+              })}
+            </div>
+          </FormRow>
+        </div>
 
         {/* Actions */}
         {form.formState.isDirty && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-6">
             <Button type="submit" disabled={mutation.isPending}>
               <SaveIcon className="size-3.5 mr-1.5" />
               {mutation.isPending ? 'Saving…' : 'Save Changes'}

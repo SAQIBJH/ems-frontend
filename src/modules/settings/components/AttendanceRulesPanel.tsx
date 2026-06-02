@@ -3,13 +3,12 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ClipboardListIcon, SaveIcon } from 'lucide-react';
+import { SaveIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -21,6 +20,7 @@ import {
   attendanceRulesSchema,
   type AttendanceRulesFormValues,
 } from '../validations/settings.schema';
+import { FormRow, PanelHeader } from './FormRow';
 
 const WORK_DAYS = [
   { key: 'MON', label: 'Mon' },
@@ -34,27 +34,23 @@ const WORK_DAYS = [
 
 function AttendanceRulesSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <Skeleton className="h-5 w-40" />
+    <div className="space-y-0 divide-y divide-subtle">
+      <div className="pb-5 space-y-1.5">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-6 w-44" />
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-28" />
-        <div className="flex gap-2">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-12 rounded-md" />
-          ))}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-[200px_1fr] gap-6 py-5">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-44" />
+          </div>
+          <Skeleton className="h-9 max-w-[480px] w-full" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          ))}
-        </div>
-        <Skeleton className="h-9 w-28" />
+      ))}
+      <div className="pt-6 flex gap-3">
+        <Skeleton className="h-9 w-32" />
       </div>
     </div>
   );
@@ -115,85 +111,54 @@ export function AttendanceRulesPanel() {
   const geoEnabled = form.watch('geo_fencing_enabled');
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <ClipboardListIcon className="size-4 text-fg-subtle" />
-          <h2 className="text-sm font-semibold text-fg">Attendance Rules</h2>
-        </div>
-        <p className="text-sm text-fg-muted">
-          Configure the thresholds and policies that govern daily attendance tracking.
-        </p>
-      </div>
+    <div>
+      <PanelHeader
+        section="People"
+        title="Attendance Rules"
+        description="Define how attendance is tracked for your organisation."
+      />
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Working days */}
-        <div className="space-y-2">
-          <Label>Working Days</Label>
-          <div className="flex flex-wrap gap-2">
-            {WORK_DAYS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleDay(key)}
-                className={[
-                  'rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
-                  selectedDays.includes(key)
-                    ? 'border-brand bg-brand/10 text-brand'
-                    : 'border-subtle bg-surface text-fg-subtle hover:border-fg-muted hover:text-fg',
-                ].join(' ')}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {form.formState.errors.work_week_days && (
-            <p className="text-xs text-danger">{form.formState.errors.work_week_days.message}</p>
-          )}
-        </div>
-
-        {/* Thresholds */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {/* Late after */}
-          <div className="space-y-1.5">
-            <Label htmlFor="late_after">Late Check-in After</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="late_after"
-                type="time"
-                className="max-w-[140px]"
-                {...form.register('late_after')}
-              />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="divide-y divide-subtle">
+          {/* Work week */}
+          <FormRow label="Work week" help="Days considered working days.">
+            <div className="flex flex-wrap gap-2">
+              {WORK_DAYS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleDay(key)}
+                  className={[
+                    'rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
+                    selectedDays.includes(key)
+                      ? 'border-brand bg-brand/10 text-brand'
+                      : 'border-subtle bg-surface text-fg-subtle hover:border-fg-muted hover:text-fg',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            {form.formState.errors.work_week_days && (
+              <p className="text-xs text-danger">{form.formState.errors.work_week_days.message}</p>
+            )}
+          </FormRow>
+
+          {/* Late threshold */}
+          <FormRow label="Late threshold" help="Check-in after this time is marked late.">
+            <Input
+              id="late_after"
+              type="time"
+              className="max-w-[160px]"
+              {...form.register('late_after')}
+            />
             {form.formState.errors.late_after && (
               <p className="text-xs text-danger">{form.formState.errors.late_after.message}</p>
             )}
-          </div>
+          </FormRow>
 
-          {/* Regularization window */}
-          <div className="space-y-1.5">
-            <Label htmlFor="regularization_window_days">Regularization Window</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="regularization_window_days"
-                type="number"
-                min={1}
-                max={90}
-                className="max-w-[100px]"
-                {...form.register('regularization_window_days', { valueAsNumber: true })}
-              />
-              <span className="text-sm text-fg-muted">days</span>
-            </div>
-            {form.formState.errors.regularization_window_days && (
-              <p className="text-xs text-danger">
-                {form.formState.errors.regularization_window_days.message}
-              </p>
-            )}
-          </div>
-
-          {/* Half-day threshold */}
-          <div className="space-y-1.5">
-            <Label htmlFor="half_day_threshold_minutes">Half-day Threshold</Label>
+          {/* Half day */}
+          <FormRow label="Half day" help="Minimum minutes for a half-day.">
             <div className="flex items-center gap-2">
               <Input
                 id="half_day_threshold_minutes"
@@ -210,11 +175,10 @@ export function AttendanceRulesPanel() {
                 {form.formState.errors.half_day_threshold_minutes.message}
               </p>
             )}
-          </div>
+          </FormRow>
 
-          {/* Full-day threshold */}
-          <div className="space-y-1.5">
-            <Label htmlFor="full_day_threshold_minutes">Full-day Threshold</Label>
+          {/* Full day */}
+          <FormRow label="Full day" help="Minimum minutes for a full day.">
             <div className="flex items-center gap-2">
               <Input
                 id="full_day_threshold_minutes"
@@ -231,28 +195,50 @@ export function AttendanceRulesPanel() {
                 {form.formState.errors.full_day_threshold_minutes.message}
               </p>
             )}
-          </div>
-        </div>
+          </FormRow>
 
-        {/* Geo-fencing */}
-        <div className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-fg">Geo-fencing</p>
-            <p className="text-xs text-fg-muted mt-0.5">
-              Require employees to be within a defined location radius to check in.
-            </p>
-          </div>
-          <Switch
-            checked={geoEnabled}
-            onCheckedChange={(val) =>
-              form.setValue('geo_fencing_enabled', val, { shouldDirty: true })
-            }
-          />
+          {/* Regularisation window */}
+          <FormRow label="Regularisation window" help="Days allowed to raise an attendance fix.">
+            <div className="flex items-center gap-2">
+              <Input
+                id="regularization_window_days"
+                type="number"
+                min={1}
+                max={90}
+                className="max-w-[100px]"
+                {...form.register('regularization_window_days', { valueAsNumber: true })}
+              />
+              <span className="text-sm text-fg-muted">days</span>
+            </div>
+            {form.formState.errors.regularization_window_days && (
+              <p className="text-xs text-danger">
+                {form.formState.errors.regularization_window_days.message}
+              </p>
+            )}
+          </FormRow>
+
+          {/* Geo-fencing */}
+          <FormRow label="Geo-fencing" help="Restrict check-in to office location.">
+            <div className="rounded-lg border border-subtle px-4 py-3 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-fg">Enable geo-fencing</p>
+                <p className="text-xs text-fg-muted mt-0.5">
+                  Require employees to be within a defined location radius to check in.
+                </p>
+              </div>
+              <Switch
+                checked={geoEnabled}
+                onCheckedChange={(val) =>
+                  form.setValue('geo_fencing_enabled', val, { shouldDirty: true })
+                }
+              />
+            </div>
+          </FormRow>
         </div>
 
         {/* Actions */}
         {form.formState.isDirty && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-6">
             <Button type="submit" disabled={mutation.isPending}>
               <SaveIcon className="size-3.5 mr-1.5" />
               {mutation.isPending ? 'Saving…' : 'Save Changes'}

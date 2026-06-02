@@ -5,6 +5,13 @@ export const tenantSettingsSchema = z.object({
   timezone: z.string().min(1, 'Timezone is required'),
   working_hours_start: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM format'),
   working_hours_end: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM format'),
+  /** Extended identity fields — all optional */
+  legalName: z.string().optional(),
+  displayName: z.string().optional(),
+  country: z.string().optional(),
+  defaultCurrency: z.string().max(3, 'ISO 4217 code, e.g. INR').optional(),
+  primaryContactEmail: z.string().email('Must be a valid email').or(z.literal('')).optional(),
+  supportPhone: z.string().optional(),
 });
 
 export type TenantSettingsFormValues = z.infer<typeof tenantSettingsSchema>;
