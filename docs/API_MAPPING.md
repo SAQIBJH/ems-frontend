@@ -2266,3 +2266,61 @@ Added `todayAttendance` (camelCase field names) and `leaveBalanceSummary` (top-3
 | `POST /auth/otp/initiate`      | ❌ Not built | MFA challenge initiation. Current flow: `POST /auth/verify-otp` still works for existing users with OTP challenges. |
 | `POST /holidays/import` (.ics) | ❌ Not built | Requires .ics parsing library — flagged as separate ticket.                                                         |
 | Full S3 presign flow           | ⚠️ Deviated  | Cloudinary doesn't support anonymous PUT presign. Our presign returns our multipart endpoint instead.               |
+
+---
+
+## Phase 3 — MSW-only endpoints (not yet on backend)
+
+> These endpoints were added in **Phase 3 (Steps 73–92)** as part of the
+> design-system visual alignment pass. They are served by MSW in dev
+> (`NEXT_PUBLIC_USE_MOCKS=true`) and are **not live on the backend yet**.
+>
+> **Authoritative contract:** `docs/newreqphase3.md` — contains the full
+> request/response shapes, field casing, error codes, and envelope format
+> for every endpoint below. Read that file before writing any service code
+> for these modules.
+>
+> **Going live:** when the backend ships an endpoint, delete (or unregister)
+> its MSW handler from `src/mocks/handlers/<module>.ts` and
+> `src/mocks/handlers/index.ts`. No app code changes needed.
+
+### Domain A — Recruitment (`src/mocks/handlers/recruitment.ts`)
+
+| Method | Path                                  | Screen                     | MSW handler |
+| ------ | ------------------------------------- | -------------------------- | ----------- |
+| GET    | `/recruitment/summary`                | /recruitment stats         | ✅ MSW      |
+| GET    | `/recruitment/openings`               | Openings tab               | ✅ MSW      |
+| GET    | `/recruitment/candidates`             | Pipeline + Candidates tabs | ✅ MSW      |
+| POST   | `/recruitment/candidates/:id/advance` | Advance candidate stage    | ✅ MSW      |
+| POST   | `/recruitment/openings`               | Post a Job dialog          | ✅ MSW      |
+
+### Domain B — Performance (`src/mocks/handlers/performance.ts`)
+
+| Method | Path                         | Screen             | MSW handler |
+| ------ | ---------------------------- | ------------------ | ----------- |
+| GET    | `/performance/cycles/active` | Cycle banner       | ✅ MSW      |
+| GET    | `/performance/summary`       | /performance stats | ✅ MSW      |
+| GET    | `/performance/reviews`       | Reviews tab        | ✅ MSW      |
+| GET    | `/performance/goals`         | Goals tab          | ✅ MSW      |
+| GET    | `/performance/calibration`   | Calibration tab    | ✅ MSW      |
+| POST   | `/performance/goals`         | Add goal dialog    | ✅ MSW      |
+
+### Domain C — Assets (`src/mocks/handlers/assets.ts`)
+
+| Method | Path                           | Screen                    | MSW handler |
+| ------ | ------------------------------ | ------------------------- | ----------- |
+| GET    | `/assets/summary`              | /assets stats             | ✅ MSW      |
+| GET    | `/assets`                      | Inventory + Assigned tabs | ✅ MSW      |
+| GET    | `/assets/requests`             | Requests tab              | ✅ MSW      |
+| PATCH  | `/assets/requests/:id/approve` | Approve request           | ✅ MSW      |
+| PATCH  | `/assets/requests/:id/decline` | Decline request           | ✅ MSW      |
+| POST   | `/assets`                      | Add Asset dialog          | ✅ MSW      |
+
+### Domain D — Announcements (`src/mocks/handlers/announcements.ts`)
+
+| Method | Path                      | Screen                  | MSW handler |
+| ------ | ------------------------- | ----------------------- | ----------- |
+| GET    | `/announcements`          | Feed (pinned + list)    | ✅ MSW      |
+| GET    | `/announcements/channels` | Channels sidebar        | ✅ MSW      |
+| GET    | `/announcements/events`   | Upcoming events sidebar | ✅ MSW      |
+| POST   | `/announcements`          | New Announcement dialog | ✅ MSW      |
