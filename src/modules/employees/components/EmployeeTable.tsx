@@ -609,7 +609,7 @@ export function EmployeeTable() {
                 >
                   {emp.firstName} {emp.lastName}
                 </Link>
-                <p className="truncate text-xs text-fg-muted">{emp.workEmail}</p>
+                <p className="truncate text-xs text-fg-muted">{emp.designation}</p>
               </div>
             </div>
           );
@@ -749,7 +749,7 @@ export function EmployeeTable() {
   return (
     <div className="flex flex-col gap-4">
       {/* Filter bar */}
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <div className="relative min-w-[200px] flex-1">
           <SearchIcon
@@ -769,44 +769,38 @@ export function EmployeeTable() {
         </div>
 
         {/* Department filter */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-fg-muted">Department</span>
-          <Select value={departmentId || '_all'} onValueChange={handleDeptChange}>
-            <SelectTrigger className="w-[180px] cursor-pointer" aria-label="Filter by department">
-              <SelectValue placeholder="All departments">
-                {(v) =>
-                  v === '_all' ? 'All departments' : (flatDepts.find((d) => d.id === v)?.name ?? v)
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_all">All departments</SelectItem>
-              {flatDepts.map((dept) => (
-                <SelectItem key={dept.id} value={dept.id}>
-                  {dept.depth > 0 ? `${'—'.repeat(dept.depth)} ` : ''}
-                  {dept.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={departmentId || '_all'} onValueChange={handleDeptChange}>
+          <SelectTrigger className="w-[180px] cursor-pointer" aria-label="Filter by department">
+            <SelectValue placeholder="All departments">
+              {(v) =>
+                v === '_all' ? 'All departments' : (flatDepts.find((d) => d.id === v)?.name ?? v)
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">All departments</SelectItem>
+            {flatDepts.map((dept) => (
+              <SelectItem key={dept.id} value={dept.id}>
+                {dept.depth > 0 ? `${'—'.repeat(dept.depth)} ` : ''}
+                {dept.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Status filter */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-fg-muted">Status</span>
-          <Select value={statusFilter || '_all'} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-[140px] cursor-pointer" aria-label="Filter by status">
-              <SelectValue placeholder="All statuses">
-                {(v) => (v === '_all' ? 'All statuses' : v === 'ACTIVE' ? 'Active' : 'Terminated')}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_all">All statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="TERMINATED">Terminated</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={statusFilter || '_all'} onValueChange={handleStatusChange}>
+          <SelectTrigger className="w-[140px] cursor-pointer" aria-label="Filter by status">
+            <SelectValue placeholder="All statuses">
+              {(v) => (v === '_all' ? 'All statuses' : v === 'ACTIVE' ? 'Active' : 'Terminated')}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">All statuses</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="TERMINATED">Terminated</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Clear filters */}
         {hasActiveFilters && (

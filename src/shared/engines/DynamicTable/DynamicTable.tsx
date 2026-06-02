@@ -55,7 +55,7 @@ export function DynamicTable<TData>({
 
   if (isLoading) {
     return (
-      <div className={cn('rounded-lg border border-subtle bg-surface', className)}>
+      <div className={cn('rounded-xl border border-subtle bg-surface', className)}>
         <SkeletonTable rows={loadingRows} cols={loadingCols ?? columns.length} className="p-4" />
       </div>
     );
@@ -80,71 +80,75 @@ export function DynamicTable<TData>({
   const showPagination = !!pagination && pages > 1;
 
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      <div className="overflow-hidden rounded-lg border border-subtle">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-surface-2 hover:bg-surface-2">
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="text-[11px] font-medium uppercase tracking-wide text-fg-muted"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className={cn(onRowClick && 'cursor-pointer hover:bg-surface-2/50')}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+    <div className={cn('overflow-hidden rounded-xl border border-subtle', className)}>
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id} className="bg-surface-2 hover:bg-surface-2">
+              {headerGroup.headers.map((header) => (
+                <TableHead
+                  key={header.id}
+                  className="text-[11px] font-medium uppercase tracking-wide text-fg-muted"
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow
+              key={row.id}
+              className={cn(onRowClick && 'cursor-pointer hover:bg-surface-2')}
+              onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+            >
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       {showPagination && (
-        <div className="flex items-center justify-between text-sm text-fg-muted">
-          <span>
-            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} {rowLabel}
+        <div className="flex items-center justify-between border-t border-subtle bg-surface px-5 py-3">
+          <span className="text-sm text-fg-muted">
+            Showing{' '}
+            <span className="font-medium text-fg">
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)}
+            </span>{' '}
+            of <span className="font-medium text-fg">{total}</span> {rowLabel}
           </span>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="icon"
-              className="size-8"
+              size="sm"
+              className="gap-1.5"
               onClick={() => onPageChange?.(page - 1)}
               disabled={page <= 1}
               aria-label="Previous page"
             >
-              <ChevronLeftIcon className="size-4" aria-hidden />
+              <ChevronLeftIcon className="size-3.5" aria-hidden />
+              Prev
             </Button>
-            <span className="min-w-[80px] text-center tabular-nums">
+            <span className="min-w-[80px] text-center text-sm font-medium text-fg-muted tabular-nums">
               Page {page} of {pages}
             </span>
             <Button
               variant="outline"
-              size="icon"
-              className="size-8"
+              size="sm"
+              className="gap-1.5"
               onClick={() => onPageChange?.(page + 1)}
               disabled={page >= pages}
               aria-label="Next page"
             >
-              <ChevronRightIcon className="size-4" aria-hidden />
+              Next
+              <ChevronRightIcon className="size-3.5" aria-hidden />
             </Button>
           </div>
         </div>
