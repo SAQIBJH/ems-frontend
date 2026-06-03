@@ -33,7 +33,7 @@ function InteractiveRating({ candidateId, value }: { candidateId: string; value:
         <button
           key={n}
           type="button"
-          className="rounded-sm focus-visible:outline-brand"
+          className="rounded-sm focus-visible:outline-brand cursor-pointer p-0.5"
           aria-label={`Set rating ${n}`}
           onMouseEnter={() => setHovered(n)}
           onMouseLeave={() => setHovered(0)}
