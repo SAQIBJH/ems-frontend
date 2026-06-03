@@ -16,6 +16,7 @@ import { settingsIntegrationHandlers } from './settings-integrations';
 import { recruitmentHandlers } from './recruitment';
 import { performanceHandlers } from './performance';
 import { assetsHandlers } from './assets';
+import { announcementsHandlers } from './announcements';
 
 // MSW intercepts ONLY endpoints not yet live on the backend.
 // When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
@@ -38,6 +39,7 @@ import { assetsHandlers } from './assets';
 //   All  /recruitment/*               — Phase 3 recruitment (MSW)
 //   All  /performance/*               — Phase 3 performance (MSW)
 //   All  /assets/*                    — Phase 3 assets (MSW)
+//   All  /announcements/*             — Phase 3 announcements (MSW)
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
@@ -79,4 +81,5 @@ export const handlers = [
   ...recruitmentHandlers,
   ...performanceHandlers,
   ...assetsHandlers,
+  ...announcementsHandlers,
 ];

@@ -234,7 +234,10 @@ export function InventoryTab() {
                     Assigned to
                   </th>
                   <th className="px-5 py-2.5 text-left text-xs font-medium text-fg-muted">Since</th>
-                  <th className="w-10 px-5 py-2.5" />
+                  {/* <th className="w-10 px-5 py-2.5" /> */}
+                  <th className="px-5 py-2.5 text-right text-xs font-medium text-fg-muted">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
