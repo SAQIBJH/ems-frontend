@@ -148,7 +148,10 @@ function SidebarContent({
 
       {/* Nav */}
       <nav
-        className={cn('flex-1 overflow-y-auto py-4 space-y-0.5', collapsed ? 'px-2' : 'px-3')}
+        className={cn(
+          'flex-1 overflow-y-auto py-4 space-y-0.5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]',
+          collapsed ? 'px-2' : 'px-3',
+        )}
         aria-label="Main navigation"
       >
         {NAV_ITEMS.map((entry, i) => {

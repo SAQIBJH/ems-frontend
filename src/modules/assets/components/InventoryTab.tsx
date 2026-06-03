@@ -131,7 +131,7 @@ export function InventoryTab() {
               value={typeFilter}
               onValueChange={(v) => setTypeFilter((v ?? 'All types') as typeof typeFilter)}
             >
-              <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectTrigger className="h-7 w-36 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -147,7 +147,7 @@ export function InventoryTab() {
               value={statusFilter}
               onValueChange={(v) => setStatusFilter((v ?? 'All statuses') as typeof statusFilter)}
             >
-              <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectTrigger className="h-7 w-40 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -161,10 +161,12 @@ export function InventoryTab() {
 
             <Popover>
               <PopoverTrigger
-                className={buttonVariants({
-                  variant: hasFilter ? 'default' : 'outline',
-                  size: 'sm',
-                })}
+                className={
+                  buttonVariants({
+                    variant: hasFilter ? 'default' : 'outline',
+                    size: 'sm',
+                  }) + ' !h-7 text-xs'
+                }
               >
                 <FilterIcon className="size-3.5" aria-hidden />
                 Filter
