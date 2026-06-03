@@ -564,6 +564,78 @@ Returns `null` in `data` if no active cycle exists.
 
 ---
 
+### GET /assets/employees
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Query params:** none
+**Purpose:** Returns a lightweight employee list for the "Assign to" dropdown (AddAssetDialog, AssetDetailSheet).
+**Success response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "employeeId": "emp_1", "name": "Priya Sharma" },
+    { "employeeId": "emp_2", "name": "Rohan Mehta" }
+  ]
+}
+```
+
+---
+
+### PATCH /assets/:id/status
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:**
+
+```json
+{ "status": "Available" }
+```
+
+**Allowed status values:** `Available` | `Repair` | `Retired`
+(Setting `Assigned` is not allowed via this endpoint — use `/assets/:id/assign` instead.)
+When status is not `Assigned`, `assignedTo` and `assignedSince` are cleared to `null`.
+**Success response:** `{ "success": true, "data": { <full asset object> } }`
+**Error codes:**
+
+- `404` — asset not found
+
+---
+
+### PATCH /assets/:id/assign
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:**
+
+```json
+{
+  "employeeId": "emp_1",
+  "name": "Priya Sharma",
+  "since": "2026-06-01"
+}
+```
+
+Sets `status → Assigned`, `assignedTo`, and `assignedSince`.
+**Success response:** `{ "success": true, "data": { <full asset object> } }`
+**Error codes:**
+
+- `404` — asset not found
+- `409` — asset is `Retired` and cannot be assigned
+
+---
+
+### PATCH /assets/:id/recall
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:** `{}` (empty)
+Sets `status → Available`, clears `assignedTo` and `assignedSince`.
+**Success response:** `{ "success": true, "data": { <full asset object> } }`
+**Error codes:**
+
+- `404` — asset not found
+
+---
+
 ### POST /assets
 
 **Role:** HR_ADMIN, SUPER_ADMIN
@@ -573,15 +645,18 @@ Returns `null` in `data` if no active cycle exists.
 {
   "tag": "LAP-0210",
   "name": "MacBook Pro 14\" M4",
-  "type": "Laptop"
+  "type": "Laptop",
+  "assignedTo": { "employeeId": "emp_1", "name": "Priya Sharma" },
+  "assignedSince": "2026-06-01"
 }
 ```
 
-**Success response:** `{ "success": true, "data": { <asset object> } }`
+`assignedTo` and `assignedSince` are optional. When both are provided the asset is created with `status: Assigned`; otherwise `status: Available`.
+**Success response:** `{ "success": true, "data": { <full asset object> } }` — `201`
 **Error codes:**
 
 - `409` — asset tag already exists
-- `422` — validation failure
+- `422` — validation failure; `error.details[]` maps to `tag`, `name`, `type` fields
 
 ---
 
