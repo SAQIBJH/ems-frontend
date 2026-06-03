@@ -186,6 +186,7 @@
 
   html {
     @apply font-sans;
+    overflow: hidden;
   }
 
   /* Respect reduced motion */

@@ -362,7 +362,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* ── Main area ────────────────────────────────────────────────────── */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <Topbar onMobileMenuClick={() => setMobileOpen(true)} />
-          <main id="main-content" className="flex-1 overflow-y-auto">
+          <main id="main-content" className="flex-1 min-h-0 overflow-y-auto">
             {children}
           </main>
         </div>
