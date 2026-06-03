@@ -52,6 +52,12 @@ export interface CreateAnnouncementInput {
   isPinned?: boolean;
 }
 
+export interface CreateEventInput {
+  date: string;
+  title: string;
+  meta: string;
+}
+
 export interface AnnouncementsParams {
   channelId?: string;
   page?: number;

@@ -7,6 +7,7 @@ export type {
   UpcomingEvent,
   AnnouncementsData,
   CreateAnnouncementInput,
+  CreateEventInput,
   AnnouncementsParams,
 } from './types/announcements.types';
 
@@ -19,6 +20,7 @@ export {
   useAnnouncementChannels,
   useAnnouncementEvents,
   useCreateAnnouncement,
+  useCreateEvent,
   ANNOUNCEMENTS_KEYS,
 } from './hooks/useAnnouncements';
 

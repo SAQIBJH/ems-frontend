@@ -124,6 +124,42 @@ export const announcementsHandlers = [
     return HttpResponse.json({ success: true, data: { events: EVENTS } });
   }),
 
+  // POST /announcements/events
+  http.post(`${BASE}/events`, async ({ request }) => {
+    const body = (await request.json()) as { date: string; title: string; meta: string };
+
+    if (!body.date || !body.title || !body.meta) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'date, title and meta are required',
+            details: [
+              ...(!body.date ? [{ field: 'date', message: 'Date is required' }] : []),
+              ...(!body.title ? [{ field: 'title', message: 'Title is required' }] : []),
+              ...(!body.meta ? [{ field: 'meta', message: 'Time / location is required' }] : []),
+            ],
+          },
+        },
+        { status: 422 },
+      );
+    }
+
+    const newEvent: UpcomingEvent = {
+      id: `ev_${Date.now()}`,
+      date: body.date,
+      title: body.title,
+      meta: body.meta,
+    };
+
+    // Insert sorted by date
+    EVENTS.push(newEvent);
+    EVENTS.sort((a, b) => a.date.localeCompare(b.date));
+
+    return HttpResponse.json({ success: true, data: newEvent }, { status: 201 });
+  }),
+
   // POST /announcements
   http.post(BASE, async ({ request }) => {
     const body = (await request.json()) as CreateAnnouncementInput;

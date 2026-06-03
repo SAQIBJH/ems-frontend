@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { announcementsApi } from '../services/announcements.api';
-import type { AnnouncementsParams, CreateAnnouncementInput } from '../types/announcements.types';
+import type {
+  AnnouncementsParams,
+  CreateAnnouncementInput,
+  CreateEventInput,
+} from '../types/announcements.types';
 
 export const ANNOUNCEMENTS_KEYS = {
   feed: (params?: AnnouncementsParams) => ['announcements', 'feed', params] as const,
@@ -26,6 +30,16 @@ export function useAnnouncementEvents() {
   return useQuery({
     queryKey: ANNOUNCEMENTS_KEYS.events,
     queryFn: () => announcementsApi.getEvents(),
+  });
+}
+
+export function useCreateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateEventInput) => announcementsApi.createEvent(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['announcements', 'events'] });
+    },
   });
 }
 

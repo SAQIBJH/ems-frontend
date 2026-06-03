@@ -18,6 +18,7 @@ import {
 import { CATEGORY_CONFIG } from '../constants';
 import { AnnouncementCard } from './AnnouncementCard';
 import { CreateAnnouncementDialog } from './CreateAnnouncementDialog';
+import { CreateEventDialog } from './CreateEventDialog';
 import type { Channel } from '../types/announcements.types';
 import { useAuth } from '@/providers';
 
@@ -80,6 +81,7 @@ function SidebarSkeleton() {
 
 export function AnnouncementsScreen() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const { user } = useAuth();
 
@@ -219,7 +221,22 @@ export function AnnouncementsScreen() {
                 </SectionCard>
 
                 {/* Upcoming events */}
-                <SectionCard title="Upcoming">
+                <SectionCard
+                  title="Upcoming"
+                  actions={
+                    canPost && (
+                      <button
+                        type="button"
+                        onClick={() => setEventDialogOpen(true)}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:text-brand-hover transition-colors duration-[120ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        aria-label="Add upcoming event"
+                      >
+                        <PlusIcon className="size-3" aria-hidden />
+                        Add
+                      </button>
+                    )
+                  }
+                >
                   <div className="-mx-5 -mb-5 flex flex-col gap-3.5 px-5 pb-5">
                     {events.length === 0 ? (
                       <p className="text-[13px] text-fg-muted">No upcoming events.</p>
@@ -257,6 +274,9 @@ export function AnnouncementsScreen() {
       </div>
 
       {dialogOpen && <CreateAnnouncementDialog open={dialogOpen} onOpenChange={setDialogOpen} />}
+      {eventDialogOpen && (
+        <CreateEventDialog open={eventDialogOpen} onOpenChange={setEventDialogOpen} />
+      )}
     </>
   );
 }

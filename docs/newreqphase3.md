@@ -774,6 +774,27 @@ Sets `status → Available`, clears `assignedTo` and `assignedSince`.
 
 ---
 
+### POST /announcements/events
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:**
+
+```json
+{
+  "date": "2026-07-01",
+  "title": "Q3 All-Hands",
+  "meta": "4:00 PM · Main hall + Zoom"
+}
+```
+
+`date` must be `YYYY-MM-DD`. Event is inserted into the list sorted by date.
+**Success response:** `{ "success": true, "data": { <event object> } }` — `201`
+**Error codes:**
+
+- `422` — validation failure; `error.details[]` maps to `date`, `title`, `meta`
+
+---
+
 ### POST /announcements
 
 **Role:** HR_ADMIN, SUPER_ADMIN, MANAGER (scoped to own team channel)
