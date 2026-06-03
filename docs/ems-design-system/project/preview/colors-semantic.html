@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Semantic</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); }
+  * { box-sizing: border-box; }
+  
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+  
+    <div style="border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;background:var(--bg-surface);">
+      <div style="height:56px;background:hsl(152 60% 40%);"></div>
+      <div style="padding:10px 12px;">
+        <div style="font:600 12px/16px var(--font-sans);color:var(--text-primary);">success</div>
+        <div style="font:500 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:2px;">present • approved</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:2px 8px;border-radius:9999px;background:hsla(152 60% 40% / 0.12);color:hsl(152 60% 40%);font:500 11px/14px var(--font-sans);">badge</div>
+      </div>
+    </div>
+  
+    <div style="border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;background:var(--bg-surface);">
+      <div style="height:56px;background:hsl(38 92% 50%);"></div>
+      <div style="padding:10px 12px;">
+        <div style="font:600 12px/16px var(--font-sans);color:var(--text-primary);">warning</div>
+        <div style="font:500 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:2px;">urgent • due</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:2px 8px;border-radius:9999px;background:hsla(38 92% 50% / 0.12);color:hsl(38 92% 50%);font:500 11px/14px var(--font-sans);">badge</div>
+      </div>
+    </div>
+  
+    <div style="border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;background:var(--bg-surface);">
+      <div style="height:56px;background:hsl(0 75% 50%);"></div>
+      <div style="padding:10px 12px;">
+        <div style="font:600 12px/16px var(--font-sans);color:var(--text-primary);">danger</div>
+        <div style="font:500 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:2px;">rejected • absent</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:2px 8px;border-radius:9999px;background:hsla(0 75% 50% / 0.12);color:hsl(0 75% 50%);font:500 11px/14px var(--font-sans);">badge</div>
+      </div>
+    </div>
+  
+    <div style="border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;background:var(--bg-surface);">
+      <div style="height:56px;background:hsl(210 90% 50%);"></div>
+      <div style="padding:10px 12px;">
+        <div style="font:600 12px/16px var(--font-sans);color:var(--text-primary);">info</div>
+        <div style="font:500 11px/14px var(--font-sans);color:var(--text-tertiary);margin-top:2px;">wfh • note</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:2px 8px;border-radius:9999px;background:hsla(210 90% 50% / 0.12);color:hsl(210 90% 50%);font:500 11px/14px var(--font-sans);">badge</div>
+      </div>
+    </div>
+  
+</div>
+
+</body>
+</html>

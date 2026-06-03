@@ -87,6 +87,16 @@ export interface CalibrationData {
   notes: CalibrationNote[];
 }
 
+export interface PerformanceEmployee {
+  id: string;
+  name: string;
+  department: string;
+}
+
+export interface SubmitReviewInput {
+  rating: RatingValue;
+}
+
 export interface AddGoalInput {
   employeeId: string;
   title: string;

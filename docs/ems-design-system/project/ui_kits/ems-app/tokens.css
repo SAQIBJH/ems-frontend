@@ -1,0 +1,349 @@
+/* ─────────────────────────────────────────────────────────────────────────
+ * EMS Design System — colors & type
+ * Lifted from SAQIBJH/ems-frontend (src/styles/tokens.css + globals.css)
+ *
+ * Two layers:
+ *   1. Base tokens (`--bg-canvas`, `--text-primary`, `--brand-500`, …)
+ *      Raw values. Light + dark live under :root and [data-theme='dark'].
+ *   2. Semantic aliases (`--color-bg`, `--color-fg`, `--text-h1`, …)
+ *      What components reference. Swap a base token and everything updates.
+ *
+ * Visual identity: enterprise luxury — calm, dense, confident.
+ * Closer to Linear / Vercel / Stripe than to a Bootstrap admin template.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/* ── Fonts ─────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ── Surfaces ─────────────────────────────────────────────────────── */
+  --bg-canvas: hsl(220 14% 98%); /* page background */
+  --bg-surface: hsl(0 0% 100%); /* card */
+  --bg-surface-raised: hsl(220 14% 97%); /* table header / slightly elevated */
+  --bg-surface-2: hsl(220 14% 96%); /* nested card / hover row */
+  --bg-overlay: hsl(220 30% 8%); /* modal scrim */
+
+  /* ── Borders ──────────────────────────────────────────────────────── */
+  --border-subtle: hsl(220 13% 91%); /* default card border */
+  --border-default: hsl(220 13% 84%); /* inputs, dividers */
+  --border-strong: hsl(220 13% 65%);
+
+  /* ── Text ─────────────────────────────────────────────────────────── */
+  --text-primary: hsl(222 47% 11%); /* fg                       */
+  --text-secondary: hsl(220 9% 38%); /* fg-muted — labels        */
+  --text-tertiary: hsl(220 9% 55%); /* fg-subtle — captions     */
+  --text-disabled: hsl(220 9% 72%);
+  --text-on-primary: hsl(0 0% 100%);
+
+  /* ── Brand ────────────────────────────────────────────────────────── */
+  --brand-50: hsl(222 100% 97%); /* accent fill — chips, hover    */
+  --brand-100: hsl(222 95% 92%); /* avatar tint                   */
+  --brand-500: hsl(222 80% 52%); /* PRIMARY ACTION                */
+  --brand-600: hsl(222 75% 46%); /* hover                         */
+  --brand-700: hsl(222 70% 40%); /* press / dense text on brand   */
+
+  /* ── Semantic ─────────────────────────────────────────────────────── */
+  --success-500: hsl(152 60% 40%);
+  --warning-500: hsl(38 92% 50%);
+  --danger-500: hsl(0 75% 50%);
+  --info-500: hsl(210 90% 50%);
+
+  /* ── Category palette ─────────────────────────────────────────────── */
+  /* Each domain gets a stable color so the same thing reads the same   *
+   * way wherever it appears. "Engineering" is ALWAYS this blue, "Sick" *
+   * is ALWAYS this red. Color carries meaning, not decoration.         */
+
+  /* Department colors — used in dept badges, donut chart, org tree */
+  --dept-engineering: hsl(222 80% 52%); /* indigo-blue   */
+  --dept-operations: hsl(152 60% 40%); /* green         */
+  --dept-sales: hsl(38 92% 50%); /* amber         */
+  --dept-product: hsl(280 60% 55%); /* purple        */
+  --dept-finance: hsl(190 80% 42%); /* teal          */
+  --dept-people: hsl(340 70% 50%); /* magenta       */
+  --dept-legal: hsl(0 75% 55%); /* red           */
+  --dept-marketing: hsl(60 80% 42%); /* lime-gold     */
+  --dept-it: hsl(210 70% 50%); /* sky           */
+
+  /* Leave-type colors — used in leave chips, holiday calendar, charts */
+  --leave-casual: hsl(38 92% 50%); /* amber  — flexible time off  */
+  --leave-sick: hsl(0 75% 55%); /* red    — needed recovery    */
+  --leave-earned: hsl(152 60% 40%); /* green  — accrued, banked    */
+  --leave-parental: hsl(280 60% 55%); /* purple — long, planned      */
+  --leave-bereavement: hsl(220 9% 38%); /* slate  — somber             */
+  --leave-comp-off: hsl(190 80% 42%); /* teal   — earned back        */
+  --leave-unpaid: hsl(220 13% 65%); /* grey   — no balance         */
+
+  /* Status colors — stable across employee, leave, regularization */
+  --status-active: var(--success-500);
+  --status-onleave: var(--warning-500);
+  --status-terminated: var(--text-tertiary);
+  --status-approved: var(--success-500);
+  --status-pending: var(--warning-500);
+  --status-rejected: var(--danger-500);
+  --status-withdrawn: var(--text-tertiary);
+
+  /* Chart palette — used by ChartEngine for series colors in order. *
+   * Avoids hue clashes by alternating across the wheel. */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--success-500);
+  --chart-3: var(--warning-500);
+  --chart-4: var(--dept-product);
+  --chart-5: var(--dept-finance);
+  --chart-6: var(--dept-people);
+  --chart-7: var(--info-500);
+  --chart-8: var(--dept-marketing);
+
+  /* ── Focus ────────────────────────────────────────────────────────── */
+  --focus-ring: hsl(222 90% 56%);
+  --shadow-focus: 0 0 0 3px hsl(222 90% 56% / 0.25);
+
+  /* ── Radius ───────────────────────────────────────────────────────── */
+  --radius-sm: 4px; /* badges, chips                  */
+  --radius-md: 8px; /* inputs, buttons                */
+  --radius-lg: 12px; /* cards                          */
+  --radius-xl: 16px; /* modals, drawers                */
+  --radius-full: 9999px;
+
+  /* ── Shadows ──────────────────────────────────────────────────────── */
+  /* Subtle by design. Anything heavier looks like a 2014 dashboard. */
+  --shadow-xs: 0 1px 2px hsl(220 30% 10% / 0.04);
+  --shadow-sm: 0 2px 4px hsl(220 30% 10% / 0.06);
+  --shadow-md: 0 4px 12px hsl(220 30% 10% / 0.08);
+  --shadow-lg: 0 12px 32px hsl(220 30% 10% / 0.12);
+
+  /* ── Motion ───────────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+
+  /* ── Spacing scale ────────────────────────────────────────────────── */
+  /* "8px / 12px / 16px is the rhythm." No arbitrary values. */
+  --space-0: 0px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+  --space-13: 80px;
+  --space-14: 96px;
+
+  /* ── Fonts ────────────────────────────────────────────────────────── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-sans);
+
+  /* ── Semantic aliases (use these in components) ──────────────────── */
+  --color-bg: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-surface-2: var(--bg-surface-2);
+  --color-border: var(--border-subtle);
+  --color-border-input: var(--border-default);
+
+  --color-fg: var(--text-primary);
+  --color-fg-muted: var(--text-secondary);
+  --color-fg-subtle: var(--text-tertiary);
+  --color-fg-disabled: var(--text-disabled);
+
+  --color-brand: var(--brand-500);
+  --color-brand-hover: var(--brand-600);
+  --color-brand-tint: var(--brand-50);
+
+  --color-success: var(--success-500);
+  --color-warning: var(--warning-500);
+  --color-danger: var(--danger-500);
+  --color-info: var(--info-500);
+}
+
+/* ── Dark mode ─────────────────────────────────────────────────────────── */
+[data-theme='dark'] {
+  --bg-canvas: hsl(222 20% 8%);
+  --bg-surface: hsl(222 18% 11%);
+  --bg-surface-raised: hsl(222 17% 15%);
+  --bg-surface-2: hsl(222 16% 14%);
+  --bg-overlay: hsl(222 30% 4%);
+
+  --border-subtle: hsl(222 14% 18%);
+  --border-default: hsl(222 14% 24%);
+  --border-strong: hsl(222 12% 38%);
+
+  --text-primary: hsl(220 14% 96%);
+  --text-secondary: hsl(220 10% 72%);
+  --text-tertiary: hsl(220 9% 58%);
+  --text-disabled: hsl(220 8% 40%);
+
+  /* Brand tints get bumped up so accent surfaces stay legible. */
+  --brand-50: hsl(222 20% 16%);
+  --brand-100: hsl(222 18% 20%);
+  --brand-500: hsl(222 85% 62%);
+  --brand-600: hsl(222 80% 55%);
+
+  /* Shadows are lighter in dark mode */
+  --shadow-xs: 0 1px 2px hsl(220 30% 3% / 0.3);
+  --shadow-sm: 0 2px 4px hsl(220 30% 3% / 0.4);
+  --shadow-md: 0 4px 12px hsl(220 30% 3% / 0.5);
+  --shadow-lg: 0 12px 32px hsl(220 30% 3% / 0.6);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Typography scale
+ *
+ * Single typeface: Inter (variable). Mono: JetBrains Mono for IDs,
+ * employee codes, payslip refs, audit timestamps.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+.text-display {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.text-h1 {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+.text-h2 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.text-h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.text-body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.text-body-sm {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.text-caption {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.text-overline {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Semantic HTML defaults
+ * Map h1/h2/h3/p/code to the type scale so plain markup looks right.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+html {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+body {
+  background: var(--bg-canvas);
+  margin: 0;
+}
+
+h1 {
+  font: 600 24px/32px var(--font-heading);
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 0;
+}
+h2 {
+  font: 600 20px/28px var(--font-heading);
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+h3 {
+  font: 600 16px/24px var(--font-heading);
+  color: var(--text-primary);
+  margin: 0;
+}
+p {
+  font: 400 14px/20px var(--font-sans);
+  color: var(--text-primary);
+  margin: 0;
+}
+small {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-surface-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+a {
+  color: var(--brand-500);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Reduced motion (system-level) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

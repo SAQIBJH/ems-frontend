@@ -17,6 +17,8 @@ export type {
   AddGoalInput,
   ReviewsParams,
   GoalsParams,
+  PerformanceEmployee,
+  SubmitReviewInput,
 } from './types/performance.types';
 
 // Services
@@ -30,6 +32,8 @@ export {
   useGoals,
   useCalibration,
   useAddGoal,
+  usePerformanceEmployees,
+  useSubmitReview,
   PERFORMANCE_KEYS,
 } from './hooks/usePerformance';
 

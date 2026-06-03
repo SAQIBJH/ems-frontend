@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Form inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { padding: 24px; background: var(--bg-canvas); color: var(--text-primary); margin: 0; }
+  * { box-sizing: border-box; }
+  
+.field { display:flex; flex-direction:column; gap:6px; }
+.label { font:500 13px/18px var(--font-sans); color: var(--text-primary); }
+.help { font:400 12px/16px var(--font-sans); color: var(--text-tertiary); }
+.input { height:32px; padding:0 10px; border:1px solid var(--border-default); border-radius:8px; background: var(--bg-surface); font:400 13px/18px var(--font-sans); color: var(--text-primary); outline:none; transition: border-color 120ms, box-shadow 120ms; width:100%; }
+.input:focus { border-color: var(--focus-ring); box-shadow: var(--shadow-focus); }
+.input::placeholder { color: var(--text-disabled); }
+.input[disabled] { background: var(--bg-surface-2); cursor:not-allowed; }
+.input.error { border-color: var(--danger-500); box-shadow: 0 0 0 3px hsla(0, 75%, 50%, 0.20); }
+.checkbox { width:16px; height:16px; border:1px solid var(--border-default); border-radius:4px; background: var(--bg-surface); display:inline-grid; place-items:center; }
+.checkbox.checked { background: var(--brand-500); border-color: var(--brand-500); }
+.checkbox.checked::before { content:""; width:8px; height:5px; border-left:2px solid white; border-bottom:2px solid white; transform: rotate(-45deg) translate(1px, -1px); }
+.switch { width:32px; height:18px; background: var(--bg-surface-2); border:1px solid var(--border-default); border-radius:9999px; position:relative; display:inline-block; }
+.switch.on { background: var(--brand-500); border-color: var(--brand-500); }
+.switch::after { content:""; position:absolute; top:1px; left:1px; width:14px; height:14px; background:white; border-radius:9999px; box-shadow: var(--shadow-xs); transition: left 120ms; }
+.switch.on::after { left:15px; }
+
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+  <div class="field">
+    <label class="label">Email</label>
+    <input class="input" placeholder="you@acme.com" value="aman@acme.test" />
+    <div class="help">We'll never share this address.</div>
+  </div>
+  <div class="field">
+    <label class="label">Employee code</label>
+    <input class="input error" value="EMP-X" />
+    <div class="help" style="color:var(--danger-500);">Must match pattern EMP-#####.</div>
+  </div>
+  <div class="field">
+    <label class="label">Department</label>
+    <input class="input" placeholder="Select…" disabled />
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <label style="display:flex;align-items:center;gap:10px;font:400 13px/18px var(--font-sans);"><span class="checkbox"></span>Send onboarding email</label>
+    <label style="display:flex;align-items:center;gap:10px;font:400 13px/18px var(--font-sans);"><span class="checkbox checked"></span>Eligible for leave accrual</label>
+    <label style="display:flex;align-items:center;gap:10px;font:400 13px/18px var(--font-sans);"><span class="switch on"></span>Dark mode preferred</label>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EMS — UI Kit (Print)</title>
+  <link rel="icon" href="../../assets/favicon.ico" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="shell.css" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    /* ── Screen preview (on-screen): stack pages on the canvas ──────────── */
+    body { margin: 0; background: rgb(118, 128, 138); }
+    .print-doc { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 28px; }
+
+    .print-page {
+      width: 1180px;
+      background: var(--bg-canvas);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    }
+    /* Each printed page = one full app screen. Release the app's 100vh lock so
+       the whole screen renders top-to-bottom instead of an internal scroll. */
+    .print-page .ems-shell { height: auto; min-height: 760px; overflow: visible; }
+    .print-page .ems-main { overflow: visible; }
+    .print-page .ems-main-scroll { overflow: visible; }
+    /* Login screen is full-bleed (no shell); give it a sensible printed height. */
+    .print-page.is-login > * { min-height: 760px; }
+
+    .print-caption {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 10px 20px;
+      color: #e5e7eb;
+      font: 500 12px/16px var(--font-sans, system-ui);
+      letter-spacing: 0.02em;
+    }
+    .print-caption .idx { font-family: var(--font-mono, monospace); opacity: 0.6; }
+    .print-caption .ph { opacity: 0.55; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+
+    /* ── Print: one screen per sheet ────────────────────────────────────── */
+    @page { size: landscape; margin: 0.5cm; }
+    @media print {
+      html, body { background: #fff !important; }
+      .print-doc { display: block; padding: 0; gap: 0; }
+      .print-caption { display: none; }
+      .print-page {
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        break-inside: avoid;
+        break-after: page;
+      }
+      .print-page:last-child { break-after: auto; }
+      /* avoid splitting cards / table rows across sheets where possible */
+      .card, .section-card, .stats-card, tr { break-inside: avoid; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Same component graph as index.html (load order matters) -->
+  <script type="text/babel" src="Icons.jsx"></script>
+  <script type="text/babel" src="UIPrimitives.jsx"></script>
+  <script type="text/babel" src="AppShell.jsx"></script>
+  <script type="text/babel" src="LoginScreen.jsx"></script>
+  <script type="text/babel" src="HRDashboard.jsx"></script>
+  <script type="text/babel" src="EmployeesScreen.jsx"></script>
+  <script type="text/babel" src="EmployeeProfileScreen.jsx"></script>
+  <script type="text/babel" src="AttendanceScreen.jsx"></script>
+  <script type="text/babel" src="DepartmentsScreen.jsx"></script>
+  <script type="text/babel" src="LeaveScreen.jsx"></script>
+  <script type="text/babel" src="HolidaysScreen.jsx"></script>
+  <script type="text/babel" src="PermissionsScreen.jsx"></script>
+  <script type="text/babel" src="SettingsScreen.jsx"></script>
+  <script type="text/babel" src="PayrollScreen.jsx"></script>
+  <script type="text/babel" src="RecruitmentScreen.jsx"></script>
+  <script type="text/babel" src="PerformanceScreen.jsx"></script>
+  <script type="text/babel" src="AssetsScreen.jsx"></script>
+  <script type="text/babel" src="ReportsScreen.jsx"></script>
+  <script type="text/babel" src="AnnouncementsScreen.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    const USER = { name: 'Aman Khanna', email: 'aman@acme.test' };
+    const SAMPLE_EMP = {
+      code: 'EMP-04231', name: 'Priya Sharma', dept: 'People Ops', role: 'HR Manager',
+      type: 'FULL_TIME', status: 'Active', joined: '2021-08-03', email: 'priya@acme.test',
+    };
+    const noop = () => {};
+
+    // Every screen the app can render, in sidebar order. Login first as a cover.
+    const SCREENS = [
+      { key: 'login',        label: 'Login',           render: () => <window.LoginScreen onLogin={noop} />, bare: true },
+      { key: 'dashboard',    label: 'Dashboard',       render: () => <window.HRDashboard onNavigate={noop} /> },
+      { key: 'employees',    label: 'Employees',       render: () => <window.EmployeesScreen onOpenEmployee={noop} /> },
+      { key: 'employees',    label: 'Employee Profile', render: () => <window.EmployeeProfileScreen employee={SAMPLE_EMP} onBack={noop} /> },
+      { key: 'departments',  label: 'Departments',     render: () => <window.DepartmentsScreen /> },
+      { key: 'attendance',   label: 'Attendance',      render: () => <window.AttendanceScreen /> },
+      { key: 'leave',        label: 'Leave',           render: () => <window.LeaveScreen /> },
+      { key: 'holidays',     label: 'Holidays',        render: () => <window.HolidaysScreen /> },
+      { key: 'permissions',  label: 'Permissions',     render: () => <window.PermissionsScreen /> },
+      { key: 'settings',     label: 'Settings',        render: () => <window.SettingsScreen /> },
+      { key: 'payroll',      label: 'Payroll',         render: () => <window.PayrollScreen /> },
+      { key: 'recruitment',  label: 'Recruitment',     render: () => <window.RecruitmentScreen /> },
+      { key: 'performance',  label: 'Performance',      render: () => <window.PerformanceScreen /> },
+      { key: 'assets',       label: 'Assets',          render: () => <window.AssetsScreen /> },
+      { key: 'reports',      label: 'Reports',         render: () => <window.ReportsScreen /> },
+      { key: 'announcements', label: 'Announcements',   render: () => <window.AnnouncementsScreen /> },
+    ];
+
+    function PrintPage({ screen, n }) {
+      return (
+        <>
+          <div className="print-caption">
+            <span className="idx">{String(n).padStart(2, '0')}</span>
+            <span>{screen.label}</span>
+            <span className="ph">{['payroll','recruitment','performance','assets','reports','announcements'].includes(screen.key) ? 'Phase 2' : 'Core'}</span>
+          </div>
+          <div className={'print-page' + (screen.bare ? ' is-login' : '')}>
+            {screen.bare ? (
+              screen.render()
+            ) : (
+              <window.AppShell
+                activeKey={screen.key}
+                onNavigate={noop}
+                dark={false}
+                onToggleDark={noop}
+                user={USER}
+              >
+                {screen.render()}
+              </window.AppShell>
+            )}
+          </div>
+        </>
+      );
+    }
+
+    function PrintDoc() {
+      React.useEffect(() => {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }, []);
+      return (
+        <div className="print-doc">
+          {SCREENS.map((s, i) => <PrintPage key={s.label} screen={s} n={i + 1} />)}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<PrintDoc />);
+
+    // Auto-open the print dialog once everything is ready (fonts, render, settle).
+    (async () => {
+      try { await (document.fonts && document.fonts.ready); } catch (e) {}
+      // Wait for the screens to actually paint (shells have non-zero height).
+      const ready = () => document.querySelectorAll('.ems-shell').length >= 15;
+      let tries = 0;
+      while (!ready() && tries < 40) { await new Promise(r => setTimeout(r, 100)); tries++; }
+      await new Promise(r => setTimeout(r, 500));
+      window.print();
+    })();
+  </script>
+</body>
+</html>

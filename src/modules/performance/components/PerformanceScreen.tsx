@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   DownloadIcon,
   PlusIcon,
@@ -14,16 +15,82 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 
-import { useActiveCycle, usePerformanceSummary } from '../hooks/usePerformance';
+import {
+  useActiveCycle,
+  usePerformanceSummary,
+  useReviews,
+  useGoals,
+} from '../hooks/usePerformance';
 import { ActiveCycleBanner } from './ActiveCycleBanner';
 import { ReviewsTab } from './ReviewsTab';
 import { GoalsTab } from './GoalsTab';
 import { CalibrationTab } from './CalibrationTab';
+import { StartReviewDialog } from './StartReviewDialog';
+
+function downloadCSV(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function PerformanceScreen() {
+  const [activeTab, setActiveTab] = useState('reviews');
+  const [startReviewOpen, setStartReviewOpen] = useState(false);
+
   const cycleQuery = useActiveCycle();
   const summaryQuery = usePerformanceSummary();
+  const reviewsQuery = useReviews();
+  const goalsQuery = useGoals();
   const summary = summaryQuery.data;
+
+  function handleExport() {
+    if (activeTab === 'reviews') {
+      const reviews = reviewsQuery.data?.reviews ?? [];
+      if (!reviews.length) {
+        toast.error('No review data to export');
+        return;
+      }
+      downloadCSV('performance-reviews.csv', [
+        [
+          'Employee',
+          'Department',
+          'Reviewer',
+          'Self Complete',
+          'Manager Complete',
+          'Status',
+          'Rating',
+        ],
+        ...reviews.map((r) => [
+          r.employeeName,
+          r.department,
+          r.reviewerName,
+          r.selfComplete ? 'Yes' : 'No',
+          r.managerComplete ? 'Yes' : 'No',
+          r.status,
+          r.rating ?? '—',
+        ]),
+      ]);
+      toast.success('Reviews exported');
+    } else if (activeTab === 'goals') {
+      const goals = goalsQuery.data?.goals ?? [];
+      if (!goals.length) {
+        toast.error('No goal data to export');
+        return;
+      }
+      downloadCSV('performance-goals.csv', [
+        ['Employee', 'Goal', 'Progress %', 'Due Date', 'Status'],
+        ...goals.map((g) => [g.employeeName, g.title, String(g.progressPct), g.dueDate, g.status]),
+      ]);
+      toast.success('Goals exported');
+    } else {
+      toast.info('Export not available for the Calibration tab');
+    }
+  }
 
   return (
     <>
@@ -33,15 +100,11 @@ export function PerformanceScreen() {
         breadcrumbs={[{ label: 'Performance' }]}
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast.success('Export started — your file will download shortly.')}
-            >
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <DownloadIcon className="size-3.5" aria-hidden />
               Export
             </Button>
-            <Button size="sm" onClick={() => toast.info('Review cycle creation coming soon')}>
+            <Button size="sm" onClick={() => setStartReviewOpen(true)}>
               <PlusIcon className="size-3.5" aria-hidden />
               Start a Review
             </Button>
@@ -67,7 +130,7 @@ export function PerformanceScreen() {
             subLine={
               summary
                 ? {
-                    text: `${summary.reviewsComplete} of ${summary.reviewsTotal} (${Math.round((summary.reviewsComplete / summary.reviewsTotal) * 100)}% of cycle)`,
+                    text: `${Math.round((summary.reviewsComplete / summary.reviewsTotal) * 100)}% of cycle`,
                     tone: 'neutral',
                   }
                 : undefined
@@ -109,7 +172,7 @@ export function PerformanceScreen() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="reviews">
+        <Tabs defaultValue="reviews" onValueChange={(v) => setActiveTab(v ?? 'reviews')}>
           <TabsList variant="line" className="mb-2 w-full justify-start">
             <TabsTrigger value="reviews">Reviews</TabsTrigger>
             <TabsTrigger value="goals">Goals</TabsTrigger>
@@ -129,6 +192,8 @@ export function PerformanceScreen() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <StartReviewDialog open={startReviewOpen} onOpenChange={setStartReviewOpen} />
     </>
   );
 }

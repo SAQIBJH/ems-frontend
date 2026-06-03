@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { performanceApi } from '../services/performance.api';
-import type { ReviewsParams, GoalsParams, AddGoalInput } from '../types/performance.types';
+import type {
+  ReviewsParams,
+  GoalsParams,
+  AddGoalInput,
+  SubmitReviewInput,
+} from '../types/performance.types';
 
 export const PERFORMANCE_KEYS = {
   activeCycle: ['performance', 'activeCycle'] as const,
@@ -8,6 +13,7 @@ export const PERFORMANCE_KEYS = {
   reviews: (params?: ReviewsParams) => ['performance', 'reviews', params] as const,
   goals: (params?: GoalsParams) => ['performance', 'goals', params] as const,
   calibration: ['performance', 'calibration'] as const,
+  employees: ['performance', 'employees'] as const,
 };
 
 export function useActiveCycle() {
@@ -51,6 +57,25 @@ export function useAddGoal() {
     mutationFn: (input: AddGoalInput) => performanceApi.addGoal(input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['performance', 'goals'] });
+      void qc.invalidateQueries({ queryKey: ['performance', 'summary'] });
+    },
+  });
+}
+
+export function usePerformanceEmployees() {
+  return useQuery({
+    queryKey: PERFORMANCE_KEYS.employees,
+    queryFn: () => performanceApi.getEmployees(),
+  });
+}
+
+export function useSubmitReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ employeeId, input }: { employeeId: string; input: SubmitReviewInput }) =>
+      performanceApi.submitReview(employeeId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['performance', 'reviews'] });
       void qc.invalidateQueries({ queryKey: ['performance', 'summary'] });
     },
   });

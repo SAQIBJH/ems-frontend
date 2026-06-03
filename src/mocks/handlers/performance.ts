@@ -6,6 +6,8 @@ import type {
   GoalsPage,
   CalibrationData,
   Goal,
+  PerformanceEmployee,
+  RatingValue,
 } from '@/modules/performance/types/performance.types';
 
 const BASE = '/api/performance';
@@ -162,6 +164,16 @@ let GOALS: Goal[] = [
   },
 ];
 
+const EMPLOYEES: PerformanceEmployee[] = [
+  { id: 'emp_1', name: 'Priya Sharma', department: 'Engineering' },
+  { id: 'emp_2', name: 'Rohan Mehta', department: 'Sales' },
+  { id: 'emp_3', name: 'Nisha Iyer', department: 'Product' },
+  { id: 'emp_4', name: 'Vikram Singh', department: 'Engineering' },
+  { id: 'emp_5', name: 'Asha Joshi', department: 'Finance' },
+  { id: 'emp_6', name: 'Devansh Patel', department: 'Engineering' },
+  { id: 'emp_7', name: 'Karan Mehra', department: 'Sales' },
+];
+
 const CALIBRATION: CalibrationData = {
   totalReviewed: 73,
   distribution: [
@@ -250,10 +262,11 @@ export const performanceHandlers = [
       );
     }
 
+    const employee = EMPLOYEES.find((e) => e.id === body.employeeId);
     const newGoal: Goal = {
       id: `goal_${Date.now()}`,
       employeeId: body.employeeId,
-      employeeName: 'New Employee',
+      employeeName: employee?.name ?? body.employeeId,
       title: body.title,
       progressPct: body.progressPct ?? 0,
       dueDate: body.dueDate,
@@ -262,5 +275,30 @@ export const performanceHandlers = [
 
     GOALS = [newGoal, ...GOALS];
     return HttpResponse.json({ success: true, data: newGoal }, { status: 201 });
+  }),
+
+  // GET /performance/employees
+  http.get(`${BASE}/employees`, () => {
+    return HttpResponse.json({ success: true, data: { employees: EMPLOYEES } });
+  }),
+
+  // PATCH /performance/reviews/:employeeId  — submit manager rating
+  http.patch(`${BASE}/reviews/:employeeId`, async ({ params, request }) => {
+    const { employeeId } = params as { employeeId: string };
+    const body = (await request.json()) as { rating: RatingValue };
+
+    const review = REVIEWS.find((r) => r.employeeId === employeeId);
+    if (!review) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Review not found' } },
+        { status: 404 },
+      );
+    }
+
+    review.rating = body.rating;
+    review.status = 'Calibrated';
+    review.managerComplete = true;
+
+    return HttpResponse.json({ success: true, data: review });
   }),
 ];

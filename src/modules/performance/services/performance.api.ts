@@ -9,6 +9,9 @@ import type {
   AddGoalInput,
   ReviewsParams,
   GoalsParams,
+  PerformanceEmployee,
+  Review,
+  SubmitReviewInput,
 } from '../types/performance.types';
 
 export const performanceApi = {
@@ -41,6 +44,21 @@ export const performanceApi = {
 
   addGoal: async (input: AddGoalInput): Promise<Goal> => {
     const { data } = await apiClient.post<{ data: Goal }>('/performance/goals', input);
+    return data.data;
+  },
+
+  getEmployees: async (): Promise<PerformanceEmployee[]> => {
+    const { data } = await apiClient.get<{ data: { employees: PerformanceEmployee[] } }>(
+      '/performance/employees',
+    );
+    return data.data.employees;
+  },
+
+  submitReview: async (employeeId: string, input: SubmitReviewInput): Promise<Review> => {
+    const { data } = await apiClient.patch<{ data: Review }>(
+      `/performance/reviews/${employeeId}`,
+      input,
+    );
     return data.data;
   },
 };
