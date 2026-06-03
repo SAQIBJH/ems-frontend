@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useCreateAnnouncement } from '../hooks/useAnnouncements';
 import {
   createAnnouncementSchema,
@@ -35,9 +36,10 @@ import type { AnnouncementCategory } from '../types/announcements.types';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canPin?: boolean;
 }
 
-export function CreateAnnouncementDialog({ open, onOpenChange }: Props) {
+export function CreateAnnouncementDialog({ open, onOpenChange, canPin = false }: Props) {
   const create = useCreateAnnouncement();
 
   const form = useForm<CreateAnnouncementFormValues>({
@@ -173,6 +175,31 @@ export function CreateAnnouncementDialog({ open, onOpenChange }: Props) {
               )}
             </div>
           </div>
+
+          {/* Pin toggle — HR_ADMIN / SUPER_ADMIN only */}
+          {canPin && (
+            <div className="flex items-start gap-3 rounded-lg border border-subtle bg-surface-2 px-4 py-3">
+              <Checkbox
+                id="ann-pin"
+                checked={!!form.watch('isPinned')}
+                onCheckedChange={(checked) =>
+                  form.setValue('isPinned', !!checked, { shouldValidate: true })
+                }
+                className="mt-0.5"
+              />
+              <div>
+                <label
+                  htmlFor="ann-pin"
+                  className="text-[13px] font-medium text-fg cursor-pointer select-none"
+                >
+                  Pin this announcement
+                </label>
+                <p className="text-[12px] text-fg-muted mt-0.5">
+                  Replaces the current pinned post and shows it at the top of the feed.
+                </p>
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

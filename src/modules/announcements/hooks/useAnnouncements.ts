@@ -33,6 +33,26 @@ export function useAnnouncementEvents() {
   });
 }
 
+export function usePinAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => announcementsApi.pinAnnouncement(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['announcements', 'feed'] });
+    },
+  });
+}
+
+export function useUnpinAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => announcementsApi.unpinAnnouncement(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['announcements', 'feed'] });
+    },
+  });
+}
+
 export function useCreateEvent() {
   const qc = useQueryClient();
   return useMutation({

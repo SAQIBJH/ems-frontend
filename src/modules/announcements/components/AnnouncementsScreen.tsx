@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PlusIcon, MegaphoneIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,6 +15,8 @@ import {
   useAnnouncements,
   useAnnouncementChannels,
   useAnnouncementEvents,
+  usePinAnnouncement,
+  useUnpinAnnouncement,
 } from '../hooks/useAnnouncements';
 import { CATEGORY_CONFIG } from '../constants';
 import { AnnouncementCard } from './AnnouncementCard';
@@ -99,6 +102,25 @@ export function AnnouncementsScreen() {
     user?.memberType === 'SUPER_ADMIN' ||
     user?.memberType === 'MANAGER';
 
+  const canPin = user?.memberType === 'HR_ADMIN' || user?.memberType === 'SUPER_ADMIN';
+
+  const pinMutation = usePinAnnouncement();
+  const unpinMutation = useUnpinAnnouncement();
+
+  function handlePin(id: string) {
+    pinMutation.mutate(id, {
+      onSuccess: () => toast.success('Announcement pinned'),
+      onError: () => toast.error('Failed to pin announcement'),
+    });
+  }
+
+  function handleUnpin(id: string) {
+    unpinMutation.mutate(id, {
+      onSuccess: () => toast.success('Announcement unpinned'),
+      onError: () => toast.error('Failed to unpin announcement'),
+    });
+  }
+
   const authorName = user?.employee
     ? `${user.employee.firstName} ${user.employee.lastName}`
     : (user?.email ?? 'You');
@@ -168,9 +190,22 @@ export function AnnouncementsScreen() {
               />
             ) : (
               <>
-                {pinned && <AnnouncementCard announcement={pinned} />}
+                {pinned && (
+                  <AnnouncementCard
+                    announcement={pinned}
+                    canPin={canPin}
+                    onUnpin={handleUnpin}
+                    isPinning={unpinMutation.isPending && unpinMutation.variables === pinned.id}
+                  />
+                )}
                 {feed.map((a) => (
-                  <AnnouncementCard key={a.id} announcement={a} />
+                  <AnnouncementCard
+                    key={a.id}
+                    announcement={a}
+                    canPin={canPin}
+                    onPin={handlePin}
+                    isPinning={pinMutation.isPending && pinMutation.variables === a.id}
+                  />
                 ))}
               </>
             )}

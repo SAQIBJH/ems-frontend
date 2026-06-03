@@ -1,13 +1,23 @@
 'use client';
 
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { PinIcon, UsersIcon, CheckIcon } from 'lucide-react';
+import { PinIcon, UsersIcon, CheckIcon, MoreHorizontalIcon, PinOffIcon } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { Announcement } from '../types/announcements.types';
 import { CATEGORY_CONFIG } from '../constants';
 
 interface Props {
   announcement: Announcement;
+  canPin?: boolean;
+  onPin?: (id: string) => void;
+  onUnpin?: (id: string) => void;
+  isPinning?: boolean;
 }
 
 function getInitials(name: string): string {
@@ -25,7 +35,13 @@ function timeAgo(iso: string): string {
   }
 }
 
-export function AnnouncementCard({ announcement: a }: Props) {
+export function AnnouncementCard({
+  announcement: a,
+  canPin = false,
+  onPin,
+  onUnpin,
+  isPinning = false,
+}: Props) {
   const cfg = CATEGORY_CONFIG[a.category];
 
   return (
@@ -56,6 +72,32 @@ export function AnnouncementCard({ announcement: a }: Props) {
           )}
 
           <span className="ml-auto text-[12px] text-fg-subtle">{timeAgo(a.postedAt)}</span>
+
+          {/* 3-dot menu — HR/SUPER_ADMIN only */}
+          {canPin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="inline-flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[120ms]"
+                disabled={isPinning}
+                aria-label="Announcement actions"
+              >
+                <MoreHorizontalIcon size={14} aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {a.isPinned ? (
+                  <DropdownMenuItem onClick={() => onUnpin?.(a.id)}>
+                    <PinOffIcon size={13} aria-hidden />
+                    Unpin
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => onPin?.(a.id)}>
+                    <PinIcon size={13} aria-hidden />
+                    Pin to top
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Title */}
@@ -74,7 +116,6 @@ export function AnnouncementCard({ announcement: a }: Props) {
 
         {/* Footer */}
         <div className="flex items-center gap-3 pt-1">
-          {/* Author */}
           <div className="flex items-center gap-2">
             <Avatar size="sm">
               <AvatarFallback className="text-[10px] font-medium">

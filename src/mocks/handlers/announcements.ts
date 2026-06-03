@@ -26,7 +26,7 @@ const EVENTS: UpcomingEvent[] = [
   { id: 'ev_3', date: '2026-06-14', title: 'Manager review deadline', meta: 'H1 2026 cycle' },
 ];
 
-let PINNED: Announcement = {
+let PINNED: Announcement | null = {
   id: 'ann_0',
   category: 'Company',
   channelId: 'ch_1',
@@ -103,7 +103,7 @@ export const announcementsHandlers = [
 
     if (channelId) {
       feed = FEED.filter((a) => a.channelId === channelId);
-      pinned = PINNED.channelId === channelId ? PINNED : null;
+      pinned = PINNED?.channelId === channelId ? PINNED : null;
     }
 
     const response: AnnouncementsData = {
@@ -122,6 +122,54 @@ export const announcementsHandlers = [
   // GET /announcements/events
   http.get(`${BASE}/events`, () => {
     return HttpResponse.json({ success: true, data: { events: EVENTS } });
+  }),
+
+  // PATCH /announcements/:id/pin — promote a feed item to pinned slot
+  http.patch(`${BASE}/:id/pin`, ({ params }) => {
+    const { id } = params as { id: string };
+
+    // find in feed
+    const idx = FEED.findIndex((a) => a.id === id);
+    if (idx === -1) {
+      // might be the current pinned item already
+      if (PINNED && PINNED.id === id) {
+        return HttpResponse.json({ success: true, data: PINNED });
+      }
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Announcement not found' } },
+        { status: 404 },
+      );
+    }
+
+    const [toPin] = FEED.splice(idx, 1);
+    toPin.isPinned = true;
+
+    // demote current pinned back to feed
+    if (PINNED) {
+      PINNED.isPinned = false;
+      FEED.unshift(PINNED);
+    }
+
+    PINNED = toPin;
+    return HttpResponse.json({ success: true, data: PINNED });
+  }),
+
+  // PATCH /announcements/:id/unpin — demote pinned back to feed
+  http.patch(`${BASE}/:id/unpin`, ({ params }) => {
+    const { id } = params as { id: string };
+
+    if (!PINNED || PINNED.id !== id) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'CONFLICT', message: 'Announcement is not pinned' } },
+        { status: 409 },
+      );
+    }
+
+    PINNED.isPinned = false;
+    FEED.unshift(PINNED);
+    PINNED = null;
+
+    return HttpResponse.json({ success: true, data: { unpinned: true } });
   }),
 
   // POST /announcements/events
@@ -197,6 +245,11 @@ export const announcementsHandlers = [
     };
 
     if (newAnn.isPinned) {
+      // demote existing pinned back to feed
+      if (PINNED) {
+        PINNED.isPinned = false;
+        FEED.unshift(PINNED);
+      }
       PINNED = newAnn;
     } else {
       FEED = [newAnn, ...FEED];

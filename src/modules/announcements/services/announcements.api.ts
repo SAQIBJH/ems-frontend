@@ -31,6 +31,19 @@ export const announcementsApi = {
     return data.data.events;
   },
 
+  pinAnnouncement: async (id: string): Promise<Announcement> => {
+    const { data } = await apiClient.patch<{ data: Announcement }>(`/announcements/${id}/pin`, {});
+    return data.data;
+  },
+
+  unpinAnnouncement: async (id: string): Promise<{ unpinned: boolean }> => {
+    const { data } = await apiClient.patch<{ data: { unpinned: boolean } }>(
+      `/announcements/${id}/unpin`,
+      {},
+    );
+    return data.data;
+  },
+
   createEvent: async (input: CreateEventInput): Promise<UpcomingEvent> => {
     const { data } = await apiClient.post<{ data: UpcomingEvent }>('/announcements/events', input);
     return data.data;
