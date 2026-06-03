@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { SectionCard } from '@/components/data-display/SectionCard';
-import { useAssets } from '../hooks/useAssets';
+import { useAssets, useRecallAsset } from '../hooks/useAssets';
 import { AssetGlyph } from './AssetGlyph';
 
 function getInitials(name: string): string {
@@ -33,10 +33,18 @@ function TableSkeleton() {
 }
 
 export function AssignedTab() {
-  // reuse the assets query filtered to Assigned status
   const assetsQuery = useAssets({ status: 'Assigned' });
   const assigned = assetsQuery.data?.assets ?? [];
   const total = assetsQuery.data?.pagination.total ?? 0;
+
+  const recall = useRecallAsset();
+
+  function handleRecall(id: string, tag: string, employeeName: string) {
+    recall.mutate(id, {
+      onSuccess: () => toast.success(`${tag} recalled from ${employeeName}`),
+      onError: () => toast.error('Failed to recall asset'),
+    });
+  }
 
   return (
     <SectionCard title={`Assigned hardware · ${total}`} noPad>
@@ -78,6 +86,8 @@ export function AssignedTab() {
               {assigned.map((a) => {
                 const holderName = a.assignedTo?.name ?? '';
                 const initials = getInitials(holderName);
+                const isRecalling = recall.isPending && recall.variables === a.id;
+
                 return (
                   <tr
                     key={a.id}
@@ -107,11 +117,10 @@ export function AssignedTab() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          toast.success(`Recall initiated for ${a.tag} from ${holderName}`)
-                        }
+                        disabled={isRecalling}
+                        onClick={() => handleRecall(a.id, a.tag, holderName)}
                       >
-                        Recall
+                        {isRecalling ? 'Recalling…' : 'Recall'}
                       </Button>
                     </td>
                   </tr>

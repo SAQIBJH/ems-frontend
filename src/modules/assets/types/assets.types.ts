@@ -4,6 +4,11 @@ export type AssetStatus = 'Assigned' | 'Available' | 'Repair' | 'Retired';
 
 export type RequestStatus = 'Pending' | 'Approved' | 'Fulfilled' | 'Declined';
 
+export interface AssetEmployee {
+  employeeId: string;
+  name: string;
+}
+
 export interface AssetsSummary {
   totalAssets: number;
   assigned: number;
@@ -62,6 +67,14 @@ export interface AddAssetInput {
   tag: string;
   name: string;
   type: AssetType;
+  assignedTo?: { employeeId: string; name: string };
+  assignedSince?: string;
+}
+
+export interface AssignAssetInput {
+  employeeId: string;
+  name: string;
+  since: string;
 }
 
 export interface AssetsParams {

@@ -8,6 +8,7 @@ import type {
   RequestsPage,
   AssetRequest,
   RequestStatus,
+  AssetEmployee,
 } from '@/modules/assets/types/assets.types';
 
 const BASE = '/api/assets';
@@ -22,6 +23,17 @@ const SUMMARY: AssetsSummary = {
   utilizationPct: 81,
   avgRepairDays: 6,
 };
+
+export const EMPLOYEES: AssetEmployee[] = [
+  { employeeId: 'emp_1', name: 'Priya Sharma' },
+  { employeeId: 'emp_2', name: 'Rohan Mehta' },
+  { employeeId: 'emp_3', name: 'Nisha Iyer' },
+  { employeeId: 'emp_4', name: 'Vikram Singh' },
+  { employeeId: 'emp_5', name: 'Asha Joshi' },
+  { employeeId: 'emp_6', name: 'Devansh Patel' },
+  { employeeId: 'emp_7', name: 'Karan Mehra' },
+  { employeeId: 'emp_8', name: 'Sneha Rao' },
+];
 
 let ASSETS: Asset[] = [
   {
@@ -106,7 +118,7 @@ let ASSETS: Asset[] = [
   },
 ];
 
-const REQUESTS: AssetRequest[] = [
+let REQUESTS: AssetRequest[] = [
   {
     id: 'req_1',
     requestedBy: { employeeId: 'emp_3', name: 'Nisha Iyer' },
@@ -149,6 +161,11 @@ export const assetsHandlers = [
     return HttpResponse.json({ success: true, data: SUMMARY });
   }),
 
+  // GET /assets/employees — employee list for assign dropdown
+  http.get(`${BASE}/employees`, () => {
+    return HttpResponse.json({ success: true, data: EMPLOYEES });
+  }),
+
   // GET /assets
   http.get(`${BASE}`, ({ request }) => {
     const url = new URL(request.url);
@@ -180,6 +197,77 @@ export const assetsHandlers = [
     return HttpResponse.json({ success: true, data: response });
   }),
 
+  // PATCH /assets/:id/status — change status (Available / Repair / Retired)
+  http.patch(`${BASE}/:id/status`, async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json()) as { status: AssetStatus };
+
+    const asset = ASSETS.find((a) => a.id === id);
+    if (!asset) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Asset not found' } },
+        { status: 404 },
+      );
+    }
+
+    asset.status = body.status;
+    // Unassign if moving away from Assigned
+    if (body.status !== 'Assigned') {
+      asset.assignedTo = null;
+      asset.assignedSince = null;
+    }
+
+    ASSETS = [...ASSETS];
+    return HttpResponse.json({ success: true, data: asset });
+  }),
+
+  // PATCH /assets/:id/assign — assign asset to an employee
+  http.patch(`${BASE}/:id/assign`, async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json()) as { employeeId: string; name: string; since: string };
+
+    const asset = ASSETS.find((a) => a.id === id);
+    if (!asset) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Asset not found' } },
+        { status: 404 },
+      );
+    }
+    if (asset.status === 'Retired') {
+      return HttpResponse.json(
+        { success: false, error: { code: 'CONFLICT', message: 'Cannot assign a retired asset' } },
+        { status: 409 },
+      );
+    }
+
+    asset.status = 'Assigned';
+    asset.assignedTo = { employeeId: body.employeeId, name: body.name };
+    asset.assignedSince = body.since;
+
+    ASSETS = [...ASSETS];
+    return HttpResponse.json({ success: true, data: asset });
+  }),
+
+  // PATCH /assets/:id/recall — remove assignment, set Available
+  http.patch(`${BASE}/:id/recall`, ({ params }) => {
+    const { id } = params as { id: string };
+    const asset = ASSETS.find((a) => a.id === id);
+
+    if (!asset) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Asset not found' } },
+        { status: 404 },
+      );
+    }
+
+    asset.status = 'Available';
+    asset.assignedTo = null;
+    asset.assignedSince = null;
+
+    ASSETS = [...ASSETS];
+    return HttpResponse.json({ success: true, data: asset });
+  }),
+
   // PATCH /assets/requests/:id/approve
   http.patch(`${BASE}/requests/:id/approve`, ({ params }) => {
     const { id } = params as { id: string };
@@ -199,6 +287,7 @@ export const assetsHandlers = [
     }
 
     req.status = 'Approved';
+    REQUESTS = [...REQUESTS];
     return HttpResponse.json({ success: true, data: { id: req.id, status: req.status } });
   }),
 
@@ -221,12 +310,19 @@ export const assetsHandlers = [
     }
 
     req.status = 'Declined';
+    REQUESTS = [...REQUESTS];
     return HttpResponse.json({ success: true, data: { id: req.id, status: req.status } });
   }),
 
-  // POST /assets
+  // POST /assets — create new asset
   http.post(`${BASE}`, async ({ request }) => {
-    const body = (await request.json()) as { tag: string; name: string; type: AssetType };
+    const body = (await request.json()) as {
+      tag: string;
+      name: string;
+      type: AssetType;
+      assignedTo?: { employeeId: string; name: string };
+      assignedSince?: string;
+    };
 
     if (!body.tag || !body.name || !body.type) {
       return HttpResponse.json(
@@ -247,9 +343,9 @@ export const assetsHandlers = [
       tag: body.tag,
       name: body.name,
       type: body.type,
-      status: 'Available',
-      assignedTo: null,
-      assignedSince: null,
+      status: body.assignedTo ? 'Assigned' : 'Available',
+      assignedTo: body.assignedTo ?? null,
+      assignedSince: body.assignedSince ?? null,
       createdAt: new Date().toISOString(),
     };
 

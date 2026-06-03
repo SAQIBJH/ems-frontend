@@ -3,6 +3,7 @@ export type {
   AssetType,
   AssetStatus,
   RequestStatus,
+  AssetEmployee,
   AssetsSummary,
   AssignedTo,
   Asset,
@@ -10,6 +11,7 @@ export type {
   AssetRequest,
   RequestsPage,
   AddAssetInput,
+  AssignAssetInput,
   AssetsParams,
   RequestsParams,
 } from './types/assets.types';
@@ -20,8 +22,12 @@ export { assetsApi } from './services/assets.api';
 // Hooks
 export {
   useAssetsSummary,
+  useAssetEmployees,
   useAssets,
   useAssetRequests,
+  useUpdateAssetStatus,
+  useAssignAsset,
+  useRecallAsset,
   useApproveRequest,
   useDeclineRequest,
   useAddAsset,

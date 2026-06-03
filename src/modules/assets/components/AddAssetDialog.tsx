@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useWatch } from 'react-hook-form';
-import { useAddAsset } from '../hooks/useAssets';
+import { useAddAsset, useAssetEmployees } from '../hooks/useAssets';
 import { addAssetSchema, type AddAssetFormValues } from '../validations/add-asset.schema';
 import type { AssetType } from '../types/assets.types';
 
@@ -34,13 +34,16 @@ interface AddAssetDialogProps {
 
 export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
   const addAsset = useAddAsset();
+  const employeesQuery = useAssetEmployees();
+  const employees = employeesQuery.data ?? [];
 
   const form = useForm<AddAssetFormValues>({
     resolver: zodResolver(addAssetSchema),
-    defaultValues: { tag: '', name: '', type: 'Laptop' },
+    defaultValues: { tag: '', name: '', type: 'Laptop', employeeId: '', since: '' },
   });
 
   const watchedType = useWatch({ control: form.control, name: 'type' });
+  const watchedEmployeeId = useWatch({ control: form.control, name: 'employeeId' });
 
   function handleClose() {
     form.reset();
@@ -48,16 +51,31 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
   }
 
   function onSubmit(values: AddAssetFormValues) {
-    addAsset.mutate(values, {
-      onSuccess: (asset) => {
-        toast.success(`Asset ${asset.tag} added`);
-        handleClose();
+    const selectedEmp = employees.find((e) => e.employeeId === values.employeeId);
+
+    addAsset.mutate(
+      {
+        tag: values.tag,
+        name: values.name,
+        type: values.type,
+        ...(selectedEmp && values.since
+          ? {
+              assignedTo: { employeeId: selectedEmp.employeeId, name: selectedEmp.name },
+              assignedSince: values.since,
+            }
+          : {}),
       },
-      onError: (err: unknown) => {
-        const msg = err instanceof Error ? err.message : 'Failed to add asset';
-        toast.error(msg);
+      {
+        onSuccess: (asset) => {
+          toast.success(`Asset ${asset.tag} added`);
+          handleClose();
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Failed to add asset';
+          toast.error(msg);
+        },
       },
-    });
+    );
   }
 
   return (
@@ -68,6 +86,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-1">
+          {/* Type */}
           <div className="space-y-1.5">
             <Label>Type</Label>
             <Select
@@ -92,6 +111,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
             )}
           </div>
 
+          {/* Tag */}
           <div className="space-y-1.5">
             <Label htmlFor="asset-tag">Asset tag</Label>
             <Input
@@ -105,6 +125,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
             )}
           </div>
 
+          {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="asset-name">Asset name</Label>
             <Input
@@ -114,6 +135,54 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
             />
             {form.formState.errors.name && (
               <p className="text-xs text-danger">{form.formState.errors.name.message}</p>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-subtle pt-1">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-fg-muted">
+              Assign on creation <span className="normal-case font-normal">(optional)</span>
+            </p>
+
+            {/* Assign to */}
+            <div className="space-y-1.5">
+              <Label>Assign to</Label>
+              <Select
+                value={watchedEmployeeId ?? ''}
+                onValueChange={(v) =>
+                  form.setValue('employeeId', v === '__none__' ? '' : (v ?? ''), {
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select employee…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Unassigned —</SelectItem>
+                  {employees.map((e) => (
+                    <SelectItem key={e.employeeId} value={e.employeeId}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Since — only shown when employee selected */}
+            {watchedEmployeeId && (
+              <div className="mt-3 space-y-1.5">
+                <Label htmlFor="asset-since">Assigned since</Label>
+                <Input
+                  id="asset-since"
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  {...form.register('since')}
+                />
+                {form.formState.errors.since && (
+                  <p className="text-xs text-danger">{form.formState.errors.since.message}</p>
+                )}
+              </div>
             )}
           </div>
 
