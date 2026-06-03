@@ -3628,7 +3628,7 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 - [x] Step 88 — Recruitment module (net-new, MSW)
 - [x] Step 89 — Performance module (net-new, MSW)
 - [x] Step 90 — Assets module (net-new, MSW)
-- [ ] Step 91 — Announcements module (net-new, MSW)
+- [x] Step 91 — Announcements module (net-new, MSW)
 - [ ] Step 92 — Phase 3 polish + verification gate
 
 ---

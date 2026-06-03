@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PlusIcon, MegaphoneIcon } from 'lucide-react';
+import { PlusIcon, MegaphoneIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -171,6 +171,31 @@ export function AnnouncementsScreen() {
               </div>
             )}
 
+            {/* Active channel chip */}
+            {activeChannelId &&
+              (() => {
+                const activeCh = channels.find((c) => c.id === activeChannelId);
+                if (!activeCh) return null;
+                const cfg = CATEGORY_CONFIG[activeCh.category];
+                return (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setActiveChannelId(null)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-subtle bg-surface px-3 py-1 text-[12px] font-medium text-fg hover:bg-surface-2 transition-colors duration-[120ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                    >
+                      <span
+                        className="size-[6px] shrink-0 rounded-full"
+                        style={{ background: cfg.color }}
+                        aria-hidden
+                      />
+                      {activeCh.name}
+                      <XIcon className="size-3 text-fg-subtle" aria-hidden />
+                    </button>
+                  </div>
+                );
+              })()}
+
             {/* Feed */}
             {feedQuery.isLoading ? (
               <FeedSkeleton />
@@ -228,7 +253,7 @@ export function AnnouncementsScreen() {
                           key={ch.id}
                           type="button"
                           onClick={() => handleChannelClick(ch)}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-[120ms] hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-[120ms] hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer "
                           style={{ background: isActive ? 'var(--bg-surface-2)' : 'transparent' }}
                         >
                           <span
@@ -243,15 +268,6 @@ export function AnnouncementsScreen() {
                         </button>
                       );
                     })}
-                    {activeChannelId && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveChannelId(null)}
-                        className="mt-1 w-full rounded-lg px-2.5 py-1.5 text-left text-[12px] text-fg-muted hover:text-fg transition-colors duration-[120ms]"
-                      >
-                        Clear filter
-                      </button>
-                    )}
                   </div>
                 </SectionCard>
 

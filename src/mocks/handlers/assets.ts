@@ -292,8 +292,9 @@ export const assetsHandlers = [
   }),
 
   // PATCH /assets/requests/:id/decline
-  http.patch(`${BASE}/requests/:id/decline`, ({ params }) => {
+  http.patch(`${BASE}/requests/:id/decline`, async ({ params, request }) => {
     const { id } = params as { id: string };
+    const body = (await request.json().catch(() => ({}))) as { reason?: string };
     const req = REQUESTS.find((r) => r.id === id);
 
     if (!req) {
@@ -311,7 +312,10 @@ export const assetsHandlers = [
 
     req.status = 'Declined';
     REQUESTS = [...REQUESTS];
-    return HttpResponse.json({ success: true, data: { id: req.id, status: req.status } });
+    return HttpResponse.json({
+      success: true,
+      data: { id: req.id, status: req.status, ...(body.reason ? { reason: body.reason } : {}) },
+    });
   }),
 
   // POST /assets — create new asset

@@ -678,6 +678,7 @@ Sets `status → Available`, clears `assignedTo` and `assignedSince`.
     "pinned": {
       "id": "ann_0",
       "category": "Company",
+      "channelId": "ch_1",
       "title": "Q2 All-Hands — Thursday 4 PM IST",
       "body": "Join the leadership team for the Q2 business review, product roadmap, and a live Q&A. Calendar invites are out; the session will be recorded for those who can't attend live.",
       "author": {
@@ -693,6 +694,7 @@ Sets `status → Available`, clears `assignedTo` and `assignedSince`.
       {
         "id": "ann_1",
         "category": "IT",
+        "channelId": "ch_4",
         "title": "Mandatory password rotation by Jun 5",
         "body": "Single sign-on credentials must be rotated before June 5. You'll be prompted at next login — enable the authenticator app if you haven't.",
         "author": {
@@ -726,11 +728,11 @@ Sets `status → Available`, clears `assignedTo` and `assignedSince`.
   "success": true,
   "data": {
     "channels": [
-      { "id": "ch_1", "name": "Company-wide", "postCount": 142 },
-      { "id": "ch_2", "name": "People & Culture", "postCount": 38 },
-      { "id": "ch_3", "name": "Product updates", "postCount": 51 },
-      { "id": "ch_4", "name": "IT & Security", "postCount": 24 },
-      { "id": "ch_5", "name": "Office & Facilities", "postCount": 17 }
+      { "id": "ch_1", "name": "Company-wide", "postCount": 142, "category": "Company" },
+      { "id": "ch_2", "name": "People & Culture", "postCount": 38, "category": "People" },
+      { "id": "ch_3", "name": "Product updates", "postCount": 51, "category": "Product" },
+      { "id": "ch_4", "name": "IT & Security", "postCount": 24, "category": "IT" },
+      { "id": "ch_5", "name": "Office & Facilities", "postCount": 17, "category": "Office" }
     ]
   }
 }
@@ -816,6 +818,46 @@ Sets `status → Available`, clears `assignedTo` and `assignedSince`.
 
 - `403` — EMPLOYEE role cannot create announcements
 - `422` — validation failure (missing title / body / category)
+
+---
+
+### PATCH /announcements/:id/pin
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:** none (empty body `{}`)
+
+Promotes the target announcement to the pinned slot. If another announcement is
+already pinned, it is demoted back to the feed (with `isPinned: false`) before
+the new one is pinned.
+
+**Success response:**
+
+```json
+{ "success": true, "data": { <announcement object with isPinned: true> } }
+```
+
+**Error codes:**
+
+- `404` — announcement not found
+
+---
+
+### PATCH /announcements/:id/unpin
+
+**Role:** HR_ADMIN, SUPER_ADMIN
+**Request body:** none (empty body `{}`)
+
+Demotes the currently pinned announcement back to the feed (prepended, `isPinned: false`).
+
+**Success response:**
+
+```json
+{ "success": true, "data": { "unpinned": true } }
+```
+
+**Error codes:**
+
+- `409` — announcement is not currently pinned
 
 ---
 
