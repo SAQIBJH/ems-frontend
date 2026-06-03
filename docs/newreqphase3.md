@@ -354,6 +354,68 @@ Returns `null` in `data` if no active cycle exists.
 
 ---
 
+### GET /performance/employees
+
+**Role:** HR_ADMIN, SUPER_ADMIN, MANAGER
+**Query params:** none
+**Purpose:** Returns the list of employees enrolled in the current (or most recent) review cycle. Used to populate the employee picker in the Add Goal dialog and the Review Detail Sheet.
+**Success response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "employees": [
+      { "id": "emp_1", "name": "Priya Sharma", "department": "Engineering" },
+      { "id": "emp_2", "name": "Rohan Mehta", "department": "Sales" }
+    ]
+  }
+}
+```
+
+---
+
+### PATCH /performance/reviews/:employeeId
+
+**Role:** HR_ADMIN, SUPER_ADMIN, MANAGER
+**Purpose:** Submit or update the manager rating for a review. Automatically transitions the review `status` to `Calibrated` and sets `managerComplete: true`.
+**URL param:** `employeeId` — the employee whose review is being rated.
+**Request body:**
+
+```json
+{ "rating": "Exceeds" }
+```
+
+**Rating values:** `Exceeds` | `Strong` | `Meets` | `Developing` | `Below`
+
+**Success response:** `200`, `data` = full updated review object
+
+```json
+{
+  "success": true,
+  "data": {
+    "employeeId": "emp_2",
+    "employeeName": "Rohan Mehta",
+    "department": "Sales",
+    "reviewerName": "Sneha Rao",
+    "status": "Calibrated",
+    "rating": "Meets",
+    "selfComplete": true,
+    "managerComplete": true
+  }
+}
+```
+
+**Error codes:**
+
+| Code               | Status | When                                                            |
+| ------------------ | ------ | --------------------------------------------------------------- |
+| `NOT_FOUND`        | 404    | `employeeId` does not exist in the active cycle                 |
+| `VALIDATION_ERROR` | 422    | `rating` is missing or not one of the allowed values            |
+| `CONFLICT`         | 409    | Review is already `Calibrated` and locked (backend may enforce) |
+
+---
+
 ### POST /performance/goals
 
 **Role:** HR_ADMIN, SUPER_ADMIN, MANAGER
