@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useWatch } from 'react-hook-form';
+import type { AxiosError } from 'axios';
+import type { ApiError } from '@/types/api';
 import { useAddAsset, useAssetEmployees } from '../hooks/useAssets';
 import { addAssetSchema, type AddAssetFormValues } from '../validations/add-asset.schema';
 import type { AssetType } from '../types/assets.types';
@@ -71,8 +73,21 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
           handleClose();
         },
         onError: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : 'Failed to add asset';
-          toast.error(msg);
+          const axiosErr = err as AxiosError<ApiError>;
+          const status = axiosErr.response?.status;
+          const apiError = axiosErr.response?.data?.error;
+
+          if (status === 422 && Array.isArray(apiError?.details)) {
+            apiError.details.forEach(({ field, message }: { field: string; message: string }) => {
+              form.setError(field as keyof AddAssetFormValues, { message });
+            });
+            return;
+          }
+          if (status === 409) {
+            form.setError('tag', { message: 'An asset with this tag already exists.' });
+            return;
+          }
+          toast.error(apiError?.message ?? 'Failed to add asset. Please try again.');
         },
       },
     );
