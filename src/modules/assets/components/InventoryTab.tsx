@@ -331,32 +331,34 @@ export function InventoryTab() {
         }}
       />
 
-      <AlertDialog
-        open={!!retireTarget}
-        onOpenChange={(open) => {
-          if (!open) setRetireTarget(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Retire {retireTarget?.tag}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This marks the asset as permanently retired. It can no longer be assigned or sent to
-              repair.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-danger text-white hover:bg-danger/90"
-              onClick={handleRetireConfirm}
-              disabled={updateStatus.isPending}
-            >
-              {updateStatus.isPending ? 'Retiring…' : 'Retire'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {retireTarget && (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setRetireTarget(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Retire {retireTarget.tag}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This marks the asset as permanently retired. It can no longer be assigned or sent to
+                repair.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-danger text-white hover:bg-danger/90"
+                onClick={handleRetireConfirm}
+                disabled={updateStatus.isPending}
+              >
+                {updateStatus.isPending ? 'Retiring…' : 'Retire'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }
