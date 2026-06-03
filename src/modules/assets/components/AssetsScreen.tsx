@@ -76,67 +76,67 @@ export function AssetsScreen() {
       />
 
       <div className="flex flex-col gap-5 p-6">
-        {/* Tabs — above stats per design mock */}
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatsCard
+            label="Total assets"
+            value={summaryQuery.isLoading ? '—' : (summary?.totalAssets ?? 0).toString()}
+            icon={<BoxIcon className="size-4" aria-hidden />}
+            accent="var(--brand-500)"
+            subLine={summary ? { text: 'across 4 sites', tone: 'neutral' } : undefined}
+            loading={summaryQuery.isLoading}
+          />
+          <StatsCard
+            label="Assigned"
+            value={summaryQuery.isLoading ? '—' : (summary?.assigned ?? 0).toString()}
+            icon={<LaptopIcon className="size-4" aria-hidden />}
+            accent="var(--dept-engineering)"
+            subLine={
+              summary
+                ? { text: `${summary.utilizationPct}% utilization`, tone: 'neutral' }
+                : undefined
+            }
+            loading={summaryQuery.isLoading}
+          />
+          <StatsCard
+            label="Available"
+            value={summaryQuery.isLoading ? '—' : (summary?.available ?? 0).toString()}
+            icon={<CheckIcon className="size-4" aria-hidden />}
+            accent="var(--success-500)"
+            subLine={summary ? { text: 'ready to deploy', tone: 'positive' } : undefined}
+            loading={summaryQuery.isLoading}
+          />
+          <StatsCard
+            label="In repair"
+            value={summaryQuery.isLoading ? '—' : (summary?.inRepair ?? 0).toString()}
+            icon={<AlertCircleIcon className="size-4" aria-hidden />}
+            accent="var(--warning-500)"
+            subLine={
+              summary
+                ? { text: `avg ${summary.avgRepairDays}d turnaround`, tone: 'warning' }
+                : undefined
+            }
+            loading={summaryQuery.isLoading}
+          />
+        </div>
+
+        {/* Tabs */}
         <Tabs defaultValue="inventory">
-          <TabsList variant="line" className="mb-5 w-full justify-start">
+          <TabsList variant="line" className="mb-2 w-full justify-start">
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
             <TabsTrigger value="assigned">Assigned</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
           </TabsList>
 
-          {/* Stats cards — shared across all tabs */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatsCard
-              label="Total assets"
-              value={summaryQuery.isLoading ? '—' : (summary?.totalAssets ?? 0).toString()}
-              icon={<BoxIcon className="size-4" aria-hidden />}
-              accent="var(--brand-500)"
-              subLine={summary ? { text: 'across 4 sites', tone: 'neutral' } : undefined}
-              loading={summaryQuery.isLoading}
-            />
-            <StatsCard
-              label="Assigned"
-              value={summaryQuery.isLoading ? '—' : (summary?.assigned ?? 0).toString()}
-              icon={<LaptopIcon className="size-4" aria-hidden />}
-              accent="var(--dept-engineering)"
-              subLine={
-                summary
-                  ? { text: `${summary.utilizationPct}% utilization`, tone: 'neutral' }
-                  : undefined
-              }
-              loading={summaryQuery.isLoading}
-            />
-            <StatsCard
-              label="Available"
-              value={summaryQuery.isLoading ? '—' : (summary?.available ?? 0).toString()}
-              icon={<CheckIcon className="size-4" aria-hidden />}
-              accent="var(--success-500)"
-              subLine={summary ? { text: 'ready to deploy', tone: 'positive' } : undefined}
-              loading={summaryQuery.isLoading}
-            />
-            <StatsCard
-              label="In repair"
-              value={summaryQuery.isLoading ? '—' : (summary?.inRepair ?? 0).toString()}
-              icon={<AlertCircleIcon className="size-4" aria-hidden />}
-              accent="var(--warning-500)"
-              subLine={
-                summary
-                  ? { text: `avg ${summary.avgRepairDays}d turnaround`, tone: 'warning' }
-                  : undefined
-              }
-              loading={summaryQuery.isLoading}
-            />
-          </div>
-
-          <TabsContent value="inventory" className="mt-5">
+          <TabsContent value="inventory" className="mt-4">
             <InventoryTab />
           </TabsContent>
 
-          <TabsContent value="assigned" className="mt-5">
+          <TabsContent value="assigned" className="mt-4">
             <AssignedTab />
           </TabsContent>
 
-          <TabsContent value="requests" className="mt-5">
+          <TabsContent value="requests" className="mt-4">
             <RequestsTab />
           </TabsContent>
         </Tabs>
