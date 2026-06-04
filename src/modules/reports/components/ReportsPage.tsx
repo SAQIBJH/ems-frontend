@@ -55,21 +55,26 @@ export function ReportsPage() {
   const Panel = panelMap[safeReport];
 
   return (
-    <div className="flex flex-col">
+    <div className="flex min-h-full flex-col">
       <PageHeader
         title="Reports"
         description="Org analytics and scheduled exports for headcount, attendance, leave, and pay."
       />
 
-      <div className="flex min-h-0 flex-1 gap-6 p-6">
-        <aside className="sticky top-20 self-start">
-          <ReportsNav active={safeReport} onChange={(value) => setActiveReport(value)} />
-        </aside>
+      {/* Canvas background — content flows naturally; AppShell main handles scroll */}
+      <div className="flex-1 bg-canvas p-6">
+        <div className="grid grid-cols-[240px_1fr] items-start gap-4">
+          {/* Nav card */}
+          <aside className="overflow-hidden rounded-xl border border-subtle bg-surface">
+            <ReportsNav active={safeReport} onChange={(value) => setActiveReport(value)} />
+          </aside>
 
-        <div className="flex min-w-0 flex-1">
-          <Suspense fallback={<PanelSkeleton />}>
-            <Panel />
-          </Suspense>
+          {/* Content */}
+          <div className="min-w-0">
+            <Suspense fallback={<PanelSkeleton />}>
+              <Panel />
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>

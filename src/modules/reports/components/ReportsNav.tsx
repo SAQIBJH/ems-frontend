@@ -11,10 +11,10 @@ interface ReportsNavProps {
 
 export function ReportsNav({ active, onChange }: ReportsNavProps) {
   return (
-    <nav className="w-56 shrink-0 space-y-3 py-1">
+    <nav className="py-2">
       {REPORT_NAV.map((group) => (
-        <div key={group.heading}>
-          <p className="px-3 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-[0.05em] text-fg-subtle">
+        <div key={group.heading} className="px-2 pb-2">
+          <p className="px-3 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-[0.05em] text-fg-subtle">
             {group.heading}
           </p>
           <ul className="space-y-0.5">
