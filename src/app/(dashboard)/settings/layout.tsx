@@ -12,8 +12,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       {/* Canvas background — content flows naturally; AppShell main handles scroll */}
       <div className="flex-1 bg-canvas p-6">
         <div className="grid grid-cols-[240px_1fr] gap-4 items-start">
-          {/* Nav card */}
-          <aside className="rounded-xl border border-subtle bg-surface overflow-hidden">
+          {/* Nav card — sticky so it stays put while content scrolls */}
+          <aside className="sticky top-[88px] self-start overflow-hidden rounded-xl border border-subtle bg-surface">
             <SettingsNav />
           </aside>
           {/* Content card */}
