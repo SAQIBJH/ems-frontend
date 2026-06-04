@@ -3,6 +3,7 @@
 import { lazy, Suspense } from 'react';
 import { parseAsString, useQueryState } from 'nuqs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/shared/layouts/PageHeader';
 import { ReportsNav } from './ReportsNav';
 import { DEFAULT_REPORT } from '../constants';
 import type { ReportType } from '../types/reports.types';
@@ -54,15 +55,22 @@ export function ReportsPage() {
   const Panel = panelMap[safeReport];
 
   return (
-    <div className="flex min-h-0 flex-1 gap-6">
-      <aside className="sticky top-6 self-start">
-        <ReportsNav active={safeReport} onChange={(value) => setActiveReport(value)} />
-      </aside>
+    <div className="flex flex-col">
+      <PageHeader
+        title="Reports"
+        description="Org analytics and scheduled exports for headcount, attendance, leave, and pay."
+      />
 
-      <div className="flex min-w-0 flex-1">
-        <Suspense fallback={<PanelSkeleton />}>
-          <Panel />
-        </Suspense>
+      <div className="flex min-h-0 flex-1 gap-6 p-6">
+        <aside className="sticky top-20 self-start">
+          <ReportsNav active={safeReport} onChange={(value) => setActiveReport(value)} />
+        </aside>
+
+        <div className="flex min-w-0 flex-1">
+          <Suspense fallback={<PanelSkeleton />}>
+            <Panel />
+          </Suspense>
+        </div>
       </div>
     </div>
   );

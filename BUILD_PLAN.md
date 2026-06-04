@@ -3618,13 +3618,13 @@ Plus `pnpm dev` → `/settings/billing-invoices` → verify table rows, status b
 - [x] Step 78 — Employees list restyle
 - [x] Step 79 — Employee profile restyle
 - [x] Step 80 — Attendance restyle
-- [ ] Step 81 — Departments restyle
+- [x] Step 81 — Departments restyle
 - [x] Step 82 — Leave restyle
 - [x] Step 83 — Holidays restyle
 - [x] Step 84 — Permissions matrix restyle
 - [x] Step 85 — Settings restyle
 - [ ] Step 86 — Payroll restyle
-- [ ] Step 87 — Reports + Analytics restyle
+- [x] Step 87 — Reports + Analytics restyle
 - [x] Step 88 — Recruitment module (net-new, MSW)
 - [x] Step 89 — Performance module (net-new, MSW)
 - [x] Step 90 — Assets module (net-new, MSW)
