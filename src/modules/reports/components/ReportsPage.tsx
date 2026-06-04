@@ -64,8 +64,8 @@ export function ReportsPage() {
       {/* Canvas background — content flows naturally; AppShell main handles scroll */}
       <div className="flex-1 bg-canvas p-6">
         <div className="grid grid-cols-[240px_1fr] items-start gap-4">
-          {/* Nav card */}
-          <aside className="overflow-hidden rounded-xl border border-subtle bg-surface">
+          {/* Nav card — sticky so it stays put while content scrolls */}
+          <aside className="sticky top-[88px] self-start overflow-hidden rounded-xl border border-subtle bg-surface">
             <ReportsNav active={safeReport} onChange={(value) => setActiveReport(value)} />
           </aside>
 
