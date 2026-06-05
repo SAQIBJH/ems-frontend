@@ -77,7 +77,12 @@ export function computeComponentBreakdown(
 
   for (const comp of ordered) {
     let amount = 0;
-    if (comp.calculationType === 'FLAT') {
+    // VARIABLE components are input-driven (incentive/commission/bonus) — they have no
+    // base value in the structure; their amount is supplied per run (Step 101). In the
+    // structural breakdown they resolve to 0.
+    if (comp.type === 'VARIABLE') {
+      amount = 0;
+    } else if (comp.calculationType === 'FLAT') {
       amount = comp.value ?? 0;
     } else if (comp.calculationType === 'PERCENTAGE') {
       const basis = comp.basisCode ? (values[comp.basisCode] ?? 0) : monthly;
@@ -96,11 +101,41 @@ export function computeComponentBreakdown(
     });
   }
 
-  // Compute GROSS and NET for completeness
-  const earnings = results.filter((r) => r.type === 'EARNING');
+  // GROSS = employee earnings (EARNING + VARIABLE). NET subtracts only employee
+  // DEDUCTIONs — EMPLOYER_CONTRIBUTION and BENEFIT never reduce net pay.
+  const grossEarnings = results.filter((r) => r.type === 'EARNING' || r.type === 'VARIABLE');
   const deductions = results.filter((r) => r.type === 'DEDUCTION');
-  values.GROSS = earnings.reduce((s, r) => s + r.monthlyAmount, 0);
+  values.GROSS = grossEarnings.reduce((s, r) => s + r.monthlyAmount, 0);
   values.NET = values.GROSS - deductions.reduce((s, r) => s + r.monthlyAmount, 0);
 
   return results;
+}
+
+export interface ComponentTotals {
+  monthlyGross: number;
+  monthlyDeductions: number;
+  /** Employer-side cost that rolls into CTC but never reduces net pay. */
+  monthlyEmployerCost: number;
+  monthlyNet: number;
+}
+
+/**
+ * Roll a component breakdown up into the four payroll totals. Employer
+ * contributions and (non-cash) benefits form employer cost — they are excluded
+ * from gross and never reduce net pay.
+ */
+export function computeComponentTotals(
+  components: SalaryComponent[],
+  annualCtc: number,
+): ComponentTotals {
+  const breakdown = computeComponentBreakdown(components, annualCtc);
+  const sumOf = (...types: SalaryComponent['type'][]) =>
+    breakdown.filter((r) => types.includes(r.type)).reduce((s, r) => s + r.monthlyAmount, 0);
+
+  const monthlyGross = sumOf('EARNING', 'VARIABLE');
+  const monthlyDeductions = sumOf('DEDUCTION');
+  const monthlyEmployerCost = sumOf('EMPLOYER_CONTRIBUTION', 'BENEFIT');
+  const monthlyNet = monthlyGross - monthlyDeductions;
+
+  return { monthlyGross, monthlyDeductions, monthlyEmployerCost, monthlyNet };
 }

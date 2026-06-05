@@ -45,7 +45,14 @@ import { SalaryComponentDrawer } from './SalaryComponentDrawer';
 
 const SAMPLE_CTC = 1_200_000;
 
-type TypeFilter = 'All Types' | 'EARNING' | 'DEDUCTION' | 'BENEFIT' | 'REIMBURSEMENT';
+type TypeFilter =
+  | 'All Types'
+  | 'EARNING'
+  | 'DEDUCTION'
+  | 'EMPLOYER_CONTRIBUTION'
+  | 'BENEFIT'
+  | 'REIMBURSEMENT'
+  | 'VARIABLE';
 type ActiveFilter = 'All Status' | 'active' | 'inactive';
 
 export function SalaryComponentsPanel() {
@@ -277,8 +284,10 @@ export function SalaryComponentsPanel() {
               <SelectItem value="All Types">All Types</SelectItem>
               <SelectItem value="EARNING">Earning</SelectItem>
               <SelectItem value="DEDUCTION">Deduction</SelectItem>
+              <SelectItem value="EMPLOYER_CONTRIBUTION">Employer Contribution</SelectItem>
               <SelectItem value="BENEFIT">Benefit</SelectItem>
               <SelectItem value="REIMBURSEMENT">Reimbursement</SelectItem>
+              <SelectItem value="VARIABLE">Variable</SelectItem>
             </SelectContent>
           </Select>
           <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as ActiveFilter)}>

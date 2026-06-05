@@ -36,7 +36,14 @@ import type { SalaryComponentFormValues } from '../validations/salary-component.
 
 const SAMPLE_CTC = 1_200_000;
 
-const COMPONENT_TYPES: ComponentType[] = ['EARNING', 'DEDUCTION', 'BENEFIT', 'REIMBURSEMENT'];
+const COMPONENT_TYPES: ComponentType[] = [
+  'EARNING',
+  'DEDUCTION',
+  'EMPLOYER_CONTRIBUTION',
+  'BENEFIT',
+  'REIMBURSEMENT',
+  'VARIABLE',
+];
 
 interface FormulaPreviewTableProps {
   formula: string;
@@ -63,6 +70,8 @@ function FormulaPreviewTable({ formula, currentCode, allComponents }: FormulaPre
         active: true,
         displayOrder: 999,
         description: null,
+        statutoryTag: null,
+        prorate: true,
         createdAt: '',
         updatedAt: '',
       },
@@ -149,6 +158,8 @@ export function SalaryComponentDrawer({
       taxable: true,
       active: true,
       displayOrder: 1,
+      statutoryTag: null,
+      prorate: true,
       description: null,
     },
   });
@@ -172,6 +183,8 @@ export function SalaryComponentDrawer({
         taxable: component.taxable,
         active: component.active,
         displayOrder: component.displayOrder,
+        statutoryTag: component.statutoryTag,
+        prorate: component.prorate,
         description: component.description ?? null,
       });
     } else {
@@ -188,6 +201,8 @@ export function SalaryComponentDrawer({
         taxable: true,
         active: true,
         displayOrder: maxOrder,
+        statutoryTag: null,
+        prorate: true,
         description: null,
       });
     }
@@ -217,8 +232,14 @@ export function SalaryComponentDrawer({
   }
 
   function onSubmit(values: SalaryComponentFormValues) {
+    // VARIABLE components carry no base value — amount is supplied per run.
+    if (values.type === 'VARIABLE') {
+      values.value = null;
+      values.basisCode = null;
+      values.formula = null;
+    }
     // Clear irrelevant fields per calculation type
-    if (values.calculationType === 'FLAT') {
+    else if (values.calculationType === 'FLAT') {
       values.basisCode = null;
       values.formula = null;
     } else if (values.calculationType === 'PERCENTAGE') {
@@ -394,6 +415,45 @@ export function SalaryComponentDrawer({
                     render={({ field }) => (
                       <Switch
                         id="comp-active"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Statutory tag + Prorate */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="comp-statutory-tag">
+                    Statutory tag <span className="font-normal text-fg-muted">(optional)</span>
+                  </Label>
+                  <Input
+                    id="comp-statutory-tag"
+                    {...form.register('statutoryTag', {
+                      setValueAs: (v: string) => (v ? v.toUpperCase() : null),
+                    })}
+                    placeholder="PF_WAGE"
+                    className="font-mono uppercase"
+                  />
+                  {form.formState.errors.statutoryTag && (
+                    <p className="text-xs text-danger">
+                      {form.formState.errors.statutoryTag.message}
+                    </p>
+                  )}
+                  <p className="text-xs text-fg-muted">Wage base a contribution scheme keys off.</p>
+                </div>
+                <div className="flex items-center justify-between self-start rounded-lg border border-subtle px-3 py-2.5">
+                  <Label htmlFor="comp-prorate" className="cursor-pointer text-sm">
+                    Prorate on LOP
+                  </Label>
+                  <Controller
+                    control={form.control}
+                    name="prorate"
+                    render={({ field }) => (
+                      <Switch
+                        id="comp-prorate"
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />

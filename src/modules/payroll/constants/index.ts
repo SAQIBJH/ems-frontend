@@ -6,8 +6,14 @@ export const COMPONENT_TYPE_CONFIG: Record<
 > = {
   EARNING: { label: 'Earning', color: 'text-success bg-success/10', icon: '+' },
   DEDUCTION: { label: 'Deduction', color: 'text-danger bg-danger/10', icon: '−' },
+  EMPLOYER_CONTRIBUTION: {
+    label: 'Employer Contribution',
+    color: 'text-brand bg-brand/10',
+    icon: '⊕',
+  },
   BENEFIT: { label: 'Benefit', color: 'text-info bg-info/10', icon: '◇' },
   REIMBURSEMENT: { label: 'Reimbursement', color: 'text-warning bg-warning/10', icon: '↩' },
+  VARIABLE: { label: 'Variable', color: 'text-fg-muted bg-surface-raised', icon: '~' },
 };
 
 export const CALCULATION_TYPE_CONFIG: Record<

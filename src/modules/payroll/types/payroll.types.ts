@@ -1,4 +1,10 @@
-export type ComponentType = 'EARNING' | 'DEDUCTION' | 'BENEFIT' | 'REIMBURSEMENT';
+export type ComponentType =
+  | 'EARNING'
+  | 'DEDUCTION'
+  | 'EMPLOYER_CONTRIBUTION'
+  | 'BENEFIT'
+  | 'REIMBURSEMENT'
+  | 'VARIABLE';
 export type CalculationType = 'FLAT' | 'PERCENTAGE' | 'FORMULA';
 export type PaySchedule = 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
 export type PayrollRunStatus =
@@ -25,6 +31,10 @@ export interface SalaryComponent {
   active: boolean;
   displayOrder: number;
   description: string | null;
+  /** Wage-base tag a statutory contribution scheme keys off (e.g. PF_WAGE). null = none. */
+  statutoryTag: string | null;
+  /** Whether this component is reduced by loss-of-pay proration. */
+  prorate: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,6 +50,8 @@ export interface SalaryComponentInput {
   taxable: boolean;
   active: boolean;
   displayOrder: number;
+  statutoryTag?: string | null;
+  prorate?: boolean;
   description?: string | null;
 }
 
