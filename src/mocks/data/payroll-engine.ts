@@ -16,10 +16,15 @@ import type {
   PayrollRunDeptSummary,
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
-import { computeComponentBreakdown } from '@/modules/payroll/utils/formula.utils';
+import {
+  computeComponentBreakdown,
+  projectPeriodTax,
+  registerSlabTables,
+} from '@/modules/payroll/utils/formula.utils';
 import { prorationFactor } from '@/modules/payroll/utils/proration.utils';
 import { getComponentById } from '../handlers/payroll-components';
 import { getGroupById } from '../handlers/payroll-groups';
+import { resolveActivePack } from '../handlers/payroll-statutory';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
@@ -184,6 +189,30 @@ export function computeRun(
       if (line.type === 'EARNING' || line.type === 'VARIABLE') earnings.push(pl);
       else if (line.type === 'DEDUCTION') deductions.push(pl);
       else employerContributions.push(pl); // EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT
+    }
+
+    // Income tax (TDS): computed from the pinned pack's regime via progressive
+    // slabs — never a flat rate in code. Project full-year taxable income, then
+    // spread the regime tax across the year. (YTD true-up arrives in Step 100.)
+    const pack = resolveActivePack(emp.country, period);
+    const regime = pack?.taxRegimes[0] ?? null;
+    if (regime) {
+      registerSlabTables({ [regime.code]: regime.slabs });
+      const taxableMonthly = breakdown
+        .filter((l) => (l.type === 'EARNING' || l.type === 'VARIABLE') && l.taxable)
+        .reduce((s, l) => s + l.monthlyAmount, 0);
+      const monthlyTax = Math.round(
+        projectPeriodTax({ annualTaxable: taxableMonthly * 12, regime }),
+      );
+      const tdsLine = deductions.find((d) => d.code === 'TDS');
+      if (tdsLine) tdsLine.amount = monthlyTax;
+      else if (monthlyTax > 0)
+        deductions.push({
+          code: 'TDS',
+          name: 'Income Tax (TDS)',
+          amount: monthlyTax,
+          taxable: false,
+        });
     }
 
     const grossEarnings = earnings.reduce((s, l) => s + l.amount, 0);

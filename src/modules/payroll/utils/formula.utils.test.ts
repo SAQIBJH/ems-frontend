@@ -3,8 +3,14 @@ import {
   computeComponentBreakdown,
   computeComponentTotals,
   validateFormula,
+  evaluateFormula,
+  evaluateSlab,
+  computeRegimeTax,
+  projectPeriodTax,
+  registerSlabTables,
 } from './formula.utils';
 import type { SalaryComponent } from '../types/payroll.types';
+import type { TaxRegime, TaxSlab } from '../types/statutory.types';
 
 /** Build a SalaryComponent with sensible defaults for the new required fields. */
 function comp(
@@ -144,5 +150,104 @@ describe('validateFormula', () => {
     const result = validateFormula('BASIC + UNKNOWN', ['BASIC']);
     expect(result.valid).toBe(false);
     expect(result.error).toContain('UNKNOWN');
+  });
+
+  it('accepts SLAB() and CLAMP() (functions + string-literal table code)', () => {
+    expect(validateFormula("SLAB(BASIC, 'TEST') + CLAMP(NET, 0, 999)", ['BASIC']).valid).toBe(true);
+  });
+});
+
+/* ── Progressive tax ──────────────────────────────────────────────────────── */
+
+// IN-new-regime-shaped brackets (plain major units for readability).
+const SLABS: TaxSlab[] = [
+  { from: 0, to: 400000, rate: 0 },
+  { from: 400000, to: 800000, rate: 5 },
+  { from: 800000, to: 1200000, rate: 10 },
+  { from: 1200000, to: null, rate: 30 },
+];
+
+describe('evaluateSlab', () => {
+  it('returns 0 below the first taxable band', () => {
+    expect(evaluateSlab(0, SLABS)).toBe(0);
+    expect(evaluateSlab(300000, SLABS)).toBe(0);
+  });
+
+  it('taxes only the portion inside each band (progressive)', () => {
+    // 400k–800k @ 5% on 200k = 10,000
+    expect(evaluateSlab(600000, SLABS)).toBe(10000);
+    // band2 full (20,000) + band3 200k @ 10% (20,000) = 40,000
+    expect(evaluateSlab(1000000, SLABS)).toBe(40000);
+    // + band4 800k @ 30% (240,000) = 300,000
+    expect(evaluateSlab(2000000, SLABS)).toBe(300000);
+  });
+
+  it('handles a flat two-band (US-style) table', () => {
+    const flat: TaxSlab[] = [
+      { from: 0, to: 1000000, rate: 10 },
+      { from: 1000000, to: null, rate: 22 },
+    ];
+    // 1m @ 10% (100,000) + 500k @ 22% (110,000) = 210,000
+    expect(evaluateSlab(1500000, flat)).toBe(210000);
+  });
+});
+
+describe('computeRegimeTax', () => {
+  const regime: TaxRegime = {
+    code: 'TEST_REGIME',
+    fiscalYear: '2026-27',
+    currency: 'INR',
+    standardDeduction: 75000,
+    slabs: SLABS,
+    cess: { rate: 4 },
+  };
+
+  it('applies standard deduction → slabs → cess', () => {
+    // 1,275,000 − 75,000 std = 1,200,000 → slab tax 60,000 → +4% cess = 62,400
+    expect(computeRegimeTax(1275000, regime)).toBe(62400);
+  });
+
+  it('adds the highest applicable surcharge band before cess', () => {
+    const withSurcharge: TaxRegime = {
+      ...regime,
+      standardDeduction: 0,
+      surcharge: [{ thresholdAnnual: 5000000, rate: 10 }],
+    };
+    // slab tax on 6,000,000 = 1,500,000; +10% surcharge = 1,650,000; +4% cess = 1,716,000
+    expect(computeRegimeTax(6000000, withSurcharge)).toBe(1716000);
+  });
+});
+
+describe('projectPeriodTax', () => {
+  const regime: TaxRegime = {
+    code: 'TEST_REGIME',
+    fiscalYear: '2026-27',
+    currency: 'INR',
+    standardDeduction: 75000,
+    slabs: SLABS,
+    cess: { rate: 4 },
+  };
+
+  it('spreads annual tax evenly with no YTD (annualTax / 12)', () => {
+    expect(projectPeriodTax({ annualTaxable: 1275000, regime })).toBe(5200); // 62,400 / 12
+  });
+
+  it('trues up against YTD over the remaining periods', () => {
+    // (62,400 − 12,400) / 4 = 12,500
+    expect(
+      projectPeriodTax({ annualTaxable: 1275000, regime, ytdTaxPaid: 12400, periodsRemaining: 4 }),
+    ).toBe(12500);
+  });
+});
+
+describe('SLAB() / CLAMP() formula functions', () => {
+  it('SLAB() evaluates a registered table by code', () => {
+    registerSlabTables({ TEST: SLABS });
+    expect(evaluateFormula("SLAB(INCOME, 'TEST')", { INCOME: 1000000 })).toBe(40000);
+  });
+
+  it('CLAMP() bounds a value to [lo, hi]', () => {
+    expect(evaluateFormula('CLAMP(X, 0, 100)', { X: 150 })).toBe(100);
+    expect(evaluateFormula('CLAMP(X, 0, 100)', { X: -5 })).toBe(0);
   });
 });

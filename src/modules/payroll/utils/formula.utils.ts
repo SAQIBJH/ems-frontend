@@ -1,7 +1,100 @@
 import { Parser } from 'expr-eval';
 import type { SalaryComponent, CalculatedComponent } from '../types/payroll.types';
+import type { TaxRegime, TaxSlab } from '../types/statutory.types';
 
 const parser = new Parser();
+
+/* ── Progressive slab evaluation (config-driven, no country logic) ─────────── */
+
+/**
+ * Apply a configured bracket table progressively to a value. Slabs are
+ * `{ from, to, rate% }`, sorted ascending and contiguous; the last slab may have
+ * `to: null` (no ceiling). Each band is taxed only on the portion of `value`
+ * that falls inside it — this is what replaces nested `IF()` chains.
+ */
+export function evaluateSlab(value: number, slabs: TaxSlab[]): number {
+  if (value <= 0 || slabs.length === 0) return 0;
+  let tax = 0;
+  for (const slab of slabs) {
+    if (value <= slab.from) break;
+    const upper = slab.to ?? Infinity;
+    const inBand = Math.min(value, upper) - slab.from;
+    if (inBand > 0) tax += inBand * (slab.rate / 100);
+  }
+  return tax;
+}
+
+// Named slab tables that the SLAB() formula function can reference by code. The
+// engine registers a run's regime tables here before evaluating component
+// formulas — so a tenant could author `SLAB(TAXABLE_ANNUAL, "IN_NEW_REGIME")`.
+const slabTables: Record<string, TaxSlab[]> = {};
+
+/** Register (replace) the named slab tables available to the SLAB() function. */
+export function registerSlabTables(tables: Record<string, TaxSlab[]>): void {
+  for (const [code, slabs] of Object.entries(tables)) {
+    slabTables[code] = slabs;
+  }
+}
+
+/** Drop all registered slab tables (test isolation). */
+export function clearSlabTables(): void {
+  for (const code of Object.keys(slabTables)) delete slabTables[code];
+}
+
+// Formula-language extensions (§4.2): progressive tax + bounding, as data.
+parser.functions.SLAB = (value: number, tableCode: string): number =>
+  evaluateSlab(value, slabTables[tableCode] ?? []);
+parser.functions.CLAMP = (value: number, lo: number, hi: number): number =>
+  Math.min(Math.max(value, lo), hi);
+
+/* ── Income-tax regime computation (annual projection + true-up hook) ──────── */
+
+/**
+ * Annual income tax for a regime: standard deduction → progressive slabs →
+ * surcharge (highest applicable band, on tax) → health/education cess (on
+ * tax + surcharge). All inputs come from the regime data — no rate literals.
+ */
+export function computeRegimeTax(taxableAnnual: number, regime: TaxRegime): number {
+  const afterStd = Math.max(0, taxableAnnual - (regime.standardDeduction ?? 0));
+  let tax = evaluateSlab(afterStd, regime.slabs);
+
+  if (regime.surcharge && regime.surcharge.length > 0) {
+    const band = regime.surcharge
+      .filter((s) => taxableAnnual > s.thresholdAnnual)
+      .sort((a, b) => b.thresholdAnnual - a.thresholdAnnual)[0];
+    if (band) tax += tax * (band.rate / 100);
+  }
+
+  if (regime.cess) tax += tax * (regime.cess.rate / 100);
+  return tax;
+}
+
+export interface PeriodTaxArgs {
+  /** Projected full-year taxable income, minor units. */
+  annualTaxable: number;
+  regime: TaxRegime;
+  /** Tax already withheld earlier in the fiscal year (YTD). Wired in Step 100. */
+  ytdTaxPaid?: number;
+  /** Periods left in the fiscal year, including the current one. */
+  periodsRemaining?: number;
+}
+
+/**
+ * Per-period withholding: project the annual tax, subtract what was already
+ * withheld (YTD), and spread the remainder across the remaining periods. With
+ * `ytdTaxPaid = 0` and `periodsRemaining = 12` this is simply annualTax / 12 —
+ * the YTD true-up arrives in Step 100.
+ */
+export function projectPeriodTax({
+  annualTaxable,
+  regime,
+  ytdTaxPaid = 0,
+  periodsRemaining = 12,
+}: PeriodTaxArgs): number {
+  const annualTax = computeRegimeTax(annualTaxable, regime);
+  const remaining = Math.max(0, annualTax - ytdTaxPaid);
+  return remaining / Math.max(1, periodsRemaining);
+}
 
 export function evaluateFormula(formula: string, variables: Record<string, number>): number | null {
   try {

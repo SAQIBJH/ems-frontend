@@ -123,8 +123,13 @@ export {
   resolveComponentOrder,
   computeComponentBreakdown,
   computeComponentTotals,
+  evaluateSlab,
+  computeRegimeTax,
+  projectPeriodTax,
+  registerSlabTables,
+  clearSlabTables,
 } from './utils/formula.utils';
-export type { ComponentTotals } from './utils/formula.utils';
+export type { ComponentTotals, PeriodTaxArgs } from './utils/formula.utils';
 
 // Constants
 export { COMPONENT_TYPE_CONFIG, CALCULATION_TYPE_CONFIG, RUN_STATUS_CONFIG } from './constants';

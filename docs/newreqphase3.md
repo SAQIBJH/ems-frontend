@@ -1138,6 +1138,20 @@ finalized in their BUILD_PLAN step per §22.**
 > (`GET/POST/PATCH /payroll/tax-regimes`, `/payroll/contribution-schemes`) scoped to a
 > pack version — finalized in Steps 98–99.
 
+**Tax computation (Step 98 — engine behavior, no new route).** Income tax is computed
+from the pinned pack's `taxRegimes[0]`, never a flat rate in code:
+
+- The engine projects full-year taxable income (taxable earnings × 12), applies the
+  regime: `standardDeduction` → progressive `slabs` (each band taxes only its own
+  portion) → highest applicable `surcharge` band (on tax) → `cess` (on tax + surcharge),
+  then spreads the annual tax across the year (÷ remaining periods). YTD true-up is
+  wired in Step 100.
+- Progressive brackets are evaluated by the `SLAB(value, tableCode)` formula function
+  (with `CLAMP(v, lo, hi)`); a tenant can reference a regime's table by code in any
+  component formula. No `IF()` chains, no per-country code.
+- The computed amount overrides the `TDS` payslip line; recompute is reproducible
+  (same pinned pack → same numbers).
+
 ---
 
 ### F.4 — Employee payroll (Step 95, 100, 102, 103)
