@@ -5,6 +5,7 @@ import type {
   LegalEntity,
   LegalEntityInput,
 } from '../types/localization.types';
+import type { StatutoryPack, StatutoryPackInput } from '../types/statutory.types';
 
 export const localizationApi = {
   listCountries: async (): Promise<Country[]> => {
@@ -35,6 +36,32 @@ export const localizationApi = {
   }: { id: string } & Partial<LegalEntityInput>): Promise<LegalEntity> => {
     const { data } = await apiClient.patch<{ data: LegalEntity }>(
       `/payroll/legal-entities/${id}`,
+      body,
+    );
+    return data.data;
+  },
+
+  listStatutoryPacks: async (country?: string): Promise<StatutoryPack[]> => {
+    const { data } = await apiClient.get<{ data: StatutoryPack[] }>('/payroll/statutory-packs', {
+      params: country ? { country } : undefined,
+    });
+    return data.data;
+  },
+
+  createStatutoryPack: async (input: StatutoryPackInput): Promise<StatutoryPack> => {
+    const { data } = await apiClient.post<{ data: StatutoryPack }>(
+      '/payroll/statutory-packs',
+      input,
+    );
+    return data.data;
+  },
+
+  updateStatutoryPack: async ({
+    id,
+    ...body
+  }: { id: string } & Partial<StatutoryPackInput>): Promise<StatutoryPack> => {
+    const { data } = await apiClient.patch<{ data: StatutoryPack }>(
+      `/payroll/statutory-packs/${id}`,
       body,
     );
     return data.data;

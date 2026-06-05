@@ -1,10 +1,31 @@
 import { http, HttpResponse } from 'msw';
 import type { PayrollRun } from '@/modules/payroll/types/payroll.types';
+import type { RunConfigSnapshotRef } from '@/modules/payroll/types/statutory.types';
 import { computeRun } from '../data/payroll-engine';
+import { resolveActivePack } from './payroll-statutory';
+
+// The demo tenant's payroll roster operates under the India legal entity.
+const RUN_COUNTRY = 'IN';
 
 // Canonical computed totals (the roster is fixed, so every run shares them until
 // per-period inputs land in Step 101). Derived from the engine — never hardcoded.
 const BASE = computeRun('base', '2026-05');
+
+/**
+ * Pin the statutory pack version in force for the run's country + period.
+ * Stored on the run so recompute resolves the same version (reproducibility).
+ */
+function pinConfig(period: string): RunConfigSnapshotRef | null {
+  const pack = resolveActivePack(RUN_COUNTRY, period);
+  if (!pack) return null;
+  return {
+    statutoryPackId: pack.id,
+    country: pack.country,
+    version: pack.version,
+    effectiveFrom: pack.effectiveFrom,
+    pinnedAt: new Date().toISOString(),
+  };
+}
 
 function runTotals(): Pick<
   PayrollRun,
@@ -32,6 +53,7 @@ let runs: PayrollRun[] = [
     processedAt: '2026-02-26T10:00:00.000Z',
     approvedAt: '2026-02-27T09:00:00.000Z',
     paidAt: '2026-02-28T00:00:00.000Z',
+    configSnapshotRef: pinConfig('2026-02'),
     createdAt: '2026-02-23T08:00:00.000Z',
   },
   {
@@ -46,6 +68,7 @@ let runs: PayrollRun[] = [
     processedAt: '2026-03-28T10:00:00.000Z',
     approvedAt: '2026-03-29T09:00:00.000Z',
     paidAt: '2026-03-31T00:00:00.000Z',
+    configSnapshotRef: pinConfig('2026-03'),
     createdAt: '2026-03-25T08:00:00.000Z',
   },
   {
@@ -60,6 +83,7 @@ let runs: PayrollRun[] = [
     processedAt: '2026-04-28T10:00:00.000Z',
     approvedAt: '2026-04-29T09:00:00.000Z',
     paidAt: '2026-04-30T00:00:00.000Z',
+    configSnapshotRef: pinConfig('2026-04'),
     createdAt: '2026-04-25T08:00:00.000Z',
   },
   {
@@ -194,6 +218,8 @@ export const payrollRunHandlers = [
                 totalDeductions: computed.totals.totalDeductions,
                 employerCost: computed.totals.employerCost,
                 totalNet: computed.totals.totalNet,
+                // Pin the statutory pack version used — recompute is reproducible.
+                configSnapshotRef: pinConfig(run.period),
               }
             : r,
         );

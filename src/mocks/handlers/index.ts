@@ -9,6 +9,7 @@ import { payrollGroupHandlers } from './payroll-groups';
 import { payrollEmployeeHandlers } from './payroll-employee';
 import { payrollRunHandlers } from './payroll-runs';
 import { payrollLocalizationHandlers } from './payroll-localization';
+import { payrollStatutoryHandlers } from './payroll-statutory';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
 // Phase 2.5 — Settings: Integrations & Billing
@@ -77,6 +78,7 @@ export const handlers = [
   ...payrollEmployeeHandlers,
   ...payrollRunHandlers,
   ...payrollLocalizationHandlers,
+  ...payrollStatutoryHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,
   ...settingsIntegrationHandlers,

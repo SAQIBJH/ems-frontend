@@ -1,3 +1,5 @@
+import type { RunConfigSnapshotRef } from './statutory.types';
+
 export type ComponentType =
   | 'EARNING'
   | 'DEDUCTION'
@@ -292,6 +294,8 @@ export interface PayrollRun {
   approvedAt?: string | null;
   paidAt?: string | null;
   summary?: PayrollRunSummary;
+  /** Statutory pack version pinned at calculate time; recompute uses this. */
+  configSnapshotRef?: RunConfigSnapshotRef | null;
   createdAt: string;
 }
 

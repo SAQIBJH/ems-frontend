@@ -1117,8 +1117,22 @@ finalized in their BUILD_PLAN step per §22.**
 
 - Errors: `409 PACK_VERSION_EXISTS`, `422 INVALID_PACK` (overlapping effective ranges,
   unknown component codes).
-- **Run pinning:** `PayrollRun` gains `configSnapshotRef` (the pack id+version used);
-  recompute uses the pinned version.
+- **List:** `GET /payroll/statutory-packs[?country=IN]` → `{ success, data: StatutoryPack[] }`.
+  `GET /payroll/statutory-packs/:id` → `{ success, data: StatutoryPack }`. Seeds: `pack_in_2026`
+  (IN, 2026.1) and `pack_us_2026` (US, 2026.1).
+- **Run pinning:** `PayrollRun` gains `configSnapshotRef` — the pack id+version pinned at
+  `calculate` time, resolved by the run's entity country + period. Recompute uses the pinned
+  version (reproducibility). Shape:
+
+```jsonc
+{
+  "statutoryPackId": "pack_in_2026",
+  "country": "IN",
+  "version": "2026.1",
+  "effectiveFrom": "2026-04-01",
+  "pinnedAt": "2026-06-06T10:00:00.000Z",
+}
+```
 
 > `tax-regimes` and `contribution-schemes` may also be exposed as standalone CRUD
 > (`GET/POST/PATCH /payroll/tax-regimes`, `/payroll/contribution-schemes`) scoped to a

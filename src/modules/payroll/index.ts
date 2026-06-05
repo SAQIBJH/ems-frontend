@@ -38,6 +38,24 @@ export type {
 // Localization types
 export type { BankField, Country, LegalEntity, LegalEntityInput } from './types/localization.types';
 
+// Statutory pack types
+export type {
+  RoundingMode,
+  RoundingPolicy,
+  ProrationBasis,
+  ProrationPolicy,
+  TaxSlab,
+  TaxSurcharge,
+  TaxRegime,
+  ContributionParty,
+  ContributionScheme,
+  LocalTaxSlab,
+  LocalTax,
+  StatutoryPack,
+  StatutoryPackInput,
+  RunConfigSnapshotRef,
+} from './types/statutory.types';
+
 // Money utils
 export {
   currencyDecimals,
@@ -93,6 +111,9 @@ export {
   useLegalEntities,
   useCreateLegalEntity,
   useUpdateLegalEntity,
+  useStatutoryPacks,
+  useCreateStatutoryPack,
+  useUpdateStatutoryPack,
 } from './hooks/useLocalization';
 
 // Utils
@@ -124,6 +145,7 @@ export { PayGroupDrawer } from './components/PayGroupDrawer';
 export { PaySchedulesPanel } from './components/PaySchedulesPanel';
 export { LegalEntitiesPanel } from './components/LegalEntitiesPanel';
 export { LegalEntityDrawer } from './components/LegalEntityDrawer';
+export { StatutoryPacksPanel } from './components/StatutoryPacksPanel';
 export { PayrollScreen } from './components/PayrollScreen';
 export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';

@@ -22,6 +22,7 @@ import {
   CircleDollarSignIcon,
   UsersIcon,
   CalendarClockIcon,
+  ScaleIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers';
@@ -104,6 +105,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Legal Entities',
         slug: 'pay/legal-entities',
         icon: BuildingIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+      },
+      {
+        label: 'Statutory Packs',
+        slug: 'pay/statutory-packs',
+        icon: ScaleIcon,
         roles: ['HR_ADMIN', 'SUPER_ADMIN'],
       },
       {
