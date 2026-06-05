@@ -4920,7 +4920,7 @@ All three must be clean.
 
 **P2 — Inputs, lifecycle & controls**
 
-- [ ] Step 102 — Tax declarations / exemptions / proofs
+- [x] Step 102 — Tax declarations / exemptions / proofs
 - [ ] Step 103 — Loans & advances (EMI schedule + recovery)
 - [ ] Step 104 — Reimbursement claims + structured variable pay
 - [ ] Step 105 — Run types: off-cycle / bonus / arrears / reversal / FnF
