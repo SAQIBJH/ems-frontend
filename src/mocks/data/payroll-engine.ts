@@ -32,6 +32,7 @@ import { getGroupById } from '../handlers/payroll-groups';
 import { resolveActivePack } from '../handlers/payroll-statutory';
 import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
 import { getTaxDeclaration } from '../handlers/payroll-tax-declaration';
+import { loanEmiForPeriod } from '../handlers/payroll-loans';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
@@ -354,6 +355,16 @@ function computeEmployeeMonth(
         amount: taxDeducted,
         taxable: false,
       });
+  }
+
+  // Loan / advance EMI recovery — a scheduled deduction for this period.
+  for (const line of loanEmiForPeriod(emp.employeeId, period)) {
+    deductions.push({
+      code: `EMI_${line.loanId}`,
+      name: line.type === 'ADVANCE' ? 'Advance recovery' : 'Loan EMI',
+      amount: line.emi,
+      taxable: false,
+    });
   }
 
   // One-time, period-only additions/deductions supplied via the run input.

@@ -1237,9 +1237,18 @@ the declaration; `PATCH` merges `regime` / `items` (HR uses it to set `proofStat
 > two regimes — `IN_NEW_REGIME` (concessional rates, exemptions disallowed) and
 > `IN_OLD_REGIME` (higher rates, exemptions allowed) — so regime choice is meaningful.
 
-#### `GET/POST /payroll/employees/:id/loans` (Step 103)
+#### `GET/POST/PATCH /payroll/employees/:id/loans` (Step 103)
 
-`{ id, principal, currency, interestMethod, emiAmount, schedule[], outstandingBalance, status }`.
+`Loan` = `{ id, employeeId, type: LOAN|ADVANCE, principal, currency, interestMethod: REDUCING|FLAT|ZERO,
+annualRatePct, tenureMonths, startPeriod, emiAmount, schedule[], outstandingBalance, status: ACTIVE|CLOSED|FORECLOSED, forecloseFromPeriod }`.
+Each `schedule[]` entry is `{ installmentNo, period, emi, principalComponent, interestComponent, balanceAfter, status: PENDING|RECOVERED }`
+(amounts minor units). Installment recovery + `outstandingBalance` are **derived from the calendar**
+(installments with `period < now` are RECOVERED). `PATCH .../loans/:loanId { action: "foreclose" }`
+stops EMIs from the current period; `422 INVALID_LOAN` on non-positive principal/tenure.
+
+> **Engine effect:** for each active loan with a schedule entry for the run's period, the engine
+> recovers the EMI as a **deduction** (`EMI_<loanId>`), reducing net pay. Foreclosed loans stop
+> from `forecloseFromPeriod`. Outstanding balance carries to FnF (Step 105).
 
 ---
 

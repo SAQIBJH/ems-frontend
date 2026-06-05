@@ -24,6 +24,7 @@ import { useAuth } from '@/providers';
 import { useEmployeePayslips } from '@/modules/payroll';
 import { PayslipDrawer } from './PayslipDrawer';
 import { TaxDeclarationCard } from './TaxDeclarationCard';
+import { LoansCard } from './LoansCard';
 import type { PayslipStatus, PayslipSummary } from '../types/payroll.types';
 
 const PAYSLIP_STATUS_CONFIG: Record<PayslipStatus, { label: string; color: string }> = {
@@ -188,6 +189,9 @@ export function MyPayslipsPage() {
 
         {/* Tax declaration — employee self-service */}
         {user?.employeeId && <TaxDeclarationCard employeeId={user.employeeId} mode="employee" />}
+
+        {/* Loans & advances — employee self-service */}
+        {user?.employeeId && <LoansCard employeeId={user.employeeId} mode="employee" />}
       </div>
 
       <PayslipDrawer

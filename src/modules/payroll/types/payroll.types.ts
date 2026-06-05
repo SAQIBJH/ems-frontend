@@ -389,6 +389,57 @@ export interface TaxDeclarationInput {
   items: TaxDeclarationItem[];
 }
 
+/* ── Loans & advances (§6.2) ──────────────────────────────────────────────── */
+
+export type LoanType = 'LOAN' | 'ADVANCE';
+export type LoanInterestMethod = 'REDUCING' | 'FLAT' | 'ZERO';
+export type LoanStatus = 'ACTIVE' | 'CLOSED' | 'FORECLOSED';
+export type LoanInstallmentStatus = 'PENDING' | 'RECOVERED';
+
+export interface LoanScheduleEntry {
+  installmentNo: number;
+  /** YYYY-MM the EMI is recovered in. */
+  period: string;
+  /** All amounts minor units. */
+  emi: number;
+  principalComponent: number;
+  interestComponent: number;
+  /** Outstanding balance after this installment. */
+  balanceAfter: number;
+  status: LoanInstallmentStatus;
+}
+
+export interface Loan {
+  id: string;
+  employeeId: string;
+  type: LoanType;
+  /** Minor units. */
+  principal: number;
+  currency: string;
+  interestMethod: LoanInterestMethod;
+  annualRatePct: number;
+  tenureMonths: number;
+  /** YYYY-MM of the first EMI. */
+  startPeriod: string;
+  emiAmount: number;
+  schedule: LoanScheduleEntry[];
+  outstandingBalance: number;
+  status: LoanStatus;
+  /** Set when foreclosed — EMIs stop from this period onward. */
+  forecloseFromPeriod?: string | null;
+  createdAt: string;
+}
+
+export interface LoanInput {
+  type: LoanType;
+  principal: number;
+  currency?: string;
+  interestMethod: LoanInterestMethod;
+  annualRatePct: number;
+  tenureMonths: number;
+  startPeriod: string;
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {
