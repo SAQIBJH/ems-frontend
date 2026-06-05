@@ -30,6 +30,7 @@ export const salaryComponentSchema = z
       .nullable()
       .optional(),
     prorate: z.boolean(),
+    payInPeriods: z.array(z.number().int().min(1).max(12)).nullable().optional(),
     description: z.string().max(500).nullable().optional(),
   })
   .superRefine((data, ctx) => {

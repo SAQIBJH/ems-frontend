@@ -39,6 +39,7 @@ const salaryAssignmentSchema = z.object({
   annualCtc: z.number().min(1, 'CTC must be greater than 0'),
   effectiveFrom: z.string().min(1, 'Effective date is required'),
   country: z.string().min(2, 'Country is required'),
+  residenceJurisdiction: z.string(),
   bankAccount: z.record(z.string(), z.string()),
 });
 
@@ -77,6 +78,7 @@ export function SalaryAssignmentDrawer({
       annualCtc: 0,
       effectiveFrom: '',
       country: 'IN',
+      residenceJurisdiction: '',
       bankAccount: {},
     },
   });
@@ -93,6 +95,7 @@ export function SalaryAssignmentDrawer({
         annualCtc: existing.annualCtc,
         effectiveFrom: existing.effectiveFrom,
         country: existing.country || defaultCountry,
+        residenceJurisdiction: existing.residenceJurisdiction ?? '',
         bankAccount: existing.bankAccount ?? {},
       });
     } else {
@@ -101,6 +104,7 @@ export function SalaryAssignmentDrawer({
         annualCtc: 0,
         effectiveFrom: new Date().toISOString().slice(0, 10),
         country: defaultCountry,
+        residenceJurisdiction: '',
         bankAccount: {},
       });
     }
@@ -129,8 +133,17 @@ export function SalaryAssignmentDrawer({
     }
     if (hasError) return;
 
+    const residence = values.residenceJurisdiction.trim();
+    const input = {
+      ...values,
+      residenceJurisdiction: residence || undefined,
+      // Work locations default to the residence jurisdiction (single-location demo);
+      // the engine taxes the resolved set, so multi-location is a data change only.
+      workLocations: residence ? [{ jurisdiction: residence, allocationPct: 100 }] : undefined,
+    };
+
     try {
-      await assignMutation.mutateAsync({ employeeId, input: values });
+      await assignMutation.mutateAsync({ employeeId, input });
       toast.success(isEdit ? 'Salary updated' : 'Salary assigned');
       onOpenChange(false);
     } catch (err) {
@@ -206,6 +219,24 @@ export function SalaryAssignmentDrawer({
             {form.formState.errors.effectiveFrom && (
               <p className="text-xs text-danger">{form.formState.errors.effectiveFrom.message}</p>
             )}
+          </div>
+
+          {/* Tax residence jurisdiction — drives multi-jurisdiction local taxes */}
+          <div className="space-y-1.5">
+            <Label htmlFor="sal-jurisdiction">
+              Tax residence <span className="font-normal text-fg-muted">(ISO 3166-2)</span>
+            </Label>
+            <Input
+              id="sal-jurisdiction"
+              placeholder="e.g. IN-MH"
+              className="font-mono uppercase"
+              {...form.register('residenceJurisdiction', {
+                setValueAs: (v: string) => (v ? v.toUpperCase() : ''),
+              })}
+            />
+            <p className="text-xs text-fg-muted">
+              Resolves local taxes (e.g. professional tax) from the statutory pack.
+            </p>
           </div>
 
           {/* Bank details section — fields driven by the country schema */}

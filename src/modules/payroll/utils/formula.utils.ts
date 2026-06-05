@@ -3,6 +3,8 @@ import type { SalaryComponent, CalculatedComponent } from '../types/payroll.type
 import type {
   ContributionScheme,
   GratuityPolicy,
+  LocalTaxSlab,
+  MinimumWage,
   TaxRegime,
   TaxSlab,
 } from '../types/statutory.types';
@@ -140,6 +142,54 @@ export function computeContribution(
     employee: Math.round((base * scheme.employee.rate) / 100),
     employer: Math.round((base * scheme.employer.rate) / 100),
   };
+}
+
+/* ── Sub-national / local flat taxes & multi-jurisdiction (§3.6, §4.6) ──────── */
+
+/**
+ * Resolve a flat local tax (professional tax, LWF, city tax) for a monthly wage
+ * against a configured band table. Bands are `{ from, to, amount }`; the matching
+ * band's flat `amount` is returned (0 if none matches). All values are data.
+ */
+export function evaluateLocalTax(monthlyWage: number, slabs: LocalTaxSlab[]): number {
+  for (const slab of slabs) {
+    const upper = slab.to ?? Infinity;
+    if (monthlyWage >= slab.from && monthlyWage < upper) return slab.amount;
+  }
+  return 0;
+}
+
+/**
+ * The applicable jurisdiction set for an employee: residence first, then each
+ * work-location jurisdiction, de-duplicated. The engine applies every matching
+ * jurisdiction's local taxes — never assuming a single national rule.
+ */
+export function resolveJurisdictions(
+  residenceJurisdiction: string | null | undefined,
+  workLocations: { jurisdiction: string }[] | null | undefined,
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const add = (j: string | null | undefined) => {
+    if (j && !seen.has(j)) {
+      seen.add(j);
+      out.push(j);
+    }
+  };
+  add(residenceJurisdiction);
+  for (const wl of workLocations ?? []) add(wl.jurisdiction);
+  return out;
+}
+
+/**
+ * The highest minimum-wage floor that applies across an employee's jurisdiction
+ * set (the most protective floor). Returns 0 when no configured floor applies.
+ */
+export function minimumWageFloor(jurisdictions: string[], minimumWages: MinimumWage[]): number {
+  const set = new Set(jurisdictions);
+  return minimumWages
+    .filter((m) => set.has(m.jurisdiction))
+    .reduce((max, m) => Math.max(max, m.monthlyFloor), 0);
 }
 
 export function evaluateFormula(formula: string, variables: Record<string, number>): number | null {

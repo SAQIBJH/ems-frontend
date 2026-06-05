@@ -72,6 +72,7 @@ function FormulaPreviewTable({ formula, currentCode, allComponents }: FormulaPre
         description: null,
         statutoryTag: null,
         prorate: true,
+        payInPeriods: null,
         createdAt: '',
         updatedAt: '',
       },
@@ -160,6 +161,7 @@ export function SalaryComponentDrawer({
       displayOrder: 1,
       statutoryTag: null,
       prorate: true,
+      payInPeriods: null,
       description: null,
     },
   });
@@ -185,6 +187,7 @@ export function SalaryComponentDrawer({
         displayOrder: component.displayOrder,
         statutoryTag: component.statutoryTag,
         prorate: component.prorate,
+        payInPeriods: component.payInPeriods,
         description: component.description ?? null,
       });
     } else {
@@ -203,6 +206,7 @@ export function SalaryComponentDrawer({
         displayOrder: maxOrder,
         statutoryTag: null,
         prorate: true,
+        payInPeriods: null,
         description: null,
       });
     }
@@ -460,6 +464,35 @@ export function SalaryComponentDrawer({
                     )}
                   />
                 </div>
+              </div>
+
+              {/* Pay schedule — scheduled components (13th-month, holiday allowance) */}
+              <div className="space-y-1.5">
+                <Label htmlFor="comp-pay-periods">
+                  Pay in months <span className="font-normal text-fg-muted">(optional)</span>
+                </Label>
+                <Controller
+                  control={form.control}
+                  name="payInPeriods"
+                  render={({ field }) => (
+                    <Input
+                      id="comp-pay-periods"
+                      value={(field.value ?? []).join(', ')}
+                      onChange={(e) => {
+                        const months = e.target.value
+                          .split(',')
+                          .map((s) => Number(s.trim()))
+                          .filter((n) => Number.isInteger(n) && n >= 1 && n <= 12);
+                        field.onChange(months.length > 0 ? months : null);
+                      }}
+                      placeholder="e.g. 12 for December only"
+                      className="tabular-nums"
+                    />
+                  )}
+                />
+                <p className="text-xs text-fg-muted">
+                  Calendar months (1–12), comma-separated. Blank = paid every period.
+                </p>
               </div>
 
               {/* Description */}

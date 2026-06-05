@@ -84,8 +84,22 @@ let packs: StatutoryPack[] = [
           { from: 1000000, to: null, amount: 20000 },
         ],
       },
+      {
+        code: 'IN_KA_PT',
+        name: 'Professional Tax (Karnataka)',
+        jurisdiction: 'IN-KA',
+        component: 'PROF_TAX',
+        slabs: [
+          { from: 0, to: 2500000, amount: 0 },
+          { from: 2500000, to: null, amount: 20000 },
+        ],
+      },
     ],
     gratuity: { daysPerYear: 15, monthDivisor: 26, minYears: 5 },
+    minimumWages: [
+      { jurisdiction: 'IN-MH', monthlyFloor: 1500000 },
+      { jurisdiction: 'IN-KA', monthlyFloor: 1400000 },
+    ],
     statutoryComponents: ['PF', 'PF_ER', 'ESI_EE', 'ESI_ER', 'PROF_TAX', 'TDS'],
     createdAt: '2026-03-01T00:00:00.000Z',
     updatedAt: '2026-03-01T00:00:00.000Z',

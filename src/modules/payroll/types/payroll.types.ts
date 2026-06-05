@@ -37,6 +37,11 @@ export interface SalaryComponent {
   statutoryTag: string | null;
   /** Whether this component is reduced by loss-of-pay proration. */
   prorate: boolean;
+  /**
+   * Calendar months (1–12) this component is paid in; `null` = every period.
+   * Models scheduled pay (13th/14th-month, holiday allowance) as config, not code.
+   */
+  payInPeriods: number[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +59,7 @@ export interface SalaryComponentInput {
   displayOrder: number;
   statutoryTag?: string | null;
   prorate?: boolean;
+  payInPeriods?: number[] | null;
   description?: string | null;
 }
 
@@ -138,6 +144,14 @@ export interface EmployeeSalaryPayGroup {
   paySchedule: PaySchedule;
 }
 
+/** A jurisdiction the employee works in, with the share of work allocated to it. */
+export interface WorkLocation {
+  /** ISO 3166-2 jurisdiction. */
+  jurisdiction: string;
+  /** Percentage of work allocated to this jurisdiction (0–100). */
+  allocationPct: number;
+}
+
 export interface EmployeeSalary {
   id: string;
   employeeId: string;
@@ -148,6 +162,10 @@ export interface EmployeeSalary {
   effectiveTo: string | null;
   /** ISO 3166-1 alpha-2 — determines the bank-account field schema. */
   country: string;
+  /** ISO 3166-2 tax-residence jurisdiction (drives local-tax resolution). */
+  residenceJurisdiction: string;
+  /** Work-location jurisdictions; the engine taxes the resolved set (§3.6). */
+  workLocations: WorkLocation[];
   /** Bank account fields keyed per the country's bank schema (§3.4). */
   bankAccount: Record<string, string>;
   calculatedComponents: CalculatedComponent[];
@@ -164,6 +182,8 @@ export interface EmployeeSalaryInput {
   annualCtc: number;
   effectiveFrom: string;
   country: string;
+  residenceJurisdiction?: string;
+  workLocations?: WorkLocation[];
   bankAccount: Record<string, string>;
 }
 
@@ -385,6 +405,10 @@ export interface PayrollInput {
   leaveDays: number;
   /** Overtime hours — priced at the OT component's configurable multiplier. */
   otHours: number;
+  /** Night/shift-differential hours — priced at the SHIFT component's multiplier. */
+  shiftHours: number;
+  /** On-call / standby hours — priced at the ONCALL component's multiplier. */
+  onCallHours: number;
   /** Variable-component amounts by component code (incentive, commission, bonus). */
   variablePay: Record<string, number>;
   /** Ad-hoc additions/deductions for this period only. */

@@ -24,12 +24,17 @@ import type {
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
 import type { TaxRegime } from '@/modules/payroll/types/statutory.types';
+import type { WorkLocation } from '@/modules/payroll/types/payroll.types';
+import { formatMoney, fromMinor, toMinor } from '@/modules/payroll/utils/money.utils';
 import {
   computeComponentBreakdown,
   computeContribution,
   computeGratuity,
+  evaluateLocalTax,
+  minimumWageFloor,
   projectPeriodTax,
   registerSlabTables,
+  resolveJurisdictions,
 } from '@/modules/payroll/utils/formula.utils';
 import { prorationFactor } from '@/modules/payroll/utils/proration.utils';
 import { getComponentById, getComponentByCode } from '../handlers/payroll-components';
@@ -45,6 +50,9 @@ const STD_WORKING_DAYS = 22;
 // Standard paid hours per working day — used to derive an hourly rate for overtime.
 // A sensible operational default; moves to the pay calendar in a later step.
 const STD_HOURS_PER_DAY = 8;
+// Component codes priced from input hours (× hourly rate × multiplier), never as
+// flat variable-pay amounts — guards against double-pricing.
+const HOURS_PRICED = new Set(['OT', 'SHIFT', 'ONCALL']);
 
 interface RosterEmployee {
   employeeId: string;
@@ -57,22 +65,40 @@ interface RosterEmployee {
   annualCtc: number;
   country: string;
   lopDays: number;
+  /** ISO 3166-2 tax-residence jurisdiction. */
+  residenceJurisdiction: string;
+  /** Work-location jurisdictions (the engine taxes the resolved set). */
+  workLocations: WorkLocation[];
 }
 
 // A fixed payroll roster. Variation in CTC flows through the SPECIAL_ALLOW formula
-// (CTC − BASIC − HRA − …), so each employee gets a genuinely different payslip.
-const ROSTER: RosterEmployee[] = [
-  ['emp-001', 'E0001', 'Aman', 'Kumar', 'Engineering', 'Senior Engineer', 2400000, 0],
-  ['emp-004', 'E0004', 'Priya', 'Sharma', 'Engineering', 'Software Engineer', 1200000, 1],
-  ['emp-005', 'E0005', 'Rohan', 'Mehta', 'Sales', 'Account Executive', 1080000, 0],
-  ['emp-006', 'E0006', 'Nisha', 'Iyer', 'Product', 'Product Manager', 1800000, 0],
-  ['emp-007', 'E0007', 'Vikram', 'Singh', 'Engineering', 'Staff Engineer', 3000000, 0],
-  ['emp-008', 'E0008', 'Asha', 'Joshi', 'Finance', 'Financial Analyst', 1320000, 0],
-  ['emp-009', 'E0009', 'Sneha', 'Rao', 'Operations', 'Ops Lead', 1560000, 2],
-  ['emp-010', 'E0010', 'Karan', 'Patel', 'Sales', 'Sales Manager', 1680000, 0],
-  ['emp-011', 'E0011', 'Meera', 'Nair', 'Product', 'Designer', 1140000, 0],
-  ['emp-012', 'E0012', 'Arjun', 'Reddy', 'Engineering', 'Software Engineer', 1260000, 0],
-].map(
+// (CTC − BASIC − HRA − …), so each employee gets a genuinely different payslip. The
+// jurisdiction column drives multi-jurisdiction local-tax resolution (Step 106):
+// Karnataka employees get KA professional tax, Maharashtra employees get MH.
+const ROSTER: RosterEmployee[] = (
+  [
+    ['emp-001', 'E0001', 'Aman', 'Kumar', 'Engineering', 'Senior Engineer', 2400000, 0, 'IN-MH'],
+    [
+      'emp-004',
+      'E0004',
+      'Priya',
+      'Sharma',
+      'Engineering',
+      'Software Engineer',
+      1200000,
+      1,
+      'IN-MH',
+    ],
+    ['emp-005', 'E0005', 'Rohan', 'Mehta', 'Sales', 'Account Executive', 1080000, 0, 'IN-KA'],
+    ['emp-006', 'E0006', 'Nisha', 'Iyer', 'Product', 'Product Manager', 1800000, 0, 'IN-MH'],
+    ['emp-007', 'E0007', 'Vikram', 'Singh', 'Engineering', 'Staff Engineer', 3000000, 0, 'IN-KA'],
+    ['emp-008', 'E0008', 'Asha', 'Joshi', 'Finance', 'Financial Analyst', 1320000, 0, 'IN-MH'],
+    ['emp-009', 'E0009', 'Sneha', 'Rao', 'Operations', 'Ops Lead', 1560000, 2, 'IN-KA'],
+    ['emp-010', 'E0010', 'Karan', 'Patel', 'Sales', 'Sales Manager', 1680000, 0, 'IN-MH'],
+    ['emp-011', 'E0011', 'Meera', 'Nair', 'Product', 'Designer', 1140000, 0, 'IN-MH'],
+    ['emp-012', 'E0012', 'Arjun', 'Reddy', 'Engineering', 'Software Engineer', 1260000, 0, 'IN-KA'],
+  ] as const
+).map(
   ([
     employeeId,
     employeeCode,
@@ -82,17 +108,20 @@ const ROSTER: RosterEmployee[] = [
     designation,
     annualCtc,
     lopDays,
+    jurisdiction,
   ]) => ({
-    employeeId: employeeId as string,
-    employeeCode: employeeCode as string,
-    firstName: firstName as string,
-    lastName: lastName as string,
-    departmentName: departmentName as string,
-    designation: designation as string,
+    employeeId,
+    employeeCode,
+    firstName,
+    lastName,
+    departmentName,
+    designation,
     payGroupId: 'pg-001',
-    annualCtc: annualCtc as number,
+    annualCtc,
     country: 'IN',
-    lopDays: lopDays as number,
+    lopDays,
+    residenceJurisdiction: jurisdiction,
+    workLocations: [{ jurisdiction, allocationPct: 100 }],
   }),
 );
 
@@ -108,6 +137,8 @@ const UNCONFIGURED: RosterEmployee = {
   annualCtc: 0,
   country: 'IN',
   lopDays: 0,
+  residenceJurisdiction: 'IN-MH',
+  workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
 };
 
 const FULL_ROSTER = [...ROSTER, UNCONFIGURED];
@@ -242,6 +273,8 @@ interface EmployeeMonth {
   taxDeducted: number;
   /** Statutory contribution amounts by component code (employee + employer). */
   contributions: Record<string, number>;
+  /** Highest applicable jurisdiction minimum monthly wage floor (0 = none). */
+  minWageFloor: number;
   workingDays: number;
   presentDays: number;
   lopDays: number;
@@ -269,6 +302,9 @@ function computeEmployeeMonth(
 
   for (const line of breakdown) {
     const comp = compByCode.get(line.code);
+    // Scheduled components (13th/14th-month, holiday allowance) are emitted only in
+    // their configured calendar months; outside those months they pay nothing.
+    if (comp?.payInPeriods && !comp.payInPeriods.includes(month)) continue;
     // VARIABLE components are input-driven: take their amount from the run input.
     let raw: number;
     if (line.type === 'VARIABLE') raw = input?.variablePay?.[line.code] ?? 0;
@@ -282,27 +318,33 @@ function computeEmployeeMonth(
     else employerContributions.push(pl); // EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT
   }
 
-  // Overtime: hours × hourly rate × the OT component's configurable multiplier.
-  const otHours = input?.otHours ?? 0;
-  if (otHours > 0) {
-    const otComp = getComponentByCode('OT');
-    const basicMonthly = breakdown.find((l) => l.code === 'BASIC')?.monthlyAmount ?? 0;
-    const hourlyRate = basicMonthly / (STD_WORKING_DAYS * STD_HOURS_PER_DAY);
-    const multiplier = (otComp?.value ?? 100) / 100;
-    const otPay = Math.round(otHours * hourlyRate * multiplier);
-    if (otPay > 0)
+  // Hours-based premiums: overtime, shift differential, and on-call/standby are each
+  // priced as hours × hourly rate × the component's configurable multiplier. No
+  // premium rate lives in code — the multiplier is the component's `value` (percent).
+  const basicMonthly = breakdown.find((l) => l.code === 'BASIC')?.monthlyAmount ?? 0;
+  const hourlyRate = basicMonthly / (STD_WORKING_DAYS * STD_HOURS_PER_DAY);
+  function pricePremium(code: string, hours: number, fallbackName: string): void {
+    if (hours <= 0) return;
+    const comp = getComponentByCode(code);
+    const multiplier = (comp?.value ?? 100) / 100;
+    const pay = Math.round(hours * hourlyRate * multiplier);
+    if (pay > 0)
       earnings.push({
-        code: 'OT',
-        name: otComp?.name ?? 'Overtime',
-        amount: otPay,
-        taxable: otComp?.taxable ?? true,
+        code,
+        name: comp?.name ?? fallbackName,
+        amount: pay,
+        taxable: comp?.taxable ?? true,
       });
   }
+  pricePremium('OT', input?.otHours ?? 0, 'Overtime');
+  pricePremium('SHIFT', input?.shiftHours ?? 0, 'Shift Differential');
+  pricePremium('ONCALL', input?.onCallHours ?? 0, 'On-call Allowance');
 
   // Structured variable pay (incentive/commission/bonus) entered as run inputs —
   // applied even when the component is not part of the employee's pay group.
   for (const [code, value] of Object.entries(input?.variablePay ?? {})) {
-    if (code === 'OT' || value <= 0 || earnings.some((e) => e.code === code)) continue;
+    // OT/SHIFT/ONCALL are hours-priced above — never also pay them as flat variable pay.
+    if (HOURS_PRICED.has(code) || value <= 0 || earnings.some((e) => e.code === code)) continue;
     const comp = getComponentByCode(code);
     earnings.push({
       code,
@@ -313,6 +355,9 @@ function computeEmployeeMonth(
   }
 
   const pack = resolveActivePack(emp.country, period);
+  // Multi-jurisdiction: the engine taxes the resolved set (residence + work locations).
+  const jurisdictions = resolveJurisdictions(emp.residenceJurisdiction, emp.workLocations);
+  const minWageFloor = pack?.minimumWages ? minimumWageFloor(jurisdictions, pack.minimumWages) : 0;
   const contributions: Record<string, number> = {};
 
   // Statutory contributions: wage base from earnings tagged with each scheme's
@@ -341,6 +386,24 @@ function computeEmployeeMonth(
     }
   }
 
+  // Sub-national local taxes (professional tax, LWF, city tax) for the employee's
+  // resolved jurisdiction set — driven entirely by the pack, replacing the old
+  // hardcoded PROF_TAX formula. The flat band amount posts to the tax's component.
+  if (pack) {
+    const jset = new Set(jurisdictions);
+    // Pack slabs/amounts are minor units; engine payslip lines are major. Convert the
+    // wage base to minor for the band lookup, then the flat amount back to major.
+    const grossMinor = toMinor(
+      earnings.reduce((s, e) => s + e.amount, 0),
+      CURRENCY,
+    );
+    for (const lt of pack.localTaxes) {
+      if (!jset.has(lt.jurisdiction)) continue;
+      const amount = fromMinor(evaluateLocalTax(grossMinor, lt.slabs), CURRENCY);
+      upsertLine(deductions, lt.component, compByCode.get(lt.component)?.name ?? lt.name, amount);
+    }
+  }
+
   // Income tax (TDS): progressive regime tax with YTD true-up. The employee's tax
   // declaration (if any) chooses the regime and reduces taxable income by VERIFIED
   // exemptions the regime allows — all data-driven, no per-code logic.
@@ -353,9 +416,18 @@ function computeEmployeeMonth(
   let taxDeducted = 0;
   if (regime) {
     registerSlabTables({ [regime.code]: regime.slabs });
-    const structuralTaxable = breakdown
-      .filter((l) => (l.type === 'EARNING' || l.type === 'VARIABLE') && l.taxable)
-      .reduce((s, l) => s + l.monthlyAmount, 0);
+    // Annual taxable base: taxable earnings + taxable benefits-in-kind (perquisites,
+    // which add to taxable income but never to net pay). Scheduled components count
+    // only the periods they are actually paid in (e.g. 13th-month → ×1), regular
+    // components ×12 — so the projection matches what the employee really earns.
+    const annualStructural = breakdown
+      .filter(
+        (l) => (l.type === 'EARNING' || l.type === 'VARIABLE' || l.type === 'BENEFIT') && l.taxable,
+      )
+      .reduce((s, l) => {
+        const periods = compByCode.get(l.code)?.payInPeriods?.length ?? 12;
+        return s + l.monthlyAmount * periods;
+      }, 0);
     const allowed = new Set(regime.allowedExemptions ?? []);
     const exemptions = (declaration?.items ?? [])
       .filter(
@@ -363,7 +435,7 @@ function computeEmployeeMonth(
           it.proofStatus === 'VERIFIED' && it.code !== 'STD_DEDUCTION' && allowed.has(it.code),
       )
       .reduce((s, it) => s + it.amount, 0);
-    const annualTaxable = Math.max(0, structuralTaxable * 12 - exemptions);
+    const annualTaxable = Math.max(0, annualStructural - exemptions);
     taxDeducted = withholdingForMonth(annualTaxable, regime, monthIndex, totalMonths);
     const tdsLine = deductions.find((d) => d.code === 'TDS');
     if (tdsLine) tdsLine.amount = taxDeducted;
@@ -421,6 +493,7 @@ function computeEmployeeMonth(
     taxableEarnings,
     taxDeducted,
     contributions,
+    minWageFloor,
     workingDays: STD_WORKING_DAYS,
     presentDays: STD_WORKING_DAYS - lopDays,
     lopDays,
@@ -438,6 +511,8 @@ export function getRosterInputSeed(): PayrollInput[] {
     lopDays: emp.lopDays, // attendance-derived LOP for the demo roster
     leaveDays: 0,
     otHours: 0,
+    shiftHours: 0,
+    onCallHours: 0,
     variablePay: {},
     oneTime: [],
   }));
@@ -622,6 +697,21 @@ export function computeRun(
         message: 'No salary config assigned — employee skipped',
       });
       continue;
+    }
+
+    // Minimum-wage compliance: a post-compute check that flags (never silently
+    // raises) gross pay below the employee's jurisdiction floor. The floor is in
+    // minor units (pack), gross is major — compare in minor units.
+    const grossMinor = toMinor(month.grossEarnings, CURRENCY);
+    if (month.minWageFloor > 0 && grossMinor < month.minWageFloor) {
+      warnings.push({
+        employeeId: emp.employeeId,
+        employeeName: `${emp.firstName} ${emp.lastName}`,
+        message: `Gross ${formatMoney(grossMinor, CURRENCY)} is below the ${formatMoney(
+          month.minWageFloor,
+          CURRENCY,
+        )} minimum wage`,
+      });
     }
 
     const slipId = `slip-${runId}-${emp.employeeId}`;

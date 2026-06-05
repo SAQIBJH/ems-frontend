@@ -89,6 +89,26 @@ let groups: PayGroup[] = [
         overrideValue: null,
         overrideFormula: null,
       },
+      {
+        // Benefit-in-kind: a taxable non-cash perquisite (employer cost only).
+        componentId: 'comp-016',
+        componentCode: 'CAR_PERK',
+        componentName: 'Company Car Perquisite',
+        componentType: 'BENEFIT',
+        overrideCalculationType: null,
+        overrideValue: null,
+        overrideFormula: null,
+      },
+      {
+        // Scheduled earning: 13th-month pay, emitted only in December (payInPeriods).
+        componentId: 'comp-017',
+        componentCode: 'THIRTEENTH',
+        componentName: '13th Month Pay',
+        componentType: 'EARNING',
+        overrideCalculationType: null,
+        overrideValue: null,
+        overrideFormula: null,
+      },
     ],
     createdAt: '2024-01-15T10:00:00.000Z',
     updatedAt: '2024-01-15T10:00:00.000Z',

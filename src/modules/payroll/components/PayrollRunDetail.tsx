@@ -511,7 +511,7 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
             >
               <div className="flex items-center gap-2 text-sm font-medium text-warning">
                 <AlertTriangleIcon className="size-4 shrink-0" aria-hidden />
-                {warnings.length} employee{warnings.length !== 1 ? 's' : ''} skipped
+                {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
               </div>
               {warningsOpen ? (
                 <ChevronDownIcon className="size-4 shrink-0 text-fg-muted" aria-hidden />
@@ -521,8 +521,8 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
             </button>
             {warningsOpen && (
               <ul className="mt-3 space-y-1.5 border-t border-warning/20 pt-3">
-                {warnings.map((w) => (
-                  <li key={w.employeeId} className="flex items-center gap-2 text-sm">
+                {warnings.map((w, i) => (
+                  <li key={`${w.employeeId}-${i}`} className="flex items-center gap-2 text-sm">
                     <span className="font-medium text-fg">{w.employeeName}</span>
                     <span className="text-fg-muted">·</span>
                     <span className="text-fg-muted">{w.message}</span>

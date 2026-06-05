@@ -22,6 +22,8 @@ const SALARY_RECORDS: Record<string, EmployeeSalary> = {
     effectiveFrom: '2024-01-01',
     effectiveTo: null,
     country: 'IN',
+    residenceJurisdiction: 'IN-MH',
+    workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
     bankAccount: {
       accountName: 'Aman Kumar',
       accountNumber: 'XXXX5678',
@@ -103,6 +105,8 @@ const SALARY_RECORDS: Record<string, EmployeeSalary> = {
     effectiveFrom: '2024-01-01',
     effectiveTo: null,
     country: 'IN',
+    residenceJurisdiction: 'IN-MH',
+    workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
     bankAccount: {
       accountName: 'Priya Sharma',
       accountNumber: 'XXXX1234',
@@ -272,6 +276,10 @@ export const payrollEmployeeHandlers = [
       effectiveFrom: (body as Record<string, string>).effectiveFrom ?? now.slice(0, 10),
       effectiveTo: null,
       country: (body as Record<string, string>).country ?? 'IN',
+      residenceJurisdiction:
+        (body as { residenceJurisdiction?: string }).residenceJurisdiction ?? 'IN-MH',
+      workLocations: (body as { workLocations?: EmployeeSalary['workLocations'] })
+        .workLocations ?? [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
       bankAccount: (body as { bankAccount?: Record<string, string> }).bankAccount ?? {},
       calculatedComponents: existing?.calculatedComponents ?? [],
       monthlyGross: existing?.monthlyGross ?? 100000,
@@ -316,6 +324,8 @@ export const payrollEmployeeHandlers = [
         effectiveFrom: now.slice(0, 10),
         effectiveTo: null,
         country: 'IN',
+        residenceJurisdiction: 'IN-MH',
+        workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
         bankAccount: {},
         calculatedComponents: [],
         monthlyGross: 0,

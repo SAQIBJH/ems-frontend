@@ -35,6 +35,8 @@ function parseInputsCsv(
   const codeIdx = header.indexOf('employeecode');
   const lopIdx = header.indexOf('lopdays');
   const otIdx = header.indexOf('othours');
+  const shiftIdx = header.indexOf('shifthours');
+  const onCallIdx = header.indexOf('oncallhours');
   const leaveIdx = header.indexOf('leavedays');
   if (codeIdx === -1) return { updated: 0, skipped: 0, errors: ['Missing employeeCode column'] };
 
@@ -51,6 +53,9 @@ function parseInputsCsv(
     }
     if (lopIdx !== -1 && cols[lopIdx] !== '') target.lopDays = Number(cols[lopIdx]) || 0;
     if (otIdx !== -1 && cols[otIdx] !== '') target.otHours = Number(cols[otIdx]) || 0;
+    if (shiftIdx !== -1 && cols[shiftIdx] !== '') target.shiftHours = Number(cols[shiftIdx]) || 0;
+    if (onCallIdx !== -1 && cols[onCallIdx] !== '')
+      target.onCallHours = Number(cols[onCallIdx]) || 0;
     if (leaveIdx !== -1 && cols[leaveIdx] !== '') target.leaveDays = Number(cols[leaveIdx]) || 0;
     updated++;
   }

@@ -1297,6 +1297,52 @@ currency, earnings[], deductions[], grossPayable, totalRecovery, netSettlement }
 > Arrears auto-detection from back-dated comp revisions is recorded via the `ARREARS` type;
 > full arrears computation lands with the broader run-recompute work (Step 108).
 
+#### Country pay practices & multi-jurisdiction tax (Step 106)
+
+All of the following are **configuration**, switched on per tenant — never a
+`country ===` branch. They reuse the existing engine primitives (scheduled
+components, input-driven components, post-compute checks, pack-resolved local taxes).
+
+**Component scheduling (`payInPeriods`, §F.2).** A component may set
+`payInPeriods: number[] | null` (calendar months 1–12; `null` = every period). The
+engine **emits the component only in the listed months** — this models 13th/14th-month
+pay and holiday allowance as ordinary scheduled components (e.g. a `FORMULA` earning
+`BASIC` with `payInPeriods: [12]`). Outside those months the component contributes 0.
+
+**Input-driven premiums (§F.5 run inputs extended).** `PayrollInput` gains
+`shiftHours` and `onCallHours` (alongside `otHours`). Each is priced exactly like
+overtime — `hours × hourlyRate × (component.value / 100)` — using the tenant's `SHIFT`
+and `ONCALL` components' configurable multipliers (e.g. `SHIFT.value = 130` → 1.3×
+hourly night-shift differential; `ONCALL.value = 50` → 0.5× standby). No premium rate
+lives in code.
+
+- CSV import (`POST /payroll/runs/:runId/inputs/import`) additionally recognises
+  `shiftHours` and `onCallHours` columns.
+
+**Benefits-in-kind / perquisites.** A non-cash `BENEFIT` component with `taxable: true`
+contributes its value to **taxable income** (raising income-tax withholding) but **never**
+to gross or net pay — it remains an employer cost. The engine's taxable base therefore
+includes taxable `BENEFIT` components in addition to taxable `EARNING`/`VARIABLE`.
+
+**Minimum-wage compliance check.** The pack gains
+`minimumWages: { jurisdiction, monthlyFloor }[]` (minor units). After computing each
+employee, if monthly gross falls below the highest applicable jurisdiction floor, the
+run emits a `PayrollRunWarning` (`message: "Gross … is below the … minimum wage …"`). It
+flags, never silently raises.
+
+**Multi-jurisdiction tax (`EmployeeSalary`, §F.4).** `EmployeeSalary` carries
+`residenceJurisdiction` (ISO 3166-2) and `workLocations: { jurisdiction, allocationPct }[]`.
+The engine resolves the **applicable jurisdiction set** (residence + work locations,
+deduped) and applies **each** matching `pack.localTaxes` entry (e.g. professional tax /
+LWF), posting the flat band amount to the tax's `component`. This replaces the old
+hardcoded `PROF_TAX` formula: the same `PROF_TAX` line is now driven by the pack and the
+employee's jurisdiction, so an employee in `IN-KA` and one in `IN-MH` get their state's
+amount from config alone.
+
+> No new routes. These are field additions on existing endpoints
+> (`/payroll/components`, `/payroll/statutory-packs`, `/payroll/employees/:id/salary`,
+> `/payroll/runs/:runId/inputs`) plus engine behaviour. Field casing camelCase.
+
 #### Approvals, variance, dry-run (Step 108)
 
 - `POST /payroll/runs/:id/approvals/:level` — multi-level; enforces maker ≠ checker (`403 SELF_APPROVAL`).

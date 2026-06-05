@@ -101,6 +101,14 @@ export interface GratuityPolicy {
   minYears: number;
 }
 
+/** Statutory minimum monthly wage floor, scoped to a jurisdiction (§4.6). */
+export interface MinimumWage {
+  /** ISO 3166-2 jurisdiction this floor applies in. */
+  jurisdiction: string;
+  /** Minimum monthly gross wage, minor units. */
+  monthlyFloor: number;
+}
+
 export interface StatutoryPack {
   id: string;
   /** ISO 3166-1 alpha-2. */
@@ -118,6 +126,8 @@ export interface StatutoryPack {
   localTaxes: LocalTax[];
   /** Gratuity accrual policy (used in full & final settlement). */
   gratuity?: GratuityPolicy | null;
+  /** Per-jurisdiction minimum monthly wage floors (post-compute compliance check). */
+  minimumWages?: MinimumWage[];
   /** Component codes this pack expects to exist for statutory postings. */
   statutoryComponents: string[];
   createdAt: string;
@@ -134,6 +144,7 @@ export interface StatutoryPackInput {
   taxRegimes: TaxRegime[];
   contributionSchemes: ContributionScheme[];
   localTaxes: LocalTax[];
+  minimumWages?: MinimumWage[];
   statutoryComponents: string[];
 }
 

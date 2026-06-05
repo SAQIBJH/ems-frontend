@@ -10,9 +10,18 @@ import {
   computeContribution,
   computeGratuity,
   registerSlabTables,
+  evaluateLocalTax,
+  resolveJurisdictions,
+  minimumWageFloor,
 } from './formula.utils';
 import type { SalaryComponent } from '../types/payroll.types';
-import type { ContributionScheme, TaxRegime, TaxSlab } from '../types/statutory.types';
+import type {
+  ContributionScheme,
+  LocalTaxSlab,
+  MinimumWage,
+  TaxRegime,
+  TaxSlab,
+} from '../types/statutory.types';
 
 /** Build a SalaryComponent with sensible defaults for the new required fields. */
 function comp(
@@ -30,6 +39,7 @@ function comp(
     description: null,
     statutoryTag: null,
     prorate: true,
+    payInPeriods: null,
     createdAt: '',
     updatedAt: '',
     ...partial,
@@ -294,6 +304,58 @@ describe('computeGratuity', () => {
 
   it('returns 0 below the eligibility floor', () => {
     expect(computeGratuity(52000, 4, policy)).toBe(0);
+  });
+});
+
+/* ── Local taxes & multi-jurisdiction (Step 106) ──────────────────────────── */
+
+describe('evaluateLocalTax', () => {
+  // Professional-tax-shaped flat bands (minor units): ₹0 below ₹7,500, ₹200 above.
+  const mhSlabs: LocalTaxSlab[] = [
+    { from: 0, to: 750000, amount: 0 },
+    { from: 750000, to: 1000000, amount: 17500 },
+    { from: 1000000, to: null, amount: 20000 },
+  ];
+
+  it('returns the flat amount of the matching band', () => {
+    expect(evaluateLocalTax(500000, mhSlabs)).toBe(0);
+    expect(evaluateLocalTax(900000, mhSlabs)).toBe(17500);
+    expect(evaluateLocalTax(5000000, mhSlabs)).toBe(20000); // top, uncapped band
+  });
+
+  it('returns 0 when no band matches', () => {
+    expect(evaluateLocalTax(100, [{ from: 1000, to: 2000, amount: 50 }])).toBe(0);
+  });
+});
+
+describe('resolveJurisdictions', () => {
+  it('puts residence first, then work locations, de-duplicated', () => {
+    expect(
+      resolveJurisdictions('IN-MH', [{ jurisdiction: 'IN-KA' }, { jurisdiction: 'IN-MH' }]),
+    ).toEqual(['IN-MH', 'IN-KA']);
+  });
+
+  it('handles a missing residence and empty work locations', () => {
+    expect(resolveJurisdictions(null, [{ jurisdiction: 'IN-KA' }])).toEqual(['IN-KA']);
+    expect(resolveJurisdictions('IN-MH', null)).toEqual(['IN-MH']);
+    expect(resolveJurisdictions(undefined, [])).toEqual([]);
+  });
+});
+
+describe('minimumWageFloor', () => {
+  const floors: MinimumWage[] = [
+    { jurisdiction: 'IN-MH', monthlyFloor: 1500000 },
+    { jurisdiction: 'IN-KA', monthlyFloor: 1400000 },
+  ];
+
+  it('returns the highest (most protective) applicable floor', () => {
+    expect(minimumWageFloor(['IN-MH', 'IN-KA'], floors)).toBe(1500000);
+    expect(minimumWageFloor(['IN-KA'], floors)).toBe(1400000);
+  });
+
+  it('returns 0 when no jurisdiction has a configured floor', () => {
+    expect(minimumWageFloor(['US-CA'], floors)).toBe(0);
+    expect(minimumWageFloor([], floors)).toBe(0);
   });
 });
 

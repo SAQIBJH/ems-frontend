@@ -263,6 +263,9 @@ export function CompensationTab({ employeeId }: { employeeId: string }) {
         </table>
       </div>
 
+      {/* Tax jurisdiction — residence + work locations drive multi-jurisdiction tax */}
+      <JurisdictionCard salary={salary} />
+
       {/* Bank details — labels resolved from the country bank schema */}
       <BankDetailsCard salary={salary} />
 
@@ -327,6 +330,47 @@ function BankRow({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-fg-muted">{label}</p>
       <p className="font-medium text-fg">{value || '—'}</p>
+    </div>
+  );
+}
+
+function JurisdictionCard({ salary }: { salary: EmployeeSalary }) {
+  const workLocations = salary.workLocations ?? [];
+  if (!salary.residenceJurisdiction && workLocations.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface p-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted mb-3">
+        Tax Jurisdiction
+      </p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div>
+          <p className="text-xs text-fg-muted">Residence</p>
+          <p className="font-mono font-medium text-fg">{salary.residenceJurisdiction || '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-fg-muted">Work locations</p>
+          {workLocations.length === 0 ? (
+            <p className="font-medium text-fg">—</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {workLocations.map((wl) => (
+                <span
+                  key={wl.jurisdiction}
+                  className="inline-flex items-center gap-1 rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg"
+                >
+                  {wl.jurisdiction}
+                  <span className="text-fg-muted">{wl.allocationPct}%</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-fg-muted">
+        Local taxes (e.g. professional tax) are resolved from these jurisdictions and the active
+        statutory pack.
+      </p>
     </div>
   );
 }

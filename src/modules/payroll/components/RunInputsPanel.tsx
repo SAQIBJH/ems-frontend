@@ -67,7 +67,7 @@ function ImportDialog({
   onOpenChange: (v: boolean) => void;
   runId: string;
 }) {
-  const [csv, setCsv] = useState('employeeCode,lopDays,otHours,leaveDays\n');
+  const [csv, setCsv] = useState('employeeCode,lopDays,otHours,shiftHours,onCallHours,leaveDays\n');
   const importInputs = useImportRunInputs();
 
   async function handleImport() {
@@ -88,7 +88,7 @@ function ImportDialog({
           <DialogTitle>Import period inputs</DialogTitle>
           <DialogDescription>
             Paste CSV with a header row. Recognised columns: employeeCode, lopDays, otHours,
-            leaveDays.
+            shiftHours, onCallHours, leaveDays.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5 py-1">
@@ -205,11 +205,18 @@ export function RunInputsPanel({ runId }: { runId: string }) {
 
   const inputs = data?.inputs ?? [];
   const editable = data?.editable ?? false;
+  // Hours-priced premiums (OT/shift/on-call) are entered as hours, not flat amounts —
+  // exclude them from the flat variable-pay editor to avoid double-pricing.
+  const HOURS_PRICED = new Set(['OT', 'SHIFT', 'ONCALL']);
   const variableComponents = allComponents
-    .filter((c) => c.type === 'VARIABLE' && c.active && c.code !== 'OT')
+    .filter((c) => c.type === 'VARIABLE' && c.active && !HOURS_PRICED.has(c.code))
     .map((c) => ({ code: c.code, name: c.name }));
 
-  function commit(input: PayrollInput, field: 'lopDays' | 'leaveDays' | 'otHours', next: number) {
+  function commit(
+    input: PayrollInput,
+    field: 'lopDays' | 'leaveDays' | 'otHours' | 'shiftHours' | 'onCallHours',
+    next: number,
+  ) {
     update.mutate(
       { runId, employeeId: input.employeeId, body: { [field]: next } },
       { onError: () => toast.error('Failed to save input') },
@@ -227,7 +234,7 @@ export function RunInputsPanel({ runId }: { runId: string }) {
           <h2 className="text-sm font-medium text-fg">Period Inputs</h2>
           <p className="text-xs text-fg-muted">
             {editable
-              ? 'LOP from attendance, leave, and overtime hours feed the calculation.'
+              ? 'LOP, leave, overtime, shift, and on-call hours feed the calculation.'
               : 'Inputs are locked once calculation has started.'}
           </p>
         </div>
@@ -263,6 +270,8 @@ export function RunInputsPanel({ runId }: { runId: string }) {
                 <th className="px-3 py-2 font-medium">LOP days</th>
                 <th className="px-3 py-2 font-medium">Leave days</th>
                 <th className="px-3 py-2 font-medium">OT hours</th>
+                <th className="px-3 py-2 font-medium">Shift hours</th>
+                <th className="px-3 py-2 font-medium">On-call hours</th>
                 <th className="px-3 py-2 font-medium">Variable pay</th>
               </tr>
             </thead>
@@ -295,6 +304,22 @@ export function RunInputsPanel({ runId }: { runId: string }) {
                       value={input.otHours}
                       disabled={!editable}
                       onCommit={(n) => commit(input, 'otHours', n)}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <NumberCell
+                      key={`shift-${input.shiftHours}`}
+                      value={input.shiftHours}
+                      disabled={!editable}
+                      onCommit={(n) => commit(input, 'shiftHours', n)}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <NumberCell
+                      key={`oncall-${input.onCallHours}`}
+                      value={input.onCallHours}
+                      disabled={!editable}
+                      onCommit={(n) => commit(input, 'onCallHours', n)}
                     />
                   </td>
                   <td className="px-3 py-2">
