@@ -4914,7 +4914,7 @@ All three must be clean.
 
 - [x] Step 97 — Versioned StatutoryPack + run config pinning
 - [x] Step 98 — Tax regimes + `SLAB()` formula function
-- [ ] Step 99 — Contribution schemes (employee/employer split, wage base, ceilings)
+- [x] Step 99 — Contribution schemes (employee/employer split, wage base, ceilings)
 - [ ] Step 100 — YTD ledger + payslip YTD block + tax true-up
 - [ ] Step 101 — Wire real inputs (attendance LOP / leave / overtime)
 
