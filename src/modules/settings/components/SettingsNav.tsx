@@ -101,6 +101,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Pay & Compliance',
     items: [
       {
+        label: 'Legal Entities',
+        slug: 'pay/legal-entities',
+        icon: BuildingIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+      },
+      {
         label: 'Salary Components',
         slug: 'pay/components',
         icon: CircleDollarSignIcon,

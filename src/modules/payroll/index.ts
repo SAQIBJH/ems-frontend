@@ -35,7 +35,22 @@ export type {
   PayslipRunPage,
 } from './types/payroll.types';
 
+// Localization types
+export type { Country, LegalEntity, LegalEntityInput } from './types/localization.types';
+
+// Money utils
+export {
+  currencyDecimals,
+  localeForCurrency,
+  toMinor,
+  fromMinor,
+  formatMajor,
+  formatMoney,
+} from './utils/money.utils';
+export type { FormatMoneyOptions } from './utils/money.utils';
+
 // Services
+export { localizationApi } from './services/localization.api';
 export { payrollComponentsApi } from './services/payroll-components.api';
 export { payGroupsApi } from './services/pay-groups.api';
 export { employeeSalaryApi } from './services/employee-salary.api';
@@ -72,6 +87,12 @@ export {
   useEmployeePayslip,
   useAssignSalary,
 } from './hooks/useEmployeeSalary';
+export {
+  useCountries,
+  useLegalEntities,
+  useCreateLegalEntity,
+  useUpdateLegalEntity,
+} from './hooks/useLocalization';
 
 // Utils
 export {
@@ -100,6 +121,8 @@ export { SalaryComponentDrawer } from './components/SalaryComponentDrawer';
 export { PayGroupsPanel } from './components/PayGroupsPanel';
 export { PayGroupDrawer } from './components/PayGroupDrawer';
 export { PaySchedulesPanel } from './components/PaySchedulesPanel';
+export { LegalEntitiesPanel } from './components/LegalEntitiesPanel';
+export { LegalEntityDrawer } from './components/LegalEntityDrawer';
 export { PayrollScreen } from './components/PayrollScreen';
 export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';

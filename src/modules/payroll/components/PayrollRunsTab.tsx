@@ -21,17 +21,20 @@ import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { PermissionWrapper } from '@/shared/guards';
 import { cn } from '@/lib/utils';
 
-import { usePayrollRuns, useApprovePayrollRun, RUN_STATUS_CONFIG } from '@/modules/payroll';
+import {
+  usePayrollRuns,
+  useApprovePayrollRun,
+  RUN_STATUS_CONFIG,
+  formatMajor,
+} from '@/modules/payroll';
 import type { PayrollRun, PayrollRunStatus } from '@/modules/payroll';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
+// Run totals are still stored as major-unit numbers; format with no fraction
+// digits (whole-currency display). Money migrates to minor units in Step 96.
 function fmtInr(amount: number, currency = 'INR'): string {
-  return amount.toLocaleString('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
+  return formatMajor(amount, currency, { fractionDigits: 0 });
 }
 
 function fmtDate(iso: string | null | undefined): string {
