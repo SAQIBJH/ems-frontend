@@ -1066,3 +1066,92 @@ docs/ems-design-system/project/ui_kits/ems-app/
 4. Commit with the exact conventional-format message in the step.
 5. Mark the step `[x]` in the BUILD_PLAN.md Phase 3 tracker.
 6. **STOP.** Write "Step N complete. Waiting for you to say next." — then wait.
+
+---
+
+## 26. Payroll Global Implementation (Steps 93–117)
+
+> Read this section before working on any Payroll Global step. It is the standing
+> context for the whole phase. `BUILD_PLAN.md` "PHASE: Payroll Global Implementation"
+> carries the step-by-step runbook. The authoritative design is
+> `docs/payroll/PAYROLL_SYSTEM_DESIGN.md`; the current-vs-target analysis is
+> `docs/payroll/PAYROLL_GAP_ANALYSIS.md`.
+
+### What this phase is
+
+Turn the existing payroll **skeleton** (`src/modules/payroll/`) into a real,
+**globally-configurable** payroll **system** — multi-country from the start, with a
+real calculation engine, a statutory/tax layer, inputs, disbursement, documents,
+accounting, and compliance. The app is otherwise functionally complete; this phase
+deepens payroll. All payroll endpoints are **MSW-backed** (no live payroll backend).
+
+### The one rule — configuration over code (non-negotiable)
+
+**Never hardcode a country rule, tax slab, contribution rate, rounding policy, bank
+field, or payslip layout.** All of it is **data** — versioned, country-scoped,
+effective-dated, consumed by a generic engine. Litmus test: _could a tenant in a
+country we have never seen run correct payroll by entering configuration only, with
+no engineering change?_ If no, the rule has leaked into code — move it to config.
+
+The **no-hardcode checklist** (`PAYROLL_SYSTEM_DESIGN.md §16`) is the acceptance bar
+for every payroll PR. In particular:
+
+- No `if (country === '…')` branches in calculation or UI logic.
+- No tax rate / slab / ceiling / contribution % literal in code — read from the pack.
+- Bank and statutory-ID fields are rendered from a **country schema** (DynamicForm),
+  never a fixed React form. The old hardcoded `bankIfscCode` is removed in Step 95.
+- Payslip and tax-form layouts come from **templates**, not per-country components.
+- Progressive tax uses the `SLAB()` formula function over configured tables — not
+  nested `IF()` chains.
+
+### Architecture — the four pillars
+
+1. **Generic calculation engine** — `modules/payroll/utils/formula.utils.ts`
+   (component dependency graph + formula evaluation). Reuse and extend; do not rewrite.
+2. **Statutory/tax engine** — versioned, country-scoped `StatutoryPack` (tax regimes,
+   contribution schemes, local taxes, rounding, proration). Runs **pin** the pack
+   version they used (reproducibility).
+3. **Localization layer** — `Country`, `LegalEntity`, currency, locale, per-country
+   bank schema, pay calendar, fiscal year, multi-jurisdiction tax.
+4. **Data-driven document layer** — configurable payslip templates + statutory forms.
+
+### Money & dates
+
+- **Money is integer minor units + ISO 4217 currency code** (`modules/payroll/utils/money.utils.ts`),
+  **zero-decimal-currency aware**. Format via locale only — never assume rupees or two decimals.
+- Dates on writes are `YYYY-MM-DD` (§4). Statutory/comp records are **effective-dated**;
+  history is immutable (revisions create new records; corrections are arrears/off-cycle,
+  never edits to a `PAID` run).
+
+### Data boundary (locked decision)
+
+Payroll-specific data — **country, legal entity, work location, bank account,
+statutory profile, salary** — lives entirely in the **payroll domain** under
+`/payroll/*` (MSW). The **live `/employees` contract in `API_MAPPING.md` is NOT
+changed** by this phase. Do not add bank/statutory/salary fields to the employees
+endpoint.
+
+### Component model (extended in Step 93)
+
+`ComponentType = EARNING | DEDUCTION | EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT | VARIABLE`.
+`EMPLOYER_CONTRIBUTION` is an employer **cost** (rolls into CTC/employer cost, **never**
+reduces net pay) — this is what makes `CTC = net + employee deductions + employer
+contributions` provable. Components carry a `statutoryTag` (which earnings form each
+contribution's wage base) and a `prorate` flag.
+
+### API policy
+
+- All new/changed payroll endpoints are authored in **`docs/newreqphase3.md` Domain F**
+  (camelCase) **before** wiring, then an MSW handler matching the shape, registered in
+  `src/mocks/handlers/index.ts`. Types mirror the documented shape (§22).
+- `API_MAPPING.md` contains **no** payroll endpoints; payroll is MSW-first. When the
+  backend later ships a documented endpoint, the only change is flipping
+  `NEXT_PUBLIC_USE_MOCKS` / removing the handler — no app-code change.
+
+### Per-step workflow
+
+Identical to §25: **Build → Test Gate (`pnpm typecheck`, `pnpm lint`, plus the named
+`pnpm test` file where calculation logic is added) → commit the exact message → mark
+`[x]` in the BUILD_PLAN tracker → STOP and wait for "next".** Never advance to the
+next step until the user says "next". Every screen still owes all four states (§13),
+dark mode + responsive (§15), permission gates (§10), and no `any` / no raw hex (§12).

@@ -4839,3 +4839,671 @@ All three must be clean.
 **Commit:** `chore(phase3): polish pass — dark mode, responsive, a11y, final build clean`
 
 **STOP.** Phase 3 complete. 🎉
+
+---
+
+# PHASE: Payroll Global Implementation (Steps 93–117)
+
+> **Goal:** evolve the payroll _skeleton_ into a real, **globally-configurable**
+> payroll _system_ — multi-country from day one, no hardcoded country rules, with a
+> real calculation engine, statutory/tax layer, inputs, disbursement, documents,
+> accounting, and compliance. Built **MSW-first** (no live payroll backend exists).
+>
+> **Authoritative design:** [`docs/payroll/PAYROLL_SYSTEM_DESIGN.md`](docs/payroll/PAYROLL_SYSTEM_DESIGN.md)
+> (the target) and [`docs/payroll/PAYROLL_GAP_ANALYSIS.md`](docs/payroll/PAYROLL_GAP_ANALYSIS.md)
+> (current vs. target + the P0–P3 roadmap these steps implement).
+> **Standing rules:** `CLAUDE.md §26`. **API contracts:** `docs/newreqphase3.md` Domain F.
+
+> **Standing context (do not re-read each step):**
+>
+> - **Config over code (CLAUDE.md §26):** never hardcode a country rule, tax slab,
+>   contribution rate, rounding policy, or payslip layout. All of it is **data** —
+>   versioned, country-scoped, effective-dated, consumed by a generic engine.
+> - **Multi-country from the start.** No `if (country === 'IN')` anywhere.
+> - **Money is integer minor units + ISO currency code.** Format via locale only.
+> - **Payroll data stays in the payroll domain (MSW).** The live `/employees`
+>   contract in `API_MAPPING.md` is **not** changed (decision locked). Country,
+>   work-location, bank, statutory profile, and salary all live under `/payroll/*`.
+> - **New/changed endpoints → `docs/newreqphase3.md` Domain F** (camelCase), then the
+>   MSW handler, then types — per CLAUDE.md §22. Register handlers in
+>   `src/mocks/handlers/index.ts`.
+> - **Reuse the existing engine** (`src/modules/payroll/utils/formula.utils.ts`) and
+>   module structure; extend, don't rewrite. Keep all existing functionality.
+> - **Four component states** (loading/empty/error/success), dark mode, a11y,
+>   permission gates — §13/§10/§15. No `any`. No raw hex in JSX.
+
+> **Per-step protocol (every step):**
+>
+> 1. Build everything listed under **Build:** in the step.
+> 2. Run **Test Gate**: `pnpm typecheck` (clean), then `pnpm lint` (clean), and where
+>    the step adds calculation logic, the named `pnpm test` file (green). Show full output.
+> 3. If anything fails, fix completely before proceeding.
+> 4. Update `docs/newreqphase3.md` Domain F for any new/changed endpoint **before**
+>    wiring it.
+> 5. Commit with the exact conventional-format message in the step.
+> 6. Mark the step `[x]` in the progress tracker below.
+> 7. **STOP.** Write "Step N complete. Waiting for you to say next." — then wait. **Do
+>    not start the next step until the user says "next".**
+
+#### Payroll Global — Progress tracker
+
+**P0 — Foundation: de-Indianize + real compute**
+
+- [ ] Step 93 — Component model: `EMPLOYER_CONTRIBUTION` + `VARIABLE` types
+- [ ] Step 94 — Localization core: Country + LegalEntity + money minor-units
+- [ ] Step 95 — Per-country bank schema (DynamicForm-driven)
+- [ ] Step 96 — Real MSW calculation pipeline (engine computes runs/payslips)
+
+**P1 — Statutory & tax engine**
+
+- [ ] Step 97 — Versioned StatutoryPack + run config pinning
+- [ ] Step 98 — Tax regimes + `SLAB()` formula function
+- [ ] Step 99 — Contribution schemes (employee/employer split, wage base, ceilings)
+- [ ] Step 100 — YTD ledger + payslip YTD block + tax true-up
+- [ ] Step 101 — Wire real inputs (attendance LOP / leave / overtime)
+
+**P2 — Inputs, lifecycle & controls**
+
+- [ ] Step 102 — Tax declarations / exemptions / proofs
+- [ ] Step 103 — Loans & advances (EMI schedule + recovery)
+- [ ] Step 104 — Reimbursement claims + structured variable pay
+- [ ] Step 105 — Run types: off-cycle / bonus / arrears / reversal / FnF
+- [ ] Step 106 — Country pay practices + multi-jurisdiction tax
+- [ ] Step 107 — Garnishments / court orders
+- [ ] Step 108 — Approvals/maker-checker/variance + `payroll:*` perms + idempotency/dry-run
+- [ ] Step 109 — Global employment models (EOR + contractors)
+
+**P3 — Disbursement, documents, accounting, filing**
+
+- [ ] Step 110 — Disbursement: bank files + payout status + reconciliation
+- [ ] Step 111 — Payslip templates + publish / notifications / webhook events
+- [ ] Step 112 — Tax forms (Form 16 / W-2 / P60)
+- [ ] Step 113 — Accounting: GL journal + cost centers + export
+- [ ] Step 114 — Statutory returns / registers into Reports
+- [ ] Step 115 — Onboarding & migration (opening YTD + parallel run)
+- [ ] Step 116 — Compliance assurance reporting (pay-equity, residency, audit pack)
+- [ ] Step 117 — Self-service consolidation + final verification gate
+
+---
+
+## P0 — Foundation: de-Indianize + real compute
+
+### Step 93 — Component model: `EMPLOYER_CONTRIBUTION` + `VARIABLE` types
+
+**Context:** Read `CLAUDE.md §26` + `PAYROLL_SYSTEM_DESIGN.md §4.1`. Files:
+`modules/payroll/types/payroll.types.ts`, `constants/index.ts`,
+`utils/formula.utils.ts`, `components/SalaryComponentDrawer.tsx`,
+`mocks/handlers/payroll-components.ts`.
+
+**Build:**
+
+1. Extend `ComponentType` to `EARNING | DEDUCTION | EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT | VARIABLE`.
+2. Add badge/label config for the two new types in `COMPONENT_TYPE_CONFIG` (tokens, no raw hex).
+3. Extend `SalaryComponent` with `statutoryTag: string | null` and `prorate: boolean`
+   (foundation for §4.3 / statutory wiring).
+4. Update `computeComponentBreakdown`: `EMPLOYER_CONTRIBUTION` is an **employer cost**
+   (rolls into CTC/employer cost, never reduces NET); `VARIABLE` is an input-driven
+   earning (defaults to 0 until an input is supplied). Add an `employerCost` total.
+5. `SalaryComponentDrawer`: include the new types in the type select; show `statutoryTag`
+   - `prorate` controls. Use shadcn `Select` (never native).
+6. MSW components handler accepts/returns the new fields.
+
+**API:** `newreqphase3.md` Domain F — extend `POST/PATCH /payroll/components` body + list shape.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): add employer-contribution and variable component types`
+
+**STOP.** Write "Step 93 complete. Waiting for you to say next."
+
+---
+
+### Step 94 — Localization core: Country + LegalEntity + money minor-units
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §3.1, §3.3`. New: `modules/payroll/types/localization.types.ts`,
+`modules/payroll/utils/money.utils.ts`, `mocks/handlers/payroll-localization.ts`.
+
+**Build:**
+
+1. Types: `Country` (code, name, currency, locale, fiscalYearStartMonth),
+   `LegalEntity` (country, currency, fiscalYearStartMonth, timezone, locale,
+   `registrationIds: Record<string,string>`, statutoryPackId, payCalendarId).
+2. `money.utils.ts`: `toMinor`, `fromMinor`, `formatMoney(minor, currency, locale)` —
+   **zero-decimal-currency aware** (JPY, etc.). All payroll money handled as integer minor units.
+3. MSW: `GET /payroll/countries`, `GET/POST/PATCH /payroll/legal-entities`. Seed
+   India + United States legal entities (proves multi-country).
+4. Settings → Pay & Compliance: a **Legal Entities** panel (list + create/edit), and a
+   current-entity selector that scopes payroll config. All four states, dark mode.
+5. Begin migrating displayed payroll amounts to `formatMoney` (no behavior change visible).
+
+**API:** Domain F — countries + legal-entities.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- money.utils`
+
+**Commit:** `feat(payroll): country + legal-entity model and minor-units money utils`
+
+**STOP.** Write "Step 94 complete. Waiting for you to say next."
+
+---
+
+### Step 95 — Per-country bank schema (DynamicForm-driven)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §3.4`. Files: employee-salary types/handler/UI,
+`shared/engines/DynamicForm`.
+
+**Build:**
+
+1. MSW: `GET /payroll/countries/:code/bank-schema` → field defs
+   (`{ key, label, type, regex, required, placeholder }[]`) for IN (IFSC), US (routing+
+   accountType), UK (sortCode), SEPA (IBAN/BIC).
+2. Replace hardcoded bank fields on `EmployeeSalary` with `country: string` +
+   `bankAccount: Record<string, string>`. Update types + MSW + payslip/profile reads.
+3. Salary-assignment form renders bank fields from the country schema via `DynamicForm`
+   (validation from `regex`/`required`) — **no hardcoded IFSC**.
+4. Keep backward-compatible display for existing India fixtures.
+
+**API:** Domain F — bank-schema + `EmployeeSalary` extension note.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): per-country bank account schema via DynamicForm`
+
+**STOP.** Write "Step 95 complete. Waiting for you to say next."
+
+---
+
+### Step 96 — Real MSW calculation pipeline
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §7.3` + `PAYROLL_GAP_ANALYSIS.md §4.1` (the 🔴
+critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
+`utils/formula.utils.ts`, new `utils/proration.utils.ts`, new `mocks/data/payroll-engine.ts`.
+
+**Build:**
+
+1. Build a mock **compute function** that, for a run: gathers included employees from
+   the employee-salary store, runs `computeComponentBreakdown` per their CTC + pay
+   group (with overrides), applies a **proration factor** (default full month;
+   `proration.utils.ts` supports CALENDAR_DAYS / WORKING_DAYS / FIXED_30), and produces
+   **real** payslip lines (earnings, deductions, employer contributions) + run totals
+   (`totalGross`, `totalDeductions`, `employerCost`, `totalNet`).
+2. `POST /payroll/runs/:id/calculate` now actually computes (no hardcoded `4800000`);
+   persist generated payslips per `runId` in an MSW store.
+3. `summary.byDepartment` and `warnings` (e.g. "no salary config") derived from real data.
+4. Run/payslip detail handlers serve the computed payslips. Reproducible: same inputs → same numbers.
+
+**API:** Domain F — document the calculate behavior + computed payslip shape (no new routes).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- proration.utils`
+
+**Commit:** `feat(payroll): real calculation pipeline — engine computes runs and payslips`
+
+**STOP.** Write "Step 96 complete. Waiting for you to say next."
+
+---
+
+## P1 — Statutory & tax engine
+
+### Step 97 — Versioned StatutoryPack + run config pinning
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §3.2, §7.4`.
+
+**Build:**
+
+1. Types: `StatutoryPack` (country, version, effectiveFrom/To, `taxRegimes[]`,
+   `contributionSchemes[]`, `localTaxes[]`, `rounding`, `proration`,
+   `statutoryComponents[]`).
+2. MSW: `GET/POST/PATCH /payroll/statutory-packs` (versioned, effective-dated). Seed
+   starter packs for **IN** and **US**.
+3. `PayrollRun` gains `configSnapshotRef`; `calculate` **pins** the active pack version
+   for the period; recompute uses the pinned version.
+4. Settings → Pay & Compliance: a read-mostly **Statutory Packs** panel (version list +
+   effective dates). All four states.
+
+**API:** Domain F — statutory-packs.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): versioned statutory packs with run config pinning`
+
+**STOP.** Write "Step 97 complete. Waiting for you to say next."
+
+---
+
+### Step 98 — Tax regimes + `SLAB()` formula function
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §5.1, §4.2`.
+
+**Build:**
+
+1. Types: `TaxRegime` (code, fiscalYear, standardDeduction, `slabs[]`, surcharge, cess,
+   allowedExemptions), `Slab`.
+2. `formula.utils.ts`: add `SLAB(value, tableCode)` (reads slab tables from the active
+   pack) and `CLAMP(v, lo, hi)`; keep cycle-safety + validation.
+3. Engine: compute **annual projected tax** → divide across remaining periods → expose
+   a true-up hook (YTD wired in Step 100). Progressive tax is **data**, not `IF()` chains.
+4. Vitest: slab evaluation + regime calc cases (IN old/new + a flat US-style band).
+
+**API:** Domain F — tax-regimes (embedded in pack or standalone CRUD).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): configurable tax regimes and SLAB() formula function`
+
+**STOP.** Write "Step 98 complete. Waiting for you to say next."
+
+---
+
+### Step 99 — Contribution schemes (employee/employer split, wage base, ceilings)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §5.3`.
+
+**Build:**
+
+1. Types: `ContributionScheme` (`wageBaseTag`, `wageCeiling`, `employee{rate,component}`,
+   `employer{rate,component,split?}`, applicability).
+2. Engine: derive the statutory **wage base** from earnings tagged via `statutoryTag`
+   (Step 93); compute employee deduction + employer contribution; respect ceilings.
+3. Payslip shows an `employerContributions[]` block distinct from deductions.
+4. Seed PF/ESI (IN) and Social Security/Medicare (US) schemes in the packs.
+
+**API:** Domain F — contribution-schemes.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): statutory contribution schemes with employer/employee split`
+
+**STOP.** Write "Step 99 complete. Waiting for you to say next."
+
+---
+
+### Step 100 — YTD ledger + payslip YTD block + tax true-up
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §5.5`.
+
+**Build:**
+
+1. Types: per-employee, per-fiscal-year YTD (gross, taxable, each contribution, tax
+   deducted); add a YTD block to `Payslip`.
+2. MSW: `GET /payroll/employees/:id/ytd?fy=`; maintain YTD as runs compute (cumulative).
+3. Engine: tax **true-up** uses YTD (smooth, self-correcting); cumulative ceilings.
+4. `PayslipDrawer`: YTD section (this period vs. YTD).
+
+**API:** Domain F — ytd.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): YTD ledger, payslip YTD block, and tax true-up`
+
+**STOP.** Write "Step 100 complete. Waiting for you to say next."
+
+---
+
+### Step 101 — Wire real inputs (attendance LOP / leave / overtime)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §6`.
+
+**Build:**
+
+1. Types: `PayrollInput` per employee per run (lopDays, leaveDays, otHours, variable, one-time).
+2. `calculate` pulls LOP from the attendance MSW store → proration; OT hours × configurable
+   multiplier component.
+3. `PayrollRunDetail`: surface/edit per-employee inputs before calculation; bulk **import**
+   endpoint (CSV) stub.
+4. Recompute reflects input changes (idempotent — full impl in Step 108).
+
+**API:** Domain F — run inputs + import.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- proration.utils`
+
+**Commit:** `feat(payroll): wire attendance LOP, leave, and overtime into calculation`
+
+**STOP.** Write "Step 101 complete. Waiting for you to say next."
+
+---
+
+## P2 — Inputs, lifecycle & controls
+
+### Step 102 — Tax declarations / exemptions / proofs
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §5.2, §13`.
+
+**Build:**
+
+1. Types: `TaxDeclaration` per employee per FY (generic exemption items: HRA, 80C, etc.,
+   from the pack's `allowedExemptions`), proof status, regime choice.
+2. MSW: `GET/POST/PATCH /payroll/employees/:id/tax-declaration`.
+3. Engine: apply declared (and verified) exemptions to taxable income; honor regime choice.
+4. Self-service UI (employee submit/edit + projected tax per regime) + HR review/verify.
+
+**API:** Domain F — tax-declaration.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): employee tax declarations, exemptions, and proofs`
+
+**STOP.** Write "Step 102 complete. Waiting for you to say next."
+
+---
+
+### Step 103 — Loans & advances (EMI schedule + recovery)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §6.2`.
+
+**Build:**
+
+1. Types: `Loan` (principal, interest method, EMI schedule, outstanding balance).
+2. MSW: `GET/POST /payroll/employees/:id/loans`; per-run EMI recovery; balance carry.
+3. Engine: EMI as a scheduled deduction; foreclosure; carry outstanding to FnF (Step 105).
+4. UI: loan list + request (self-service) + HR view of schedule/balance.
+
+**API:** Domain F — loans.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): loans and advances with EMI schedule and recovery`
+
+**STOP.** Write "Step 103 complete. Waiting for you to say next."
+
+---
+
+### Step 104 — Reimbursement claims + structured variable pay
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §6, §6.1`.
+
+**Build:**
+
+1. Types: `ReimbursementClaim` lifecycle (submit→approve→attach→pay→settle, category caps,
+   proof); `VariablePay` (incentive/commission/bonus).
+2. MSW: `GET/POST/PATCH /payroll/reimbursement-claims`; wire approved claims + variable pay
+   into the next run.
+3. UI: claim submit (self-service) + HR approve; variable-pay entry in run inputs.
+
+**API:** Domain F — reimbursement-claims + variable pay.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): reimbursement claims workflow and structured variable pay`
+
+**STOP.** Write "Step 104 complete. Waiting for you to say next."
+
+---
+
+### Step 105 — Run types: off-cycle / bonus / arrears / reversal / FnF
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §7.2, §5.6`.
+
+**Build:**
+
+1. `PayrollRun.type`: `REGULAR | OFF_CYCLE | BONUS | ARREARS | FNF | REVERSAL`.
+2. MSW: `POST /payroll/runs` honors `type`; arrears auto-detected from back-dated comp
+   revisions; **FnF** computes pro-rated salary, gratuity (config formula), leave
+   encashment, notice recovery, loan-balance recovery, final tax recompute.
+3. UI: run-type selector in `InitiateRunDialog`; FnF detail view.
+
+**API:** Domain F — run types + FnF.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): off-cycle, bonus, arrears, reversal, and FnF run types`
+
+**STOP.** Write "Step 105 complete. Waiting for you to say next."
+
+---
+
+### Step 106 — Country pay practices + multi-jurisdiction tax
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §4.6, §3.6`.
+
+**Build:**
+
+1. Scheduled components (13th/14th-month, holiday allowance) via `payInPeriods`;
+   input-driven shift/on-call premiums + OT multipliers; **minimum-wage compliance check**
+   (post-compute warning); benefits-in-kind taxable value (adds to taxable, not net).
+2. Multi-jurisdiction: employee `residenceJurisdiction` + `workLocations[]`; engine
+   resolves the applicable jurisdiction set and applies each jurisdiction's slabs/local taxes.
+3. UI: surface these on the run + employee comp.
+
+**API:** Domain F — component scheduling fields + employee jurisdictions.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): country pay practices and multi-jurisdiction tax`
+
+**STOP.** Write "Step 106 complete. Waiting for you to say next."
+
+---
+
+### Step 107 — Garnishments / court orders
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §5.7`.
+
+**Build:**
+
+1. Types: `Garnishment` (type, priority, amount kind, `protectedEarningsFloor`, cap, reference).
+2. Engine: apply **after** statutory deductions, **before** voluntary; honor priority +
+   protected-earnings floor; respect disposable-income caps.
+3. MSW + UI: per-employee garnishment list (HR).
+
+**API:** Domain F — garnishments.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): garnishments and court orders with priority ordering`
+
+**STOP.** Write "Step 107 complete. Waiting for you to say next."
+
+---
+
+### Step 108 — Approvals/maker-checker/variance + permissions + idempotency
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §7.5, §8`.
+
+**Build:**
+
+1. Multi-level approvals (configurable levels + thresholds); enforce **maker ≠ checker**.
+2. **Variance/anomaly review** in REVIEW (net Δ% vs last period, new joiners, negative net,
+   zero pay) from `summary.warnings`.
+3. Granular permissions: `payroll:initiate | adjust | approve | disburse`; gate UI + add
+   payroll-specific **audit** entries on every transition/override.
+4. Engine: **idempotent** recompute, **single-employee reprocess**, **dry-run** mode.
+
+**API:** Domain F — approvals + variance.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): multi-level approvals, maker-checker, variance, and dry-run`
+
+**STOP.** Write "Step 108 complete. Waiting for you to say next."
+
+---
+
+### Step 109 — Global employment models (EOR + contractors)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §18`.
+
+**Build:**
+
+1. Worker **classification** on the worker record (EMPLOYEE / CONTRACTOR / EOR), driving
+   pipeline selection.
+2. Contractor **invoices** (submit/approve/pay, optional withholding-at-source,
+   multi-currency payout); **EOR** workers paid via a partner entity.
+3. Multi-entity **cost aggregation** view (FX-consolidated total people cost).
+
+**API:** Domain F — workers/classification, contractor invoices.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): contractor and EOR employment models with cost aggregation`
+
+**STOP.** Write "Step 109 complete. Waiting for you to say next."
+
+---
+
+## P3 — Disbursement, documents, accounting, filing
+
+### Step 110 — Disbursement: bank files + payout status + reconciliation
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §9`.
+
+**Build:**
+
+1. `POST /payroll/runs/:id/payment-batch`; `GET /payroll/runs/:id/bank-file?format=NACH|ACH|SEPA|BACS`
+   (format is config-driven, not branched in code).
+2. Per-payslip payment lifecycle `PENDING→PROCESSING→PAID|FAILED|RETURNED` + reconciliation
+   back from the (mock) bank/gateway.
+3. UI: disbursement panel in `PayrollRunDetail` (generate file, track status).
+
+**API:** Domain F — payment-batch + bank-file + status.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): disbursement — bank files, payout status, reconciliation`
+
+**STOP.** Write "Step 110 complete. Waiting for you to say next."
+
+---
+
+### Step 111 — Payslip templates + publish / notifications / webhooks
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §10, §20`.
+
+**Build:**
+
+1. Configurable **payslip template** (sections, logo, fields, multi-language) — data, not a
+   per-country component; client-side **PDF** generation.
+2. **Publish workflow**: payslips visible to employees only on run approval/publish.
+3. Lifecycle **notifications** + a **webhook event** catalogue
+   (`payroll.run.*`, `payslip.published`, `payment.failed`, …).
+4. Settings: payslip-template config panel.
+
+**API:** Domain F — templates + events.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): configurable payslip templates, publish workflow, and events`
+
+**STOP.** Write "Step 111 complete. Waiting for you to say next."
+
+---
+
+### Step 112 — Tax forms (Form 16 / W-2 / P60)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §10`.
+
+**Build:**
+
+1. `GET /payroll/employees/:id/tax-form?fy=&type=FORM16|W2|P60` — generated from YTD + pack
+   (template-driven, country-agnostic engine).
+2. Self-service download in the employee payroll area.
+
+**API:** Domain F — tax-form.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): annual tax forms (Form 16 / W-2 / P60)`
+
+**STOP.** Write "Step 112 complete. Waiting for you to say next."
+
+---
+
+### Step 113 — Accounting: GL journal + cost centers + export
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §11`.
+
+**Build:**
+
+1. Component `glAccountCode` + `costCenterRule`; `GET /payroll/runs/:id/journal` →
+   double-entry lines (salary expense, statutory payable, net payable).
+2. Cost-center/department allocation; export (Tally / QuickBooks / CSV+journal).
+3. UI: journal preview in `PayrollRunDetail`.
+
+**API:** Domain F — journal + export.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): GL journal, cost centers, and accounting export`
+
+**STOP.** Write "Step 113 complete. Waiting for you to say next."
+
+---
+
+### Step 114 — Statutory returns / registers into Reports
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §12`.
+
+**Build:**
+
+1. `GET /payroll/runs/:id/statutory-return?type=ECR|24Q|RTI` (exporter driven by the pack).
+2. Payroll **registers** (salary, statutory, bank-advice, variance) wired into the existing
+   **Reports** module payroll category (reuse `ReportShell` / `DynamicTable`).
+
+**API:** Domain F — statutory-return + registers.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): statutory returns and registers in Reports`
+
+**STOP.** Write "Step 114 complete. Waiting for you to say next."
+
+---
+
+### Step 115 — Onboarding & migration (opening YTD + parallel run)
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §19`.
+
+**Build:**
+
+1. **Opening YTD balance** import (so mid-year go-live tax is correct); historical payslip import.
+2. **Parallel run**: dry-run a cycle alongside legacy + a reconciliation report (per-employee diffs).
+3. Pay-run **calendar/cutoffs** config; sandbox entity flag.
+4. UI: a light migration wizard.
+
+**API:** Domain F — migration (opening-balances, parallel-run, calendar).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): onboarding, opening YTD balances, and parallel run`
+
+**STOP.** Write "Step 115 complete. Waiting for you to say next."
+
+---
+
+### Step 116 — Compliance assurance reporting
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §21`.
+
+**Build:**
+
+1. **Pay-equity / gender pay-gap** report + diversity pay analysis (from comp + demographics).
+2. **Data residency / retention** config per country; **audit assurance pack** export
+   (immutable run history + approval chain + config-version pins + override log).
+
+**API:** Domain F — compliance reports.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(payroll): pay-equity and compliance assurance reporting`
+
+**STOP.** Write "Step 116 complete. Waiting for you to say next."
+
+---
+
+### Step 117 — Self-service consolidation + final verification gate
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §13` + the no-hardcode checklist (§16).
+
+**Build:**
+
+1. Consolidate employee self-service into one coherent payroll area: payslips, tax
+   declarations, reimbursement claims, loan requests, comp statement, tax forms.
+2. **Final verification:** sweep every payroll screen (dark + light, each breakpoint);
+   fix a11y; run the **no-hardcode checklist** (`PAYROLL_SYSTEM_DESIGN.md §16`) and confirm
+   no country branch / rate literal / fixed bank form leaked into code.
+3. Finalize `docs/newreqphase3.md` Domain F (every endpoint documented) and confirm all
+   handlers are gated behind `NEXT_PUBLIC_USE_MOCKS`.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm build`
+
+**Commit:** `chore(payroll): self-service consolidation and final verification gate`
+
+**STOP.** Phase complete — Payroll Global Implementation. 🎉

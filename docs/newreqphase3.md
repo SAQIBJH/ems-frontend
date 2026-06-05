@@ -924,4 +924,369 @@ The employee must exist and be `ACTIVE`; otherwise return `422` with field error
 `headEmployeeId` is optional — omit or pass `null` to create with no head.
 
 **Success response:** `201`, `data` = created department object
-**New error codes:** same `INVALID_HEAD_EMPLOYEE` (422) as PATCH above.
+
+---
+
+## Domain F — Payroll Global Implementation
+
+> Drives BUILD_PLAN "PHASE: Payroll Global Implementation" (Steps 93–117). Standing
+> rules: `CLAUDE.md §26`. Design: `docs/payroll/PAYROLL_SYSTEM_DESIGN.md`.
+> **Money:** all amounts are **integer minor units** + an ISO 4217 `currency` field
+> (zero-decimal-currency aware). **Casing:** camelCase. **MSW-first** — no live
+> payroll backend exists.
+
+### F.0 — API_MAPPING.md analysis (what changes on the live contract)
+
+- **`API_MAPPING.md` contains NO payroll endpoints.** Payroll (and `/reports/payroll`)
+  is entirely MSW-backed (`docs/phase2api.md` Domains 1–3). Therefore **no live
+  payroll API changes** — every payroll endpoint is net-new or an MSW-contract extension.
+- **`/employees` (live) is NOT changed.** Decision locked (CLAUDE.md §26): country,
+  legal entity, work location, bank account, statutory profile, and salary all live
+  under `/payroll/*`. Do **not** add payroll fields to the employees endpoint.
+- **Existing MSW payroll contract (`phase2api.md`) evolves** — documented as
+  "extensions" below (component types, `EmployeeSalary` bank/country shape, run `type`,
+  computed payslip fields). When a real backend ships, these supersede the
+  `phase2api.md` versions.
+
+Endpoints are grouped P0→P3 (matching the steps). **Foundational endpoints (P0/P1)
+carry full shapes; later endpoints carry method/path/role/purpose + key fields and are
+finalized in their BUILD_PLAN step per §22.**
+
+---
+
+### F.1 — Localization (Step 94–95)
+
+#### `GET /payroll/countries`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN. Returns supported countries.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "code": "IN",
+      "name": "India",
+      "currency": "INR",
+      "locale": "en-IN",
+      "fiscalYearStartMonth": 4
+    },
+    {
+      "code": "US",
+      "name": "United States",
+      "currency": "USD",
+      "locale": "en-US",
+      "fiscalYearStartMonth": 1
+    }
+  ]
+}
+```
+
+#### `GET/POST/PATCH /payroll/legal-entities`
+
+**Roles:** SUPER_ADMIN (write), HR_ADMIN (read).
+
+```json
+{
+  "id": "le_in",
+  "name": "Acme India Pvt Ltd",
+  "country": "IN",
+  "currency": "INR",
+  "fiscalYearStartMonth": 4,
+  "timezone": "Asia/Kolkata",
+  "locale": "en-IN",
+  "registrationIds": { "PF": "MHBAN1234567", "ESI": "12345678901234", "PAN": "AAAAA1234A" },
+  "statutoryPackId": "pack_in_2026",
+  "payCalendarId": "cal_in_monthly",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}
+```
+
+#### `GET /payroll/countries/:code/bank-schema`
+
+**Roles:** HR_ADMIN, SUPER_ADMIN. Field defs to render the bank form via `DynamicForm`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "country": "IN",
+    "fields": [
+      { "key": "accountName", "label": "Account holder name", "type": "text", "required": true },
+      {
+        "key": "accountNumber",
+        "label": "Account number",
+        "type": "text",
+        "required": true,
+        "regex": "^[0-9]{9,18}$"
+      },
+      {
+        "key": "ifsc",
+        "label": "IFSC code",
+        "type": "text",
+        "required": true,
+        "regex": "^[A-Z]{4}0[A-Z0-9]{6}$"
+      }
+    ]
+  }
+}
+```
+
+> US returns `routingNumber + accountNumber + accountType`; UK `sortCode + accountNumber`;
+> SEPA `iban + bic`. Same envelope, country-specific `fields`.
+
+---
+
+### F.2 — Salary component extensions (Step 93)
+
+**Extends** `phase2api.md §1.1`. `POST/PATCH /payroll/components` and the list item gain:
+
+```jsonc
+{
+  "type": "EMPLOYER_CONTRIBUTION", // new: EARNING | DEDUCTION | EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT | VARIABLE
+  "statutoryTag": "PF_WAGE", // string|null — which wage base this earning feeds (for §F.3)
+  "prorate": true, // boolean — does LOP reduce this component
+  "payInPeriods": null, // number[]|null — for scheduled comps (13th-month, etc.); null = every period
+}
+```
+
+- `EMPLOYER_CONTRIBUTION` is an employer **cost** — included in CTC/employerCost,
+  **never** reduces `netPay`.
+- New error: `400 INVALID_STATUTORY_TAG` — `statutoryTag` not known to the active pack.
+
+---
+
+### F.3 — Statutory & tax engine (Step 97–99)
+
+#### `GET/POST/PATCH /payroll/statutory-packs`
+
+**Roles:** SUPER_ADMIN (write), HR_ADMIN (read). Versioned, effective-dated, country-scoped.
+
+```jsonc
+{
+  "id": "pack_in_2026",
+  "country": "IN",
+  "version": "2026.1",
+  "effectiveFrom": "2026-04-01",
+  "effectiveTo": null,
+  "rounding": { "mode": "NEAREST", "precision": 0 },
+  "proration": { "basis": "CALENDAR_DAYS" }, // CALENDAR_DAYS | WORKING_DAYS | FIXED_30
+  "taxRegimes": [
+    {
+      "code": "IN_NEW_REGIME",
+      "fiscalYear": "2026-27",
+      "currency": "INR",
+      "standardDeduction": 7500000, // minor units
+      "slabs": [
+        { "from": 0, "to": 40000000, "rate": 0 },
+        { "from": 40000000, "to": 80000000, "rate": 5 },
+        { "from": 80000000, "to": null, "rate": 30 },
+      ],
+      "surcharge": [{ "thresholdAnnual": 500000000, "rate": 10 }],
+      "cess": { "rate": 4 },
+      "allowedExemptions": ["HRA", "LTA", "80C", "80D", "STD_DEDUCTION"],
+    },
+  ],
+  "contributionSchemes": [
+    {
+      "code": "IN_EPF",
+      "name": "Employees' Provident Fund",
+      "wageBaseTag": "PF_WAGE",
+      "wageCeiling": 1500000, // minor units
+      "employee": { "rate": 12, "component": "PF_EE" },
+      "employer": { "rate": 12, "component": "PF_ER", "split": { "EPS": 8.33, "EPF": 3.67 } },
+      "applicability": "GROSS_BELOW_CEILING_OPTIONAL",
+    },
+  ],
+  "localTaxes": [
+    {
+      "code": "IN_MH_PT",
+      "name": "Professional Tax (Maharashtra)",
+      "jurisdiction": "IN-MH",
+      "component": "PROF_TAX",
+      "slabs": [
+        { "from": 0, "to": 750000, "amount": 0 },
+        { "from": 750000, "to": null, "amount": 20000 },
+      ],
+    },
+  ],
+  "statutoryComponents": ["PF_EE", "PF_ER", "ESI_EE", "ESI_ER", "PROF_TAX", "TDS"],
+}
+```
+
+- Errors: `409 PACK_VERSION_EXISTS`, `422 INVALID_PACK` (overlapping effective ranges,
+  unknown component codes).
+- **Run pinning:** `PayrollRun` gains `configSnapshotRef` (the pack id+version used);
+  recompute uses the pinned version.
+
+> `tax-regimes` and `contribution-schemes` may also be exposed as standalone CRUD
+> (`GET/POST/PATCH /payroll/tax-regimes`, `/payroll/contribution-schemes`) scoped to a
+> pack version — finalized in Steps 98–99.
+
+---
+
+### F.4 — Employee payroll (Step 95, 100, 102, 103)
+
+#### `EmployeeSalary` extension (Step 95)
+
+Replaces the hardcoded India bank fields (`bankIfscCode`, …) with:
+
+```jsonc
+{
+  "country": "IN",
+  "currency": "INR",
+  "annualCtc": 120000000, // minor units
+  "rateType": "ANNUAL", // ANNUAL | MONTHLY | HOURLY | DAILY
+  "bankAccount": { "accountName": "...", "accountNumber": "...", "ifsc": "..." }, // shape from §F.1 bank-schema
+  "residenceJurisdiction": "IN-MH", // Step 106
+  "workLocations": [{ "jurisdiction": "IN-MH", "allocationPct": 100 }], // Step 106
+}
+```
+
+#### `GET /payroll/employees/:id/ytd?fy=YYYY-YY` (Step 100)
+
+Per-employee, per-fiscal-year cumulative ledger.
+
+```json
+{
+  "success": true,
+  "data": {
+    "fiscalYear": "2026-27",
+    "grossEarnings": 60000000,
+    "taxableIncome": 52000000,
+    "taxDeducted": 3960000,
+    "contributions": { "PF_EE": 360000, "PF_ER": 360000 }
+  }
+}
+```
+
+#### `GET/POST/PATCH /payroll/employees/:id/tax-declaration` (Step 102)
+
+```jsonc
+{
+  "fiscalYear": "2026-27",
+  "regime": "IN_NEW_REGIME",
+  "items": [
+    { "code": "80C", "amount": 15000000, "proofStatus": "PENDING" },
+    {
+      "code": "HRA",
+      "amount": 30000000,
+      "meta": { "rentPaid": 30000000, "metro": true },
+      "proofStatus": "VERIFIED",
+    },
+  ],
+}
+```
+
+#### `GET/POST /payroll/employees/:id/loans` (Step 103)
+
+`{ id, principal, currency, interestMethod, emiAmount, schedule[], outstandingBalance, status }`.
+
+---
+
+### F.5 — Payroll runs (Step 96, 101, 105, 108)
+
+#### `POST /payroll/runs/:id/calculate` — **real compute** (Step 96)
+
+**No new route** — behavior change. The engine iterates included employees, runs the
+component graph per their salary config, applies proration, and persists **computed**
+payslips. Response unchanged (`202` + `{ status, estimatedSeconds }`); subsequent
+`GET /payroll/runs/:id` returns **derived** totals/summary (not hardcoded). Computed
+payslip detail adds `employerContributions[]` and (Step 100) a `ytd` block.
+
+#### Run inputs (Step 101)
+
+- `GET/PATCH /payroll/runs/:id/inputs` — per-employee `{ employeeId, lopDays, leaveDays, otHours, variable[], oneTimeAdditions[], oneTimeDeductions[] }`.
+- `POST /payroll/runs/:id/inputs/import` — CSV bulk upload of per-employee inputs.
+
+#### Run types (Step 105)
+
+`POST /payroll/runs` body gains `type: REGULAR | OFF_CYCLE | BONUS | ARREARS | FNF | REVERSAL`
+(default `REGULAR`). FnF computes gratuity, leave encashment, notice recovery, loan
+recovery, final tax. Errors: `409 RUN_EXISTS` (unchanged), `422 INVALID_RUN_TYPE`.
+
+#### Approvals, variance, dry-run (Step 108)
+
+- `POST /payroll/runs/:id/approvals/:level` — multi-level; enforces maker ≠ checker (`403 SELF_APPROVAL`).
+- `GET /payroll/runs/:id/variance` — anomaly list (net Δ% vs last period, negatives, zero-pay).
+- `POST /payroll/runs/:id/calculate?dryRun=true` — compute without persisting/publishing.
+- `POST /payroll/runs/:id/payslips/:slipId/recalculate` — single-employee reprocess.
+
+---
+
+### F.6 — Claims & variable pay (Step 104)
+
+`GET/POST/PATCH /payroll/reimbursement-claims` — `{ id, employeeId, category, amount,
+currency, proofUrl, status: SUBMITTED|APPROVED|REJECTED|PAID, runId }`. Approved claims
+attach to the next run. Variable pay entered via run inputs (§F.5).
+
+---
+
+### F.7 — Garnishments (Step 107)
+
+`GET/POST/PATCH/DELETE /payroll/employees/:id/garnishments` —
+`{ id, type, priority, amount: { kind: 'FLAT'|'PERCENT_OF_DISPOSABLE', value }, protectedEarningsFloor, cap, reference, effectiveFrom, effectiveTo }`.
+Engine applies after statutory, before voluntary; honors priority + floor.
+
+---
+
+### F.8 — Global employment models (Step 109)
+
+- Worker record gains `classification: EMPLOYEE | CONTRACTOR | EOR`.
+- `GET/POST/PATCH /payroll/contractor-invoices` — `{ id, workerId, period, amount,
+currency, withholdingPct, status, payoutRef }`.
+- `GET /payroll/cost-summary?groupBy=entity|currency|classification` — FX-consolidated cost.
+
+---
+
+### F.9 — Disbursement (Step 110)
+
+- `POST /payroll/runs/:id/payment-batch` → `{ id, runId, count, totalAmount, currency, status }`.
+- `GET /payroll/runs/:id/bank-file?format=NACH|ACH|SEPA|BACS` → file download (format config-driven).
+- `GET /payroll/payment-batches/:id/status` → per-payslip `PENDING|PROCESSING|PAID|FAILED|RETURNED`.
+
+---
+
+### F.10 — Documents & events (Step 111–112)
+
+- `GET/PATCH /payroll/payslip-templates` — `{ id, name, locale, sections[], logoUrl, fields[] }`.
+- `POST /payroll/runs/:id/publish` — make payslips visible to employees.
+- `GET /payroll/employees/:id/tax-form?fy=&type=FORM16|W2|P60` — generated document (from YTD + pack).
+- **Event catalogue** (webhooks/notifications): `payroll.run.created|calculated|approved|paid`,
+  `payslip.published`, `payment.failed`, `salary.revised`, `claim.approved`.
+
+---
+
+### F.11 — Accounting (Step 113)
+
+- `GET /payroll/runs/:id/journal` → double-entry lines
+  `{ account, costCenter, debit, credit, currency }[]` (mapped via component `glAccountCode`/`costCenterRule`).
+- `GET /payroll/runs/:id/journal/export?format=TALLY|QUICKBOOKS|CSV`.
+
+---
+
+### F.12 — Statutory filing & registers (Step 114)
+
+- `GET /payroll/runs/:id/statutory-return?type=ECR|24Q|RTI` → exporter driven by the pack.
+- Payroll **registers** (salary, statutory, bank-advice, variance) surface in the
+  Reports module payroll category (reuse existing report shapes).
+
+---
+
+### F.13 — Onboarding & migration (Step 115)
+
+- `POST /payroll/employees/:id/opening-balances` — opening YTD for mid-year go-live.
+- `POST /payroll/migration/historical-payslips` — bulk import prior payslips.
+- `POST /payroll/runs/:id/parallel-reconcile` — diff computed vs. legacy figures → reconciliation report.
+- `GET/POST/PATCH /payroll/pay-calendars` — `{ frequency, periodAnchor, payDateRule, cutoffDay, holidayCalendarId }`.
+
+---
+
+### F.14 — Compliance reporting (Step 116)
+
+- `GET /payroll/reports/pay-equity?groupBy=gender|level|location` → gap metrics.
+- `GET /payroll/reports/audit-pack?runId=` → immutable run history + approval chain +
+  config-version pins + override log (export).
+- Data residency/retention config: `GET/PATCH /payroll/settings/data-policy`.
+  **New error codes:** same `INVALID_HEAD_EMPLOYEE` (422) as PATCH above.
