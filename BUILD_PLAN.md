@@ -4912,7 +4912,7 @@ All three must be clean.
 
 **P1 — Statutory & tax engine**
 
-- [ ] Step 97 — Versioned StatutoryPack + run config pinning
+- [x] Step 97 — Versioned StatutoryPack + run config pinning
 - [ ] Step 98 — Tax regimes + `SLAB()` formula function
 - [ ] Step 99 — Contribution schemes (employee/employer split, wage base, ceilings)
 - [ ] Step 100 — YTD ledger + payslip YTD block + tax true-up
