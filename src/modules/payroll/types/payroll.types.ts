@@ -197,6 +197,20 @@ export interface PayslipCompany {
   logoUrl: string | null;
 }
 
+/** Per-employee, per-fiscal-year cumulative ledger (§5.5). */
+export interface PayslipYtd {
+  fiscalYear: string;
+  /** Number of periods accumulated in the fiscal year so far. */
+  monthsElapsed: number;
+  grossEarnings: number;
+  taxableIncome: number;
+  taxDeducted: number;
+  totalDeductions: number;
+  netPay: number;
+  /** Cumulative statutory contributions by component code (e.g. PF, PF_ER). */
+  contributions: Record<string, number>;
+}
+
 export interface Payslip {
   id: string;
   period: string;
@@ -208,6 +222,8 @@ export interface Payslip {
   deductions: PayslipLine[];
   /** Employer-side contributions (employer cost) — never reduce net pay. */
   employerContributions?: PayslipLine[];
+  /** Year-to-date ledger through this period (§5.5). */
+  ytd?: PayslipYtd;
   oneTimeAdditions: PayslipOneTime[];
   oneTimeDeductions: PayslipOneTime[];
   grossEarnings: number;

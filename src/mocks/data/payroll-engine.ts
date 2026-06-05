@@ -13,9 +13,11 @@ import type {
   PayslipRunItem,
   Payslip,
   PayslipStatus,
+  PayslipYtd,
   PayrollRunDeptSummary,
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
+import type { TaxRegime } from '@/modules/payroll/types/statutory.types';
 import {
   computeComponentBreakdown,
   computeContribution,
@@ -26,6 +28,7 @@ import { prorationFactor } from '@/modules/payroll/utils/proration.utils';
 import { getComponentById } from '../handlers/payroll-components';
 import { getGroupById } from '../handlers/payroll-groups';
 import { resolveActivePack } from '../handlers/payroll-statutory';
+import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
@@ -135,6 +138,245 @@ function periodLabel(period: string): string {
   });
 }
 
+/* ── Fiscal-year helpers (drive YTD windows + tax projection periods) ──────── */
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function currentPeriodString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+interface FiscalInfo {
+  fyLabel: string;
+  /** 1-based position of `period` within its fiscal year. */
+  monthIndex: number;
+  totalMonths: number;
+  startYear: number;
+  startMonth: number;
+}
+
+function fiscalInfo(country: string, period: string): FiscalInfo {
+  const startMonth = getFiscalYearStartMonth(country);
+  const { year, month } = parsePeriod(period);
+  const startYear = month >= startMonth ? year : year - 1;
+  const monthIndex = ((month - startMonth + 12) % 12) + 1;
+  return {
+    fyLabel: `${startYear}-${pad2((startYear + 1) % 100)}`,
+    monthIndex,
+    totalMonths: 12,
+    startYear,
+    startMonth,
+  };
+}
+
+/** All periods (YYYY-MM) from the fiscal-year start up to `period`, inclusive. */
+function fiscalPeriodsThrough(country: string, period: string): string[] {
+  const { startYear, startMonth, monthIndex } = fiscalInfo(country, period);
+  const periods: string[] = [];
+  for (let k = 0; k < monthIndex; k++) {
+    const offset = startMonth - 1 + k;
+    const y = startYear + Math.floor(offset / 12);
+    const m = (offset % 12) + 1;
+    periods.push(`${y}-${pad2(m)}`);
+  }
+  return periods;
+}
+
+/**
+ * Per-period income-tax withholding with YTD true-up. Because the structural
+ * taxable base is constant across the year, this walks months 1..K accumulating
+ * the tax actually withheld, then withholds the remaining projected tax over the
+ * periods that are left — smooth and self-correcting (§5.5).
+ */
+function withholdingForMonth(
+  annualTaxable: number,
+  regime: TaxRegime,
+  monthIndex: number,
+  totalMonths: number,
+): number {
+  let ytdTax = 0;
+  let tax = 0;
+  for (let k = 1; k <= monthIndex; k++) {
+    tax = Math.round(
+      projectPeriodTax({
+        annualTaxable,
+        regime,
+        ytdTaxPaid: ytdTax,
+        periodsRemaining: totalMonths - (k - 1),
+      }),
+    );
+    if (k < monthIndex) ytdTax += tax;
+  }
+  return tax;
+}
+
+/* ── Per-employee monthly computation (shared by runs + YTD) ───────────────── */
+
+interface EmployeeMonth {
+  earnings: PayslipLine[];
+  deductions: PayslipLine[];
+  employerContributions: PayslipLine[];
+  grossEarnings: number;
+  totalDeductions: number;
+  employerCost: number;
+  netPay: number;
+  /** Prorated taxable earnings actually paid this period. */
+  taxableEarnings: number;
+  taxDeducted: number;
+  /** Statutory contribution amounts by component code (employee + employer). */
+  contributions: Record<string, number>;
+  workingDays: number;
+  presentDays: number;
+  lopDays: number;
+}
+
+function computeEmployeeMonth(emp: RosterEmployee, period: string): EmployeeMonth | null {
+  const components = resolveGroupComponents(emp.payGroupId);
+  if (!components || components.length === 0) return null;
+
+  const { year, month } = parsePeriod(period);
+  const factor = prorationFactor({ basis: 'CALENDAR_DAYS', year, month, lopDays: emp.lopDays });
+  const compByCode = new Map(components.map((c) => [c.code, c]));
+  const breakdown = computeComponentBreakdown(components, emp.annualCtc);
+
+  const earnings: PayslipLine[] = [];
+  const deductions: PayslipLine[] = [];
+  const employerContributions: PayslipLine[] = [];
+
+  for (const line of breakdown) {
+    const comp = compByCode.get(line.code);
+    const raw = comp?.prorate ? line.monthlyAmount * factor : line.monthlyAmount;
+    const amount = Math.round(raw);
+    const pl: PayslipLine = { code: line.code, name: line.name, amount, taxable: line.taxable };
+    if (line.type === 'EARNING' || line.type === 'VARIABLE') earnings.push(pl);
+    else if (line.type === 'DEDUCTION') deductions.push(pl);
+    else employerContributions.push(pl); // EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT
+  }
+
+  const pack = resolveActivePack(emp.country, period);
+  const contributions: Record<string, number> = {};
+
+  // Statutory contributions: wage base from earnings tagged with each scheme's
+  // statutoryTag, capped at the ceiling; rates/ceilings are data, never code.
+  if (pack) {
+    for (const scheme of pack.contributionSchemes) {
+      const rawBase = earnings
+        .filter((e) => compByCode.get(e.code)?.statutoryTag === scheme.wageBaseTag)
+        .reduce((s, e) => s + e.amount, 0);
+      if (rawBase <= 0) continue; // no tagged earnings → scheme not applicable
+      const { employee, employer } = computeContribution(rawBase, scheme);
+      upsertLine(
+        deductions,
+        scheme.employee.component,
+        compByCode.get(scheme.employee.component)?.name ?? `${scheme.name} (Employee)`,
+        employee,
+      );
+      upsertLine(
+        employerContributions,
+        scheme.employer.component,
+        compByCode.get(scheme.employer.component)?.name ?? `${scheme.name} (Employer)`,
+        employer,
+      );
+      contributions[scheme.employee.component] = employee;
+      contributions[scheme.employer.component] = employer;
+    }
+  }
+
+  // Income tax (TDS): progressive regime tax with YTD true-up.
+  const regime = pack?.taxRegimes[0] ?? null;
+  let taxDeducted = 0;
+  if (regime) {
+    registerSlabTables({ [regime.code]: regime.slabs });
+    const structuralTaxable = breakdown
+      .filter((l) => (l.type === 'EARNING' || l.type === 'VARIABLE') && l.taxable)
+      .reduce((s, l) => s + l.monthlyAmount, 0);
+    const { monthIndex, totalMonths } = fiscalInfo(emp.country, period);
+    taxDeducted = withholdingForMonth(structuralTaxable * 12, regime, monthIndex, totalMonths);
+    const tdsLine = deductions.find((d) => d.code === 'TDS');
+    if (tdsLine) tdsLine.amount = taxDeducted;
+    else if (taxDeducted > 0)
+      deductions.push({
+        code: 'TDS',
+        name: 'Income Tax (TDS)',
+        amount: taxDeducted,
+        taxable: false,
+      });
+  }
+
+  const grossEarnings = earnings.reduce((s, l) => s + l.amount, 0);
+  const totalDeductions = deductions.reduce((s, l) => s + l.amount, 0);
+  const employerCost = employerContributions.reduce((s, l) => s + l.amount, 0);
+  const taxableEarnings = earnings.filter((e) => e.taxable).reduce((s, e) => s + e.amount, 0);
+
+  return {
+    earnings,
+    deductions,
+    employerContributions,
+    grossEarnings,
+    totalDeductions,
+    employerCost,
+    netPay: grossEarnings - totalDeductions,
+    taxableEarnings,
+    taxDeducted,
+    contributions,
+    workingDays: STD_WORKING_DAYS,
+    presentDays: STD_WORKING_DAYS - emp.lopDays,
+    lopDays: emp.lopDays,
+  };
+}
+
+/* ── Year-to-date ledger ──────────────────────────────────────────────────── */
+
+/** Cumulative ledger for an employee from the fiscal-year start through `throughPeriod`. */
+export function computeEmployeeYtd(employeeId: string, throughPeriod: string): PayslipYtd | null {
+  const emp = FULL_ROSTER.find((e) => e.employeeId === employeeId);
+  if (!emp) return null;
+  const { fyLabel } = fiscalInfo(emp.country, throughPeriod);
+  const ytd: PayslipYtd = {
+    fiscalYear: fyLabel,
+    monthsElapsed: 0,
+    grossEarnings: 0,
+    taxableIncome: 0,
+    taxDeducted: 0,
+    totalDeductions: 0,
+    netPay: 0,
+    contributions: {},
+  };
+  for (const p of fiscalPeriodsThrough(emp.country, throughPeriod)) {
+    const m = computeEmployeeMonth(emp, p);
+    if (!m) continue;
+    ytd.monthsElapsed += 1;
+    ytd.grossEarnings += m.grossEarnings;
+    ytd.taxableIncome += m.taxableEarnings;
+    ytd.taxDeducted += m.taxDeducted;
+    ytd.totalDeductions += m.totalDeductions;
+    ytd.netPay += m.netPay;
+    for (const [code, amt] of Object.entries(m.contributions)) {
+      ytd.contributions[code] = (ytd.contributions[code] ?? 0) + amt;
+    }
+  }
+  return ytd;
+}
+
+/** Resolve the "as of" period for a YTD query against a fiscal-year label. */
+export function ytdThroughPeriodForFy(country: string, fyLabel: string): string {
+  const startMonth = getFiscalYearStartMonth(country);
+  const startYear = parseInt(fyLabel.split('-')[0], 10);
+  const fyStart = `${startYear}-${pad2(startMonth)}`;
+  const endYear = startMonth === 1 ? startYear : startYear + 1;
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  const fyEnd = `${endYear}-${pad2(endMonth)}`;
+  const now = currentPeriodString();
+  if (now < fyStart) return fyStart;
+  if (now > fyEnd) return fyEnd;
+  return now;
+}
+
+export { currentPeriodString };
+
 export interface ComputedRun {
   items: PayslipRunItem[];
   details: Record<string, Payslip>;
@@ -155,7 +397,6 @@ export function computeRun(
   period: string,
   status: PayslipStatus = 'PENDING',
 ): ComputedRun {
-  const { year, month } = parsePeriod(period);
   const label = periodLabel(period);
   const generatedAt = `${period}-28T10:00:00.000Z`;
 
@@ -171,8 +412,8 @@ export function computeRun(
   let employeeCount = 0;
 
   for (const emp of FULL_ROSTER) {
-    const components = resolveGroupComponents(emp.payGroupId);
-    if (!components || components.length === 0) {
+    const month = computeEmployeeMonth(emp, period);
+    if (!month) {
       warnings.push({
         employeeId: emp.employeeId,
         employeeName: `${emp.firstName} ${emp.lastName}`,
@@ -181,80 +422,6 @@ export function computeRun(
       continue;
     }
 
-    const factor = prorationFactor({ basis: 'CALENDAR_DAYS', year, month, lopDays: emp.lopDays });
-    const compByCode = new Map(components.map((c) => [c.code, c]));
-    const breakdown = computeComponentBreakdown(components, emp.annualCtc);
-
-    const earnings: PayslipLine[] = [];
-    const deductions: PayslipLine[] = [];
-    const employerContributions: PayslipLine[] = [];
-
-    for (const line of breakdown) {
-      const comp = compByCode.get(line.code);
-      const raw = comp?.prorate ? line.monthlyAmount * factor : line.monthlyAmount;
-      const amount = Math.round(raw);
-      const pl: PayslipLine = { code: line.code, name: line.name, amount, taxable: line.taxable };
-      if (line.type === 'EARNING' || line.type === 'VARIABLE') earnings.push(pl);
-      else if (line.type === 'DEDUCTION') deductions.push(pl);
-      else employerContributions.push(pl); // EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT
-    }
-
-    const pack = resolveActivePack(emp.country, period);
-
-    // Statutory contributions: for each scheme in the pinned pack, build the wage
-    // base from earnings tagged with the scheme's statutoryTag, then derive the
-    // employee deduction + employer contribution (respecting the ceiling). Rates,
-    // ceilings, and the wage base are all data — no country logic in the engine.
-    if (pack) {
-      for (const scheme of pack.contributionSchemes) {
-        const rawBase = earnings
-          .filter((e) => compByCode.get(e.code)?.statutoryTag === scheme.wageBaseTag)
-          .reduce((s, e) => s + e.amount, 0);
-        if (rawBase <= 0) continue; // no tagged earnings → scheme not applicable
-        const { employee, employer } = computeContribution(rawBase, scheme);
-        upsertLine(
-          deductions,
-          scheme.employee.component,
-          compByCode.get(scheme.employee.component)?.name ?? `${scheme.name} (Employee)`,
-          employee,
-        );
-        upsertLine(
-          employerContributions,
-          scheme.employer.component,
-          compByCode.get(scheme.employer.component)?.name ?? `${scheme.name} (Employer)`,
-          employer,
-        );
-      }
-    }
-
-    // Income tax (TDS): computed from the pinned pack's regime via progressive
-    // slabs — never a flat rate in code. Project full-year taxable income, then
-    // spread the regime tax across the year. (YTD true-up arrives in Step 100.)
-    const regime = pack?.taxRegimes[0] ?? null;
-    if (regime) {
-      registerSlabTables({ [regime.code]: regime.slabs });
-      const taxableMonthly = breakdown
-        .filter((l) => (l.type === 'EARNING' || l.type === 'VARIABLE') && l.taxable)
-        .reduce((s, l) => s + l.monthlyAmount, 0);
-      const monthlyTax = Math.round(
-        projectPeriodTax({ annualTaxable: taxableMonthly * 12, regime }),
-      );
-      const tdsLine = deductions.find((d) => d.code === 'TDS');
-      if (tdsLine) tdsLine.amount = monthlyTax;
-      else if (monthlyTax > 0)
-        deductions.push({
-          code: 'TDS',
-          name: 'Income Tax (TDS)',
-          amount: monthlyTax,
-          taxable: false,
-        });
-    }
-
-    const grossEarnings = earnings.reduce((s, l) => s + l.amount, 0);
-    const slipDeductions = deductions.reduce((s, l) => s + l.amount, 0);
-    const slipEmployerCost = employerContributions.reduce((s, l) => s + l.amount, 0);
-    const netPay = grossEarnings - slipDeductions;
-    const presentDays = STD_WORKING_DAYS - emp.lopDays;
     const slipId = `slip-${runId}-${emp.employeeId}`;
 
     items.push({
@@ -265,12 +432,12 @@ export function computeRun(
       departmentName: emp.departmentName,
       designation: emp.designation,
       currency: CURRENCY,
-      grossEarnings,
-      totalDeductions: slipDeductions,
-      netPay,
-      workingDays: STD_WORKING_DAYS,
-      presentDays,
-      lopDays: emp.lopDays,
+      grossEarnings: month.grossEarnings,
+      totalDeductions: month.totalDeductions,
+      netPay: month.netPay,
+      workingDays: month.workingDays,
+      presentDays: month.presentDays,
+      lopDays: month.lopDays,
       status,
       hasAdjustments: false,
     });
@@ -289,19 +456,20 @@ export function computeRun(
         departmentName: emp.departmentName,
       },
       company: COMPANY,
-      earnings,
-      deductions,
-      employerContributions,
+      earnings: month.earnings,
+      deductions: month.deductions,
+      employerContributions: month.employerContributions,
+      ytd: computeEmployeeYtd(emp.employeeId, period) ?? undefined,
       oneTimeAdditions: [],
       oneTimeDeductions: [],
-      grossEarnings,
-      totalDeductions: slipDeductions,
-      employerCost: slipEmployerCost,
-      netPay,
-      workingDays: STD_WORKING_DAYS,
-      presentDays,
+      grossEarnings: month.grossEarnings,
+      totalDeductions: month.totalDeductions,
+      employerCost: month.employerCost,
+      netPay: month.netPay,
+      workingDays: month.workingDays,
+      presentDays: month.presentDays,
       leaveDays: 0,
-      lopDays: emp.lopDays,
+      lopDays: month.lopDays,
       status,
       paymentDate: status === 'PAID' ? `${period}-28` : null,
       paymentReference: status === 'PAID' ? `NEFT/${period}/${emp.employeeCode}` : null,
@@ -309,10 +477,10 @@ export function computeRun(
       generatedAt,
     };
 
-    totalGross += grossEarnings;
-    totalDeductions += slipDeductions;
-    employerCost += slipEmployerCost;
-    totalNet += netPay;
+    totalGross += month.grossEarnings;
+    totalDeductions += month.totalDeductions;
+    employerCost += month.employerCost;
+    totalNet += month.netPay;
     employeeCount += 1;
 
     const dept = deptMap.get(emp.departmentName) ?? {
@@ -321,7 +489,7 @@ export function computeRun(
       totalNet: 0,
     };
     dept.employeeCount += 1;
-    dept.totalNet += netPay;
+    dept.totalNet += month.netPay;
     deptMap.set(emp.departmentName, dept);
   }
 

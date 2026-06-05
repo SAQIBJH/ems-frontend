@@ -5,6 +5,7 @@ import type {
   EmployeeSalaryInput,
   PayslipsPage,
   Payslip,
+  PayslipYtd,
 } from '../types/payroll.types';
 
 export const employeeSalaryApi = {
@@ -56,6 +57,14 @@ export const employeeSalaryApi = {
   getPayslip: async (employeeId: string, payslipId: string): Promise<Payslip> => {
     const { data } = await apiClient.get<{ data: Payslip }>(
       `/payroll/employees/${employeeId}/payslips/${payslipId}`,
+    );
+    return data.data;
+  },
+
+  getYtd: async (employeeId: string, fy?: string): Promise<PayslipYtd> => {
+    const { data } = await apiClient.get<{ data: PayslipYtd }>(
+      `/payroll/employees/${employeeId}/ytd`,
+      { params: fy ? { fy } : undefined },
     );
     return data.data;
   },

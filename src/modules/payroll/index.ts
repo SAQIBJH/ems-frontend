@@ -21,6 +21,7 @@ export type {
   PayslipOneTime,
   PayslipEmployee,
   PayslipCompany,
+  PayslipYtd,
   Payslip,
   PayslipSummary,
   PayslipRunItem,
@@ -103,6 +104,7 @@ export {
   useEmployeeSalary,
   useEmployeePayslips,
   useEmployeePayslip,
+  useEmployeeYtd,
   useAssignSalary,
 } from './hooks/useEmployeeSalary';
 export {

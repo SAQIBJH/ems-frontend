@@ -1183,20 +1183,30 @@ Replaces the hardcoded India bank fields (`bankIfscCode`, …) with:
 
 #### `GET /payroll/employees/:id/ytd?fy=YYYY-YY` (Step 100)
 
-Per-employee, per-fiscal-year cumulative ledger.
+Per-employee, per-fiscal-year cumulative ledger, accumulated from the fiscal-year
+start through the current period (the fiscal-year start month comes from the
+employee's country — IN = April). Omitting `fy` returns the current fiscal year.
+The same shape is embedded on each computed payslip as `payslip.ytd`.
 
 ```json
 {
   "success": true,
   "data": {
     "fiscalYear": "2026-27",
+    "monthsElapsed": 3,
     "grossEarnings": 60000000,
     "taxableIncome": 52000000,
     "taxDeducted": 3960000,
-    "contributions": { "PF_EE": 360000, "PF_ER": 360000 }
+    "totalDeductions": 5760000,
+    "netPay": 54240000,
+    "contributions": { "PF": 360000, "PF_ER": 360000 }
   }
 }
 ```
+
+> The income-tax `taxDeducted` uses a **YTD true-up**: each period withholds the
+> remaining projected annual tax over the periods left, so withholding is smooth and
+> self-correcting (component codes follow the tenant's seed — IN uses `PF` / `PF_ER`).
 
 #### `GET/POST/PATCH /payroll/employees/:id/tax-declaration` (Step 102)
 

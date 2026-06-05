@@ -147,6 +147,11 @@ let legalEntities: LegalEntity[] = [
 
 let idCounter = 100;
 
+/** Fiscal-year start month (1–12) for a country; defaults to January. */
+export function getFiscalYearStartMonth(country: string): number {
+  return COUNTRIES.find((c) => c.code === country.toUpperCase())?.fiscalYearStartMonth ?? 1;
+}
+
 export const payrollLocalizationHandlers = [
   http.get('/api/payroll/countries', () => {
     return HttpResponse.json({ success: true, data: COUNTRIES });

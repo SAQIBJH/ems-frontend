@@ -1,5 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import type { EmployeeSalary, PayslipsPage } from '@/modules/payroll/types/payroll.types';
+import {
+  computeEmployeeYtd,
+  currentPeriodString,
+  ytdThroughPeriodForFy,
+} from '../data/payroll-engine';
 
 const SALARY_RECORDS: Record<string, EmployeeSalary> = {
   'emp-001': {
@@ -380,5 +385,20 @@ export const payrollEmployeeHandlers = [
       generatedAt: new Date().toISOString(),
     };
     return HttpResponse.json({ success: true, data: detail });
+  }),
+
+  // Per-employee, per-fiscal-year cumulative ledger (§5.5).
+  http.get('/api/payroll/employees/:employeeId/ytd', ({ params, request }) => {
+    const { employeeId } = params as { employeeId: string };
+    const fy = new URL(request.url).searchParams.get('fy');
+    const through = fy ? ytdThroughPeriodForFy('IN', fy) : currentPeriodString();
+    const ytd = computeEmployeeYtd(employeeId, through);
+    if (!ytd) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'No payroll data for employee' } },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json({ success: true, data: ytd });
   }),
 ];

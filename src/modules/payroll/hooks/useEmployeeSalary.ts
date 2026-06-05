@@ -4,6 +4,7 @@ import type { EmployeeSalaryInput } from '../types/payroll.types';
 
 export const SALARY_KEY = ['payroll', 'employee-salary'] as const;
 export const PAYSLIPS_KEY = ['payroll', 'employee-payslips'] as const;
+export const YTD_KEY = ['payroll', 'employee-ytd'] as const;
 
 export function useEmployeeSalary(employeeId: string | null) {
   return useQuery({
@@ -29,6 +30,14 @@ export function useEmployeePayslip(employeeId: string | null, payslipId: string 
     queryKey: [...PAYSLIPS_KEY, employeeId, 'detail', payslipId],
     queryFn: () => employeeSalaryApi.getPayslip(employeeId!, payslipId!),
     enabled: !!(employeeId && payslipId),
+  });
+}
+
+export function useEmployeeYtd(employeeId: string | null, fy?: string) {
+  return useQuery({
+    queryKey: [...YTD_KEY, employeeId, fy ?? 'current'],
+    queryFn: () => employeeSalaryApi.getYtd(employeeId!, fy),
+    enabled: !!employeeId,
   });
 }
 

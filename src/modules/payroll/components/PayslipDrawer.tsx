@@ -94,6 +94,10 @@ export function PayslipDrawer({
 
 function PayslipContent({ payslip }: { payslip: Payslip }) {
   const { currency } = payslip;
+  const periodTaxable = payslip.earnings
+    .filter((line) => line.taxable)
+    .reduce((sum, line) => sum + line.amount, 0);
+  const periodTax = payslip.deductions.find((line) => line.code === 'TDS')?.amount ?? 0;
 
   return (
     <div className="payslip-print-root space-y-5 px-4 py-4 text-sm">
@@ -241,6 +245,65 @@ function PayslipContent({ payslip }: { payslip: Payslip }) {
           <span className="tabular-nums">{fmtCurrency(payslip.netPay, currency)}</span>
         </div>
       </div>
+
+      {/* Year-to-date ledger */}
+      {payslip.ytd && (
+        <section>
+          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
+            Year to date · FY {payslip.ytd.fiscalYear}
+            <span className="ml-1 font-normal normal-case">
+              ({payslip.ytd.monthsElapsed} {payslip.ytd.monthsElapsed === 1 ? 'month' : 'months'})
+            </span>
+          </h3>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-subtle text-left text-fg-muted">
+                <th className="pb-1.5 font-medium">Item</th>
+                <th className="pb-1.5 text-right font-medium">This period</th>
+                <th className="pb-1.5 text-right font-medium">YTD</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-subtle tabular-nums">
+              <tr>
+                <td className="py-1.5 text-fg">Gross earnings</td>
+                <td className="py-1.5 text-right text-fg">
+                  {fmtCurrency(payslip.grossEarnings, currency)}
+                </td>
+                <td className="py-1.5 text-right text-fg">
+                  {fmtCurrency(payslip.ytd.grossEarnings, currency)}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-1.5 text-fg">Taxable income</td>
+                <td className="py-1.5 text-right text-fg-muted">
+                  {fmtCurrency(periodTaxable, currency)}
+                </td>
+                <td className="py-1.5 text-right text-fg-muted">
+                  {fmtCurrency(payslip.ytd.taxableIncome, currency)}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-1.5 text-fg">Tax deducted</td>
+                <td className="py-1.5 text-right text-fg-muted">
+                  {fmtCurrency(periodTax, currency)}
+                </td>
+                <td className="py-1.5 text-right text-fg-muted">
+                  {fmtCurrency(payslip.ytd.taxDeducted, currency)}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-1.5 text-fg">Net pay</td>
+                <td className="py-1.5 text-right text-fg">
+                  {fmtCurrency(payslip.netPay, currency)}
+                </td>
+                <td className="py-1.5 text-right text-fg">
+                  {fmtCurrency(payslip.ytd.netPay, currency)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      )}
 
       {/* Working days summary */}
       <div className="grid grid-cols-3 gap-2 rounded-lg border border-subtle p-3 text-center">
