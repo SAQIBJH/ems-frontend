@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollRunsApi } from '../services/payroll-runs.api';
-import type { PayrollRunInput, PayrollRunsParams, PayslipOneTime } from '../types/payroll.types';
+import type {
+  PayrollInput,
+  PayrollRunInput,
+  PayrollRunsParams,
+  PayslipOneTime,
+} from '../types/payroll.types';
 
 export const RUNS_KEY = ['payroll', 'runs'] as const;
 
@@ -76,6 +81,41 @@ export function useMarkPaidPayrollRun() {
       paymentReference: string;
     }) => payrollRunsApi.markPaid(id, { paidAt, paymentReference }),
     onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: [...RUNS_KEY, id] }),
+  });
+}
+
+export function useRunInputs(runId: string | null) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'inputs'],
+    queryFn: () => payrollRunsApi.listInputs(runId!),
+    enabled: !!runId,
+  });
+}
+
+export function useUpdateRunInput() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      runId,
+      employeeId,
+      body,
+    }: {
+      runId: string;
+      employeeId: string;
+      body: Partial<PayrollInput>;
+    }) => payrollRunsApi.updateInput(runId, employeeId, body),
+    onSuccess: (_data, { runId }) =>
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'inputs'] }),
+  });
+}
+
+export function useImportRunInputs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, csv }: { runId: string; csv: string }) =>
+      payrollRunsApi.importInputs(runId, csv),
+    onSuccess: (_data, { runId }) =>
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'inputs'] }),
   });
 }
 

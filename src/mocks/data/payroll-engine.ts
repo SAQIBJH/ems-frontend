@@ -10,10 +10,12 @@
 import type {
   SalaryComponent,
   PayslipLine,
+  PayslipOneTime,
   PayslipRunItem,
   Payslip,
   PayslipStatus,
   PayslipYtd,
+  PayrollInput,
   PayrollRunDeptSummary,
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
@@ -25,7 +27,7 @@ import {
   registerSlabTables,
 } from '@/modules/payroll/utils/formula.utils';
 import { prorationFactor } from '@/modules/payroll/utils/proration.utils';
-import { getComponentById } from '../handlers/payroll-components';
+import { getComponentById, getComponentByCode } from '../handlers/payroll-components';
 import { getGroupById } from '../handlers/payroll-groups';
 import { resolveActivePack } from '../handlers/payroll-statutory';
 import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
@@ -33,6 +35,9 @@ import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
 const STD_WORKING_DAYS = 22;
+// Standard paid hours per working day — used to derive an hourly rate for overtime.
+// A sensible operational default; moves to the pay calendar in a later step.
+const STD_HOURS_PER_DAY = 8;
 
 interface RosterEmployee {
   employeeId: string;
@@ -219,6 +224,8 @@ interface EmployeeMonth {
   earnings: PayslipLine[];
   deductions: PayslipLine[];
   employerContributions: PayslipLine[];
+  oneTimeAdditions: PayslipOneTime[];
+  oneTimeDeductions: PayslipOneTime[];
   grossEarnings: number;
   totalDeductions: number;
   employerCost: number;
@@ -233,12 +240,18 @@ interface EmployeeMonth {
   lopDays: number;
 }
 
-function computeEmployeeMonth(emp: RosterEmployee, period: string): EmployeeMonth | null {
+function computeEmployeeMonth(
+  emp: RosterEmployee,
+  period: string,
+  input?: PayrollInput,
+): EmployeeMonth | null {
   const components = resolveGroupComponents(emp.payGroupId);
   if (!components || components.length === 0) return null;
 
+  // LOP comes from the run inputs (attendance) when present, else the roster default.
+  const lopDays = input?.lopDays ?? emp.lopDays;
   const { year, month } = parsePeriod(period);
-  const factor = prorationFactor({ basis: 'CALENDAR_DAYS', year, month, lopDays: emp.lopDays });
+  const factor = prorationFactor({ basis: 'CALENDAR_DAYS', year, month, lopDays });
   const compByCode = new Map(components.map((c) => [c.code, c]));
   const breakdown = computeComponentBreakdown(components, emp.annualCtc);
 
@@ -248,12 +261,34 @@ function computeEmployeeMonth(emp: RosterEmployee, period: string): EmployeeMont
 
   for (const line of breakdown) {
     const comp = compByCode.get(line.code);
-    const raw = comp?.prorate ? line.monthlyAmount * factor : line.monthlyAmount;
+    // VARIABLE components are input-driven: take their amount from the run input.
+    let raw: number;
+    if (line.type === 'VARIABLE') raw = input?.variablePay?.[line.code] ?? 0;
+    else raw = comp?.prorate ? line.monthlyAmount * factor : line.monthlyAmount;
     const amount = Math.round(raw);
     const pl: PayslipLine = { code: line.code, name: line.name, amount, taxable: line.taxable };
-    if (line.type === 'EARNING' || line.type === 'VARIABLE') earnings.push(pl);
-    else if (line.type === 'DEDUCTION') deductions.push(pl);
+    if (line.type === 'EARNING') earnings.push(pl);
+    else if (line.type === 'VARIABLE') {
+      if (amount > 0) earnings.push(pl); // omit zero-value variable lines
+    } else if (line.type === 'DEDUCTION') deductions.push(pl);
     else employerContributions.push(pl); // EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT
+  }
+
+  // Overtime: hours × hourly rate × the OT component's configurable multiplier.
+  const otHours = input?.otHours ?? 0;
+  if (otHours > 0) {
+    const otComp = getComponentByCode('OT');
+    const basicMonthly = breakdown.find((l) => l.code === 'BASIC')?.monthlyAmount ?? 0;
+    const hourlyRate = basicMonthly / (STD_WORKING_DAYS * STD_HOURS_PER_DAY);
+    const multiplier = (otComp?.value ?? 100) / 100;
+    const otPay = Math.round(otHours * hourlyRate * multiplier);
+    if (otPay > 0)
+      earnings.push({
+        code: 'OT',
+        name: otComp?.name ?? 'Overtime',
+        amount: otPay,
+        taxable: otComp?.taxable ?? true,
+      });
   }
 
   const pack = resolveActivePack(emp.country, period);
@@ -306,6 +341,16 @@ function computeEmployeeMonth(emp: RosterEmployee, period: string): EmployeeMont
       });
   }
 
+  // One-time, period-only additions/deductions supplied via the run input.
+  const oneTimeAdditions: PayslipOneTime[] = (input?.oneTime ?? [])
+    .filter((o) => o.kind === 'ADDITION')
+    .map((o) => ({ description: o.label, amount: o.amount }));
+  const oneTimeDeductions: PayslipOneTime[] = (input?.oneTime ?? [])
+    .filter((o) => o.kind === 'DEDUCTION')
+    .map((o) => ({ description: o.label, amount: o.amount }));
+  const oneTimeAddTotal = oneTimeAdditions.reduce((s, o) => s + o.amount, 0);
+  const oneTimeDedTotal = oneTimeDeductions.reduce((s, o) => s + o.amount, 0);
+
   const grossEarnings = earnings.reduce((s, l) => s + l.amount, 0);
   const totalDeductions = deductions.reduce((s, l) => s + l.amount, 0);
   const employerCost = employerContributions.reduce((s, l) => s + l.amount, 0);
@@ -315,17 +360,35 @@ function computeEmployeeMonth(emp: RosterEmployee, period: string): EmployeeMont
     earnings,
     deductions,
     employerContributions,
+    oneTimeAdditions,
+    oneTimeDeductions,
     grossEarnings,
     totalDeductions,
     employerCost,
-    netPay: grossEarnings - totalDeductions,
+    netPay: grossEarnings - totalDeductions + oneTimeAddTotal - oneTimeDedTotal,
     taxableEarnings,
     taxDeducted,
     contributions,
     workingDays: STD_WORKING_DAYS,
-    presentDays: STD_WORKING_DAYS - emp.lopDays,
-    lopDays: emp.lopDays,
+    presentDays: STD_WORKING_DAYS - lopDays,
+    lopDays,
   };
+}
+
+/* ── Run inputs seed (defaults pulled from attendance LOP) ─────────────────── */
+
+/** Default per-employee inputs for the live roster — LOP seeded from attendance. */
+export function getRosterInputSeed(): PayrollInput[] {
+  return ROSTER.map((emp) => ({
+    employeeId: emp.employeeId,
+    employeeCode: emp.employeeCode,
+    employeeName: `${emp.firstName} ${emp.lastName}`,
+    lopDays: emp.lopDays, // attendance-derived LOP for the demo roster
+    leaveDays: 0,
+    otHours: 0,
+    variablePay: {},
+    oneTime: [],
+  }));
 }
 
 /* ── Year-to-date ledger ──────────────────────────────────────────────────── */
@@ -396,6 +459,7 @@ export function computeRun(
   runId: string,
   period: string,
   status: PayslipStatus = 'PENDING',
+  inputs?: Record<string, PayrollInput>,
 ): ComputedRun {
   const label = periodLabel(period);
   const generatedAt = `${period}-28T10:00:00.000Z`;
@@ -412,7 +476,7 @@ export function computeRun(
   let employeeCount = 0;
 
   for (const emp of FULL_ROSTER) {
-    const month = computeEmployeeMonth(emp, period);
+    const month = computeEmployeeMonth(emp, period, inputs?.[emp.employeeId]);
     if (!month) {
       warnings.push({
         employeeId: emp.employeeId,
@@ -460,15 +524,15 @@ export function computeRun(
       deductions: month.deductions,
       employerContributions: month.employerContributions,
       ytd: computeEmployeeYtd(emp.employeeId, period) ?? undefined,
-      oneTimeAdditions: [],
-      oneTimeDeductions: [],
+      oneTimeAdditions: month.oneTimeAdditions,
+      oneTimeDeductions: month.oneTimeDeductions,
       grossEarnings: month.grossEarnings,
       totalDeductions: month.totalDeductions,
       employerCost: month.employerCost,
       netPay: month.netPay,
       workingDays: month.workingDays,
       presentDays: month.presentDays,
-      leaveDays: 0,
+      leaveDays: inputs?.[emp.employeeId]?.leaveDays ?? 0,
       lopDays: month.lopDays,
       status,
       paymentDate: status === 'PAID' ? `${period}-28` : null,

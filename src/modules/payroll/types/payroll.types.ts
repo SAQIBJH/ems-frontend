@@ -321,6 +321,45 @@ export interface PayrollRunInput {
   includeAllActiveEmployees: boolean;
 }
 
+/* ── Per-employee, per-run payroll inputs (§6) ────────────────────────────── */
+
+export interface PayrollInputOneTime {
+  label: string;
+  amount: number;
+  kind: 'ADDITION' | 'DEDUCTION';
+}
+
+/** Everything that varies per period per employee, fed into the run engine. */
+export interface PayrollInput {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  /** Loss-of-pay days (from attendance) — drives proration. */
+  lopDays: number;
+  /** Paid-leave days (informational; does not reduce pay). */
+  leaveDays: number;
+  /** Overtime hours — priced at the OT component's configurable multiplier. */
+  otHours: number;
+  /** Variable-component amounts by component code (incentive, commission, bonus). */
+  variablePay: Record<string, number>;
+  /** Ad-hoc additions/deductions for this period only. */
+  oneTime: PayrollInputOneTime[];
+}
+
+export interface PayrollInputsPage {
+  runId: string;
+  period: string;
+  /** Inputs are only editable while the run is DRAFT (before calculation). */
+  editable: boolean;
+  inputs: PayrollInput[];
+}
+
+export interface PayrollInputImportResult {
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {

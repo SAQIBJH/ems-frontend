@@ -164,12 +164,35 @@ let components: SalaryComponent[] = [
     createdAt: '2024-01-15T10:00:00.000Z',
     updatedAt: '2024-01-15T10:00:00.000Z',
   },
+  {
+    id: 'comp-010',
+    name: 'Overtime',
+    code: 'OT',
+    type: 'VARIABLE',
+    calculationType: 'PERCENTAGE',
+    // value = OT rate as a percent of the normal hourly rate (150 = 1.5×).
+    value: 150,
+    basisCode: null,
+    formula: null,
+    taxable: true,
+    active: true,
+    displayOrder: 6,
+    description: 'Overtime — input hours priced at this configurable multiplier of hourly pay',
+    statutoryTag: null,
+    prorate: false,
+    createdAt: '2024-01-15T10:00:00.000Z',
+    updatedAt: '2024-01-15T10:00:00.000Z',
+  },
 ];
 
 let idCounter = 100;
 
 export function getComponentById(id: string) {
   return components.find((c) => c.id === id);
+}
+
+export function getComponentByCode(code: string) {
+  return components.find((c) => c.code === code);
 }
 
 export const payrollComponentHandlers = [

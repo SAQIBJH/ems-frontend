@@ -1244,8 +1244,19 @@ payslip detail adds `employerContributions[]` and (Step 100) a `ytd` block.
 
 #### Run inputs (Step 101)
 
-- `GET/PATCH /payroll/runs/:id/inputs` — per-employee `{ employeeId, lopDays, leaveDays, otHours, variable[], oneTimeAdditions[], oneTimeDeductions[] }`.
-- `POST /payroll/runs/:id/inputs/import` — CSV bulk upload of per-employee inputs.
+- `GET /payroll/runs/:runId/inputs` → `{ runId, period, editable, inputs: PayrollInput[] }`.
+  `editable` is true only while the run is `DRAFT`. `PayrollInput` =
+  `{ employeeId, employeeCode, employeeName, lopDays, leaveDays, otHours, variablePay: Record<code,amount>, oneTime: { label, amount, kind: ADDITION|DEDUCTION }[] }`.
+  Inputs are lazily seeded from the roster; **`lopDays` defaults from attendance**.
+- `PATCH /payroll/runs/:runId/inputs/:employeeId` — partial update of one employee's input
+  (`{ lopDays? , leaveDays? , otHours? , variablePay? , oneTime? }`). `404` if the employee
+  is not in the run.
+- `POST /payroll/runs/:runId/inputs/import` — body `{ csv }` (header row +
+  `employeeCode,lopDays,otHours,leaveDays`); returns `{ updated, skipped, errors[] }`.
+- **Effect on calculate:** the engine prorates payable components by `lopDays`, prices
+  `otHours` at the OT component's configurable multiplier (× hourly rate), pulls
+  `VARIABLE` component amounts from `variablePay`, and folds `oneTime` into net pay.
+  Reads (`GET payslips` / run) reflect the stored inputs, so re-calculation is reproducible.
 
 #### Run types (Step 105)
 

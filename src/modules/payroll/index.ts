@@ -30,6 +30,10 @@ export type {
   PayrollRunSummary,
   PayrollRun,
   PayrollRunInput,
+  PayrollInput,
+  PayrollInputOneTime,
+  PayrollInputsPage,
+  PayrollInputImportResult,
   PayrollRunsPage,
   PayrollRunsParams,
   PayslipsPage,
@@ -99,6 +103,9 @@ export {
   useApprovePayrollRun,
   useMarkPaidPayrollRun,
   useAdjustPayslip,
+  useRunInputs,
+  useUpdateRunInput,
+  useImportRunInputs,
 } from './hooks/usePayrollRuns';
 export {
   useEmployeeSalary,
@@ -158,6 +165,7 @@ export { PayrollScreen } from './components/PayrollScreen';
 export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
+export { RunInputsPanel } from './components/RunInputsPanel';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';
 export { MyPayslipsPage } from './components/MyPayslipsPage';

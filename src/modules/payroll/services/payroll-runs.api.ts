@@ -7,6 +7,9 @@ import type {
   PayslipRunPage,
   Payslip,
   PayslipOneTime,
+  PayrollInput,
+  PayrollInputsPage,
+  PayrollInputImportResult,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -97,5 +100,32 @@ export const payrollRunsApi = {
       responseType: 'blob',
     });
     return response.data as Blob;
+  },
+
+  listInputs: async (runId: string): Promise<PayrollInputsPage> => {
+    const { data } = await apiClient.get<{ data: PayrollInputsPage }>(
+      `/payroll/runs/${runId}/inputs`,
+    );
+    return data.data;
+  },
+
+  updateInput: async (
+    runId: string,
+    employeeId: string,
+    body: Partial<PayrollInput>,
+  ): Promise<PayrollInput> => {
+    const { data } = await apiClient.patch<{ data: PayrollInput }>(
+      `/payroll/runs/${runId}/inputs/${employeeId}`,
+      body,
+    );
+    return data.data;
+  },
+
+  importInputs: async (runId: string, csv: string): Promise<PayrollInputImportResult> => {
+    const { data } = await apiClient.post<{ data: PayrollInputImportResult }>(
+      `/payroll/runs/${runId}/inputs/import`,
+      { csv },
+    );
+    return data.data;
   },
 };

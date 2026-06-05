@@ -43,6 +43,7 @@ import {
   useRunPayslips,
   useApprovePayrollRun,
   useMarkPaidPayrollRun,
+  useCalculatePayrollRun,
   RUN_STATUS_CONFIG,
   payrollRunsApi,
 } from '@/modules/payroll';
@@ -50,6 +51,7 @@ import type { PayrollRunStatus, PayslipRunItem } from '@/modules/payroll';
 
 import { PayslipDrawer } from './PayslipDrawer';
 import { AdjustmentDialog } from './AdjustmentDialog';
+import { RunInputsPanel } from './RunInputsPanel';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -176,6 +178,7 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
   } = useRunPayslips(runId, { page, limit: 20 });
 
   const approveMutation = useApprovePayrollRun();
+  const calculateMutation = useCalculatePayrollRun();
 
   const payslips = payslipsPage?.items ?? [];
   const pagination = payslipsPage?.pagination;
@@ -189,6 +192,17 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
     } catch (err) {
       const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
       toast.error(apiErr?.message ?? 'Failed to approve');
+    }
+  }
+
+  async function handleCalculate() {
+    if (!run) return;
+    try {
+      await calculateMutation.mutateAsync(run.id);
+      toast.success('Calculation started — payslips will appear shortly.');
+    } catch (err) {
+      const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
+      toast.error(apiErr?.message ?? 'Failed to start calculation');
     }
   }
 
@@ -350,6 +364,21 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
               Export Register
             </Button>
 
+            {run?.status === 'DRAFT' && (
+              <PermissionWrapper permission="payroll:process">
+                <Button
+                  size="default"
+                  onClick={handleCalculate}
+                  disabled={calculateMutation.isPending}
+                >
+                  {calculateMutation.isPending && (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  )}
+                  Calculate Payroll
+                </Button>
+              </PermissionWrapper>
+            )}
+
             {run?.status === 'REVIEW' && (
               <PermissionWrapper permission="payroll:approve">
                 <Button size="default" onClick={handleApprove} disabled={approveMutation.isPending}>
@@ -447,6 +476,9 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
             </div>
           </div>
         )}
+
+        {/* Period inputs — editable before calculation */}
+        {run?.status === 'DRAFT' && <RunInputsPanel runId={runId} />}
 
         {/* Payslips table */}
         <div>

@@ -3,6 +3,7 @@ import type { PayrollRun } from '@/modules/payroll/types/payroll.types';
 import type { RunConfigSnapshotRef } from '@/modules/payroll/types/statutory.types';
 import { computeRun } from '../data/payroll-engine';
 import { resolveActivePack } from './payroll-statutory';
+import { getRunInputs } from './payroll-inputs';
 
 // The demo tenant's payroll roster operates under the India legal entity.
 const RUN_COUNTRY = 'IN';
@@ -108,6 +109,14 @@ let runs: PayrollRun[] = [
 
 let idCounter = 100;
 
+/** Status + period for a run (consumed by the inputs handler; avoids a store import). */
+export function getRunMeta(
+  runId: string,
+): { status: PayrollRun['status']; period: string } | undefined {
+  const run = runs.find((r) => r.id === runId);
+  return run ? { status: run.status, period: run.period } : undefined;
+}
+
 function payslipStatusFor(run: PayrollRun) {
   return run.status === 'PAID' ? ('PAID' as const) : ('PENDING' as const);
 }
@@ -149,7 +158,7 @@ export const payrollRunHandlers = [
     const computed =
       run.status === 'DRAFT' || run.status === 'CANCELLED'
         ? { byDepartment: [], warnings: [] }
-        : computeRun(run.id, run.period, payslipStatusFor(run));
+        : computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id));
     return HttpResponse.json({
       success: true,
       data: {
@@ -207,7 +216,7 @@ export const payrollRunHandlers = [
       setTimeout(() => {
         const run = runs.find((r) => r.id === id);
         if (!run) return;
-        const computed = computeRun(run.id, run.period, 'PENDING');
+        const computed = computeRun(run.id, run.period, 'PENDING', getRunInputs(id));
         runs = runs.map((r) =>
           r.id === id
             ? {
@@ -265,7 +274,7 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    const computed = computeRun(run.id, run.period, payslipStatusFor(run));
+    const computed = computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id));
     return HttpResponse.json({
       success: true,
       data: {
@@ -289,7 +298,7 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    const computed = computeRun(run.id, run.period, payslipStatusFor(run));
+    const computed = computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id));
     const detail = computed.details[payslipId];
     if (!detail) {
       return HttpResponse.json(
@@ -304,7 +313,9 @@ export const payrollRunHandlers = [
     const { runId, payslipId } = params as { runId: string; payslipId: string };
     const body = (await request.json()) as Record<string, unknown>;
     const run = runs.find((r) => r.id === runId);
-    const computed = run ? computeRun(run.id, run.period, payslipStatusFor(run)) : null;
+    const computed = run
+      ? computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id))
+      : null;
     const detail = computed?.details[payslipId];
     return HttpResponse.json({ success: true, data: { ...detail, ...body, hasAdjustments: true } });
   }),
@@ -312,7 +323,9 @@ export const payrollRunHandlers = [
   http.get('/api/payroll/runs/:runId/export', ({ params }) => {
     const { runId } = params as { runId: string };
     const run = runs.find((r) => r.id === runId);
-    const computed = run ? computeRun(run.id, run.period, payslipStatusFor(run)) : BASE;
+    const computed = run
+      ? computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id))
+      : BASE;
     const header = 'employeeCode,employeeName,grossEarnings,totalDeductions,netPay';
     const rows = computed.items.map(
       (i) =>
