@@ -360,6 +360,35 @@ export interface PayrollInputImportResult {
   errors: string[];
 }
 
+/* ── Tax declarations / exemptions / proofs (§5.2) ────────────────────────── */
+
+export type ProofStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+
+export interface TaxDeclarationItem {
+  /** Exemption code from the regime's allowedExemptions (e.g. 80C, HRA). */
+  code: string;
+  /** Declared amount, minor units. */
+  amount: number;
+  /** Code-specific extras (e.g. HRA rent paid, metro flag). */
+  meta?: Record<string, unknown>;
+  proofStatus: ProofStatus;
+}
+
+export interface TaxDeclaration {
+  employeeId: string;
+  fiscalYear: string;
+  /** Chosen tax regime code (e.g. IN_NEW_REGIME). */
+  regime: string;
+  items: TaxDeclarationItem[];
+  updatedAt: string;
+}
+
+export interface TaxDeclarationInput {
+  fiscalYear: string;
+  regime: string;
+  items: TaxDeclarationItem[];
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {

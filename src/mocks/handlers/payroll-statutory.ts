@@ -32,6 +32,23 @@ let packs: StatutoryPack[] = [
         ],
         surcharge: [{ thresholdAnnual: 500000000, rate: 10 }],
         cess: { rate: 4 },
+        // New regime: concessional rates, but exemptions are not allowed.
+        allowedExemptions: ['STD_DEDUCTION'],
+      },
+      {
+        code: 'IN_OLD_REGIME',
+        fiscalYear: '2026-27',
+        currency: 'INR',
+        standardDeduction: 5000000,
+        slabs: [
+          { from: 0, to: 25000000, rate: 0 },
+          { from: 25000000, to: 50000000, rate: 5 },
+          { from: 50000000, to: 100000000, rate: 20 },
+          { from: 100000000, to: null, rate: 30 },
+        ],
+        surcharge: [{ thresholdAnnual: 500000000, rate: 10 }],
+        cess: { rate: 4 },
+        // Old regime: higher rates, but investment/HRA exemptions are allowed.
         allowedExemptions: ['STD_DEDUCTION', '80C', '80D', 'HRA', 'LTA'],
       },
     ],

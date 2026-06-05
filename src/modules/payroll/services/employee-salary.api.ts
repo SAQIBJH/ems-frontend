@@ -6,6 +6,8 @@ import type {
   PayslipsPage,
   Payslip,
   PayslipYtd,
+  TaxDeclaration,
+  TaxDeclarationInput,
 } from '../types/payroll.types';
 
 export const employeeSalaryApi = {
@@ -65,6 +67,36 @@ export const employeeSalaryApi = {
     const { data } = await apiClient.get<{ data: PayslipYtd }>(
       `/payroll/employees/${employeeId}/ytd`,
       { params: fy ? { fy } : undefined },
+    );
+    return data.data;
+  },
+
+  getTaxDeclaration: async (employeeId: string, fy: string): Promise<TaxDeclaration> => {
+    const { data } = await apiClient.get<{ data: TaxDeclaration }>(
+      `/payroll/employees/${employeeId}/tax-declaration`,
+      { params: { fy } },
+    );
+    return data.data;
+  },
+
+  saveTaxDeclaration: async (
+    employeeId: string,
+    input: TaxDeclarationInput,
+  ): Promise<TaxDeclaration> => {
+    const { data } = await apiClient.post<{ data: TaxDeclaration }>(
+      `/payroll/employees/${employeeId}/tax-declaration`,
+      input,
+    );
+    return data.data;
+  },
+
+  updateTaxDeclaration: async (
+    employeeId: string,
+    input: Partial<TaxDeclarationInput> & { fiscalYear: string },
+  ): Promise<TaxDeclaration> => {
+    const { data } = await apiClient.patch<{ data: TaxDeclaration }>(
+      `/payroll/employees/${employeeId}/tax-declaration`,
+      input,
     );
     return data.data;
   },

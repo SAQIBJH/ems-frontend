@@ -1210,21 +1210,32 @@ The same shape is embedded on each computed payslip as `payslip.ytd`.
 
 #### `GET/POST/PATCH /payroll/employees/:id/tax-declaration` (Step 102)
 
+`GET ?fy=YYYY-YY` returns the stored declaration, or a default
+`{ employeeId, fiscalYear, regime: <pack's first regime>, items: [] }`. `POST` replaces
+the declaration; `PATCH` merges `regime` / `items` (HR uses it to set `proofStatus`).
+
 ```jsonc
 {
+  "employeeId": "emp-004",
   "fiscalYear": "2026-27",
-  "regime": "IN_NEW_REGIME",
+  "regime": "IN_NEW_REGIME", // chosen from the pack's taxRegimes
   "items": [
     { "code": "80C", "amount": 15000000, "proofStatus": "PENDING" },
     {
       "code": "HRA",
       "amount": 30000000,
       "meta": { "rentPaid": 30000000, "metro": true },
-      "proofStatus": "VERIFIED",
+      "proofStatus": "VERIFIED", // PENDING | VERIFIED | REJECTED
     },
   ],
 }
 ```
+
+> **Engine effect:** the run picks the declaration's `regime` (falling back to the pack's
+> first) and reduces annual taxable income by the sum of **VERIFIED** items whose `code` is
+> in that regime's `allowedExemptions` (excluding `STD_DEDUCTION`). The IN pack now ships
+> two regimes — `IN_NEW_REGIME` (concessional rates, exemptions disallowed) and
+> `IN_OLD_REGIME` (higher rates, exemptions allowed) — so regime choice is meaningful.
 
 #### `GET/POST /payroll/employees/:id/loans` (Step 103)
 

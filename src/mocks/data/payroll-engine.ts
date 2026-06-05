@@ -31,6 +31,7 @@ import { getComponentById, getComponentByCode } from '../handlers/payroll-compon
 import { getGroupById } from '../handlers/payroll-groups';
 import { resolveActivePack } from '../handlers/payroll-statutory';
 import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
+import { getTaxDeclaration } from '../handlers/payroll-tax-declaration';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
@@ -320,16 +321,30 @@ function computeEmployeeMonth(
     }
   }
 
-  // Income tax (TDS): progressive regime tax with YTD true-up.
-  const regime = pack?.taxRegimes[0] ?? null;
+  // Income tax (TDS): progressive regime tax with YTD true-up. The employee's tax
+  // declaration (if any) chooses the regime and reduces taxable income by VERIFIED
+  // exemptions the regime allows — all data-driven, no per-code logic.
+  const { fyLabel, monthIndex, totalMonths } = fiscalInfo(emp.country, period);
+  const declaration = getTaxDeclaration(emp.employeeId, fyLabel);
+  const regime =
+    (declaration && pack?.taxRegimes.find((r) => r.code === declaration.regime)) ??
+    pack?.taxRegimes[0] ??
+    null;
   let taxDeducted = 0;
   if (regime) {
     registerSlabTables({ [regime.code]: regime.slabs });
     const structuralTaxable = breakdown
       .filter((l) => (l.type === 'EARNING' || l.type === 'VARIABLE') && l.taxable)
       .reduce((s, l) => s + l.monthlyAmount, 0);
-    const { monthIndex, totalMonths } = fiscalInfo(emp.country, period);
-    taxDeducted = withholdingForMonth(structuralTaxable * 12, regime, monthIndex, totalMonths);
+    const allowed = new Set(regime.allowedExemptions ?? []);
+    const exemptions = (declaration?.items ?? [])
+      .filter(
+        (it) =>
+          it.proofStatus === 'VERIFIED' && it.code !== 'STD_DEDUCTION' && allowed.has(it.code),
+      )
+      .reduce((s, it) => s + it.amount, 0);
+    const annualTaxable = Math.max(0, structuralTaxable * 12 - exemptions);
+    taxDeducted = withholdingForMonth(annualTaxable, regime, monthIndex, totalMonths);
     const tdsLine = deductions.find((d) => d.code === 'TDS');
     if (tdsLine) tdsLine.amount = taxDeducted;
     else if (taxDeducted > 0)

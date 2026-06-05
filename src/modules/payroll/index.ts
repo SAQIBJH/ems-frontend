@@ -24,6 +24,10 @@ export type {
   PayslipYtd,
   Payslip,
   PayslipSummary,
+  ProofStatus,
+  TaxDeclaration,
+  TaxDeclarationItem,
+  TaxDeclarationInput,
   PayslipRunItem,
   PayrollRunWarning,
   PayrollRunDeptSummary,
@@ -113,6 +117,9 @@ export {
   useEmployeePayslip,
   useEmployeeYtd,
   useAssignSalary,
+  useTaxDeclaration,
+  useSaveTaxDeclaration,
+  useUpdateTaxDeclaration,
 } from './hooks/useEmployeeSalary';
 export {
   useCountries,
@@ -169,3 +176,4 @@ export { RunInputsPanel } from './components/RunInputsPanel';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';
 export { MyPayslipsPage } from './components/MyPayslipsPage';
+export { TaxDeclarationCard } from './components/TaxDeclarationCard';

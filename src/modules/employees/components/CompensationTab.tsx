@@ -18,6 +18,7 @@ import {
   usePayrollComponents,
   useBankSchema,
   COMPONENT_TYPE_CONFIG,
+  TaxDeclarationCard,
 } from '@/modules/payroll';
 import type { SalaryComponent, EmployeeSalary } from '@/modules/payroll';
 
@@ -262,6 +263,9 @@ export function CompensationTab({ employeeId }: { employeeId: string }) {
 
       {/* Bank details — labels resolved from the country bank schema */}
       <BankDetailsCard salary={salary} />
+
+      {/* Tax declaration — HR review/verify */}
+      <TaxDeclarationCard employeeId={employeeId} mode="hr" />
 
       {/* History */}
       {salary.history.length > 0 && (
