@@ -4922,7 +4922,7 @@ All three must be clean.
 
 - [x] Step 102 — Tax declarations / exemptions / proofs
 - [x] Step 103 — Loans & advances (EMI schedule + recovery)
-- [ ] Step 104 — Reimbursement claims + structured variable pay
+- [x] Step 104 — Reimbursement claims + structured variable pay
 - [ ] Step 105 — Run types: off-cycle / bonus / arrears / reversal / FnF
 - [ ] Step 106 — Country pay practices + multi-jurisdiction tax
 - [ ] Step 107 — Garnishments / court orders
