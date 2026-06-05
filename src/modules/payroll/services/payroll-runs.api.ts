@@ -12,6 +12,9 @@ import type {
   PayrollInputImportResult,
   FnfSettlement,
   RosterMember,
+  RunVariance,
+  PayrollRunAuditEntry,
+  RunDryRunResult,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -42,6 +45,46 @@ export const payrollRunsApi = {
     const { data } = await apiClient.post<{ data: PayrollRun }>(`/payroll/runs/${id}/approve`, {
       notes,
     });
+    return data.data;
+  },
+
+  approveLevel: async (
+    id: string,
+    level: number,
+    body: { approver: string; notes?: string },
+  ): Promise<PayrollRun> => {
+    const { data } = await apiClient.post<{ data: PayrollRun }>(
+      `/payroll/runs/${id}/approvals/${level}`,
+      body,
+    );
+    return data.data;
+  },
+
+  dryRun: async (id: string): Promise<RunDryRunResult> => {
+    const { data } = await apiClient.post<{ data: RunDryRunResult }>(
+      `/payroll/runs/${id}/calculate?dryRun=true`,
+      {},
+    );
+    return data.data;
+  },
+
+  getVariance: async (id: string): Promise<RunVariance> => {
+    const { data } = await apiClient.get<{ data: RunVariance }>(`/payroll/runs/${id}/variance`);
+    return data.data;
+  },
+
+  getAudit: async (id: string): Promise<PayrollRunAuditEntry[]> => {
+    const { data } = await apiClient.get<{ data: PayrollRunAuditEntry[] }>(
+      `/payroll/runs/${id}/audit`,
+    );
+    return data.data;
+  },
+
+  reprocessPayslip: async (id: string, payslipId: string, actor: string): Promise<Payslip> => {
+    const { data } = await apiClient.post<{ data: Payslip }>(
+      `/payroll/runs/${id}/payslips/${payslipId}/recalculate`,
+      { actor },
+    );
     return data.data;
   },
 

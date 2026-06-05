@@ -68,6 +68,55 @@ export function useApprovePayrollRun() {
   });
 }
 
+export function useApproveRunLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      level,
+      approver,
+      notes,
+    }: {
+      id: string;
+      level: number;
+      approver: string;
+      notes?: string;
+    }) => payrollRunsApi.approveLevel(id, level, { approver, notes }),
+    onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: [...RUNS_KEY, id] }),
+  });
+}
+
+export function useRunVariance(runId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'variance'],
+    queryFn: () => payrollRunsApi.getVariance(runId!),
+    enabled: !!runId && enabled,
+  });
+}
+
+export function useRunAudit(runId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'audit'],
+    queryFn: () => payrollRunsApi.getAudit(runId!),
+    enabled: !!runId && enabled,
+  });
+}
+
+export function useDryRunPayrollRun() {
+  return useMutation({
+    mutationFn: (id: string) => payrollRunsApi.dryRun(id),
+  });
+}
+
+export function useReprocessPayslip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payslipId, actor }: { id: string; payslipId: string; actor: string }) =>
+      payrollRunsApi.reprocessPayslip(id, payslipId, actor),
+    onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: [...RUNS_KEY, id, 'payslips'] }),
+  });
+}
+
 export function useMarkPaidPayrollRun() {
   const qc = useQueryClient();
   return useMutation({

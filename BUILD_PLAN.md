@@ -4926,7 +4926,7 @@ All three must be clean.
 - [x] Step 105 — Run types: off-cycle / bonus / arrears / reversal / FnF
 - [x] Step 106 — Country pay practices + multi-jurisdiction tax
 - [x] Step 107 — Garnishments / court orders
-- [ ] Step 108 — Approvals/maker-checker/variance + `payroll:*` perms + idempotency/dry-run
+- [x] Step 108 — Approvals/maker-checker/variance + `payroll:*` perms + idempotency/dry-run
 - [ ] Step 109 — Global employment models (EOR + contractors)
 
 **P3 — Disbursement, documents, accounting, filing**

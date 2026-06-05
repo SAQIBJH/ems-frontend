@@ -31,25 +31,36 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
-import { PermissionWrapper } from '@/shared/guards';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/providers';
 import { ErrorState } from '@/components/feedback/ErrorState';
 
 import {
   usePayrollRun,
   useRunPayslips,
-  useApprovePayrollRun,
+  useApproveRunLevel,
   useMarkPaidPayrollRun,
   useCalculatePayrollRun,
+  useDryRunPayrollRun,
+  useReprocessPayslip,
+  useRunVariance,
+  useRunAudit,
+  usePayrollPermissions,
   useRunFnf,
   RUN_STATUS_CONFIG,
   formatMoney,
   payrollRunsApi,
 } from '@/modules/payroll';
-import type { PayrollRunStatus, PayslipRunItem } from '@/modules/payroll';
+import type {
+  PayrollRunStatus,
+  PayslipRunItem,
+  PayrollRun,
+  RunVarianceFlag,
+} from '@/modules/payroll';
 
 import { PayslipDrawer } from './PayslipDrawer';
 import { AdjustmentDialog } from './AdjustmentDialog';
@@ -225,6 +236,217 @@ function FnfDetail({ runId }: { runId: string }) {
   );
 }
 
+/* ── Approval chain (maker-checker, multi-level) ──────────────────────────── */
+
+function ApprovalChainPanel({
+  run,
+  currentUser,
+  canApprove,
+}: {
+  run: PayrollRun;
+  currentUser: string;
+  canApprove: boolean;
+}) {
+  const approveLevel = useApproveRunLevel();
+  const approvals = run.approvals ?? [];
+  const isMaker = !!currentUser && currentUser === run.initiatedBy;
+  if (approvals.length === 0) return null;
+  const nextPending = approvals.find((a) => a.status === 'PENDING');
+
+  async function handleApproveLevel(level: number) {
+    try {
+      await approveLevel.mutateAsync({ id: run.id, level, approver: currentUser });
+      toast.success(`Approval level ${level} signed off.`);
+    } catch (err) {
+      const apiErr = (err as AxiosError<{ error: { code: string; message: string } }>).response
+        ?.data?.error;
+      toast.error(apiErr?.message ?? 'Failed to approve');
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface">
+      <div className="border-b border-subtle px-4 py-3">
+        <h3 className="text-sm font-semibold text-fg">Approval Chain</h3>
+        <p className="text-xs text-fg-muted">
+          Maker ≠ checker — the initiator ({run.initiatedBy ?? 'unknown'}) cannot approve.
+        </p>
+      </div>
+      <ul className="divide-y divide-subtle">
+        {approvals.map((a) => {
+          const isApproved = a.status === 'APPROVED';
+          const isNext = nextPending?.level === a.level && run.status === 'REVIEW';
+          return (
+            <li key={a.level} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    'inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold',
+                    isApproved ? 'bg-success/15 text-success' : 'bg-surface-raised text-fg-muted',
+                  )}
+                >
+                  {a.level}
+                </span>
+                <div>
+                  <div className="text-sm font-medium text-fg">{a.label}</div>
+                  <div className="text-xs text-fg-muted">
+                    {isApproved
+                      ? `Approved by ${a.approver} · ${a.approvedAt ? format(new Date(a.approvedAt), 'dd MMM, HH:mm') : ''}`
+                      : 'Pending'}
+                  </div>
+                </div>
+              </div>
+              {isApproved ? (
+                <span className="inline-flex items-center rounded bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                  Approved
+                </span>
+              ) : isNext && canApprove && !isMaker ? (
+                <Button
+                  size="sm"
+                  onClick={() => handleApproveLevel(a.level)}
+                  disabled={approveLevel.isPending}
+                >
+                  {approveLevel.isPending && (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  )}
+                  Approve
+                </Button>
+              ) : (
+                <span className="text-xs text-fg-muted">
+                  {isNext && isMaker
+                    ? 'You initiated this run'
+                    : isNext
+                      ? 'Awaiting approver'
+                      : 'Locked'}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/* ── Variance / anomaly review ────────────────────────────────────────────── */
+
+const VARIANCE_FLAG_LABELS: Record<RunVarianceFlag, string> = {
+  HIGH_VARIANCE: 'High variance',
+  NEGATIVE_NET: 'Negative net',
+  ZERO_PAY: 'Zero pay',
+  NEW_JOINER: 'New joiner',
+};
+
+function VariancePanel({ runId, currency }: { runId: string; currency: string }) {
+  const { data, isLoading, isError, refetch } = useRunVariance(runId);
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface">
+      <div className="border-b border-subtle px-4 py-3">
+        <h3 className="text-sm font-semibold text-fg">Variance Review</h3>
+        <p className="text-xs text-fg-muted">
+          {data?.comparedToPeriod
+            ? `Net change vs ${data.comparedToPeriod}; flags above ${data.thresholdPct}%.`
+            : 'Outlier checks (negative net, zero pay, new joiners).'}
+        </p>
+      </div>
+      {isLoading ? (
+        <div className="space-y-2 p-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 rounded" />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="p-4">
+          <ErrorState message="Failed to load variance" onRetry={() => refetch()} />
+        </div>
+      ) : !data || data.items.length === 0 ? (
+        <div className="px-4 py-6 text-center text-sm text-fg-muted">No anomalies detected.</div>
+      ) : (
+        <ul className="divide-y divide-subtle">
+          {data.items.map((it) => (
+            <li
+              key={it.employeeId}
+              className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-fg">{it.employeeName}</span>
+                {it.flags.map((f) => (
+                  <span
+                    key={f}
+                    className="inline-flex items-center rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning"
+                  >
+                    {VARIANCE_FLAG_LABELS[f]}
+                  </span>
+                ))}
+              </div>
+              <div className="flex items-center gap-4 text-xs tabular-nums">
+                {it.deltaPct !== null && (
+                  <span
+                    className={cn('font-medium', it.deltaPct < 0 ? 'text-danger' : 'text-success')}
+                  >
+                    {it.deltaPct > 0 ? '+' : ''}
+                    {it.deltaPct}%
+                  </span>
+                )}
+                <span className="text-fg">{fmtCurrency(it.currentNet, currency)}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ── Audit trail ──────────────────────────────────────────────────────────── */
+
+function AuditPanel({ runId }: { runId: string }) {
+  const [open, setOpen] = useState(false);
+  const { data: entries = [] } = useRunAudit(runId, open);
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left"
+      >
+        <h3 className="text-sm font-semibold text-fg">Audit Trail</h3>
+        {open ? (
+          <ChevronDownIcon className="size-4 text-fg-muted" aria-hidden />
+        ) : (
+          <ChevronRightIcon className="size-4 text-fg-muted" aria-hidden />
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-subtle">
+          {entries.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-fg-muted">
+              No audit entries recorded yet.
+            </div>
+          ) : (
+            <ul className="divide-y divide-subtle">
+              {entries.map((e) => (
+                <li key={e.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <div>
+                    <span className="font-mono text-xs font-medium text-fg">{e.action}</span>
+                    {e.detail && <span className="ml-2 text-xs text-fg-muted">{e.detail}</span>}
+                  </div>
+                  <div className="text-right text-xs text-fg-muted">
+                    <div>{e.actor}</div>
+                    <div>{format(new Date(e.at), 'dd MMM, HH:mm')}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main component ───────────────────────────────────────────────────────── */
 
 interface PayrollRunDetailProps {
@@ -253,21 +475,42 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
     refetch: refetchSlips,
   } = useRunPayslips(runId, { page, limit: 20 });
 
-  const approveMutation = useApprovePayrollRun();
+  const { user } = useAuth();
+  const perms = usePayrollPermissions();
   const calculateMutation = useCalculatePayrollRun();
+  const dryRunMutation = useDryRunPayrollRun();
+  const reprocessMutation = useReprocessPayslip();
+
+  async function handleReprocess(payslipId: string, name: string) {
+    if (!run) return;
+    try {
+      await reprocessMutation.mutateAsync({
+        id: run.id,
+        payslipId,
+        actor: user?.email ?? 'system',
+      });
+      toast.success(`${name}'s payslip recalculated.`);
+    } catch {
+      toast.error('Failed to recalculate payslip');
+    }
+  }
 
   const payslips = payslipsPage?.items ?? [];
   const pagination = payslipsPage?.pagination;
   const warnings = run?.summary?.warnings ?? [];
 
-  async function handleApprove() {
+  async function handleDryRun() {
     if (!run) return;
     try {
-      await approveMutation.mutateAsync({ id: run.id });
-      toast.success(`${run.periodLabel} payroll approved.`);
-    } catch (err) {
-      const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
-      toast.error(apiErr?.message ?? 'Failed to approve');
+      const result = await dryRunMutation.mutateAsync(run.id);
+      const anomalies = result.variance.items.length;
+      toast.success(
+        `Dry run: net ${fmtCurrency(result.totalNet, result.currency)} · ${anomalies} anomal${
+          anomalies === 1 ? 'y' : 'ies'
+        } · ${result.warnings.length} warning${result.warnings.length === 1 ? '' : 's'} (nothing saved).`,
+      );
+    } catch {
+      toast.error('Failed to run dry calculation');
     }
   }
 
@@ -382,7 +625,8 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
       header: '',
       cell: ({ row }) => {
         const slip = row.original;
-        const canAdjust = run?.status === 'REVIEW' || run?.status === 'APPROVED';
+        const adjustable =
+          (run?.status === 'REVIEW' || run?.status === 'APPROVED') && perms.canAdjust;
         return (
           <div onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
@@ -396,13 +640,16 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
                 <DropdownMenuItem onClick={() => setSelectedPayslipId(slip.id)}>
                   View payslip
                 </DropdownMenuItem>
-                {canAdjust && (
+                {adjustable && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => setAdjustPayslip({ id: slip.id, name: slip.employeeName })}
                     >
                       Add adjustment
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleReprocess(slip.id, slip.employeeName)}>
+                      Recalculate payslip
                     </DropdownMenuItem>
                   </>
                 )}
@@ -445,33 +692,34 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
               Export Register
             </Button>
 
-            {run?.status === 'DRAFT' && (
-              <PermissionWrapper permission="payroll:process">
-                <Button
-                  size="default"
-                  onClick={handleCalculate}
-                  disabled={calculateMutation.isPending}
-                >
-                  {calculateMutation.isPending && (
-                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
-                  )}
-                  Calculate Payroll
-                </Button>
-              </PermissionWrapper>
+            {(run?.status === 'REVIEW' || run?.status === 'DRAFT') && perms.canInitiate && (
+              <Button
+                variant="outline"
+                size="default"
+                onClick={handleDryRun}
+                disabled={dryRunMutation.isPending}
+              >
+                {dryRunMutation.isPending && (
+                  <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                )}
+                Dry Run
+              </Button>
             )}
 
-            {run?.status === 'REVIEW' && (
-              <PermissionWrapper permission="payroll:approve">
-                <Button size="default" onClick={handleApprove} disabled={approveMutation.isPending}>
-                  {approveMutation.isPending && (
-                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
-                  )}
-                  Approve
-                </Button>
-              </PermissionWrapper>
+            {run?.status === 'DRAFT' && perms.canInitiate && (
+              <Button
+                size="default"
+                onClick={handleCalculate}
+                disabled={calculateMutation.isPending}
+              >
+                {calculateMutation.isPending && (
+                  <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                )}
+                Calculate Payroll
+              </Button>
             )}
 
-            {run?.status === 'APPROVED' && (
+            {run?.status === 'APPROVED' && perms.canDisburse && (
               <Button size="default" onClick={() => setMarkPaidOpen(true)}>
                 Mark as Paid
               </Button>
@@ -532,6 +780,21 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
             )}
           </div>
         )}
+
+        {/* Approval chain — maker-checker, multi-level */}
+        {run && (run.status === 'REVIEW' || run.status === 'APPROVED') && (
+          <ApprovalChainPanel
+            run={run}
+            currentUser={user?.email ?? ''}
+            canApprove={perms.canApprove}
+          />
+        )}
+
+        {/* Variance / anomaly review — surfaced in REVIEW */}
+        {run && run.status === 'REVIEW' && <VariancePanel runId={run.id} currency={run.currency} />}
+
+        {/* Audit trail — every transition / override / approval */}
+        {run && <AuditPanel runId={run.id} />}
 
         {/* Department summary */}
         {run?.summary?.byDepartment && run.summary.byDepartment.length > 0 && (

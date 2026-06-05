@@ -48,6 +48,13 @@ export type {
   PayrollRunWarning,
   PayrollRunDeptSummary,
   PayrollRunSummary,
+  RunApprovalStatus,
+  RunApprovalLevel,
+  PayrollRunAuditEntry,
+  RunVarianceFlag,
+  RunVarianceItem,
+  RunVariance,
+  RunDryRunResult,
   PayrollRun,
   PayrollRunType,
   PayrollRunInput,
@@ -129,6 +136,11 @@ export {
   useInitiatePayrollRun,
   useCalculatePayrollRun,
   useApprovePayrollRun,
+  useApproveRunLevel,
+  useRunVariance,
+  useRunAudit,
+  useDryRunPayrollRun,
+  useReprocessPayslip,
   useMarkPaidPayrollRun,
   useAdjustPayslip,
   useRunInputs,
@@ -137,6 +149,11 @@ export {
   useRunFnf,
   usePayrollRoster,
 } from './hooks/usePayrollRuns';
+export {
+  usePayrollPermissions,
+  PAYROLL_PERMISSIONS,
+  type PayrollPermissions,
+} from './hooks/usePayrollPermissions';
 export {
   useEmployeeSalary,
   useEmployeePayslips,

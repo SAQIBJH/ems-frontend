@@ -344,6 +344,63 @@ export interface FnfSettlement {
   netSettlement: number;
 }
 
+/* ── Approvals, audit, variance (§8, §7.5) ────────────────────────────────── */
+
+export type RunApprovalStatus = 'PENDING' | 'APPROVED';
+
+/** One level in a run's configurable approval chain (maker-checker, multi-level). */
+export interface RunApprovalLevel {
+  level: number;
+  label: string;
+  status: RunApprovalStatus;
+  approver: string | null;
+  approvedAt: string | null;
+}
+
+/** Immutable audit entry for a run transition / override / approval. */
+export interface PayrollRunAuditEntry {
+  id: string;
+  runId: string;
+  action: string;
+  actor: string;
+  at: string;
+  detail?: string;
+}
+
+export type RunVarianceFlag = 'HIGH_VARIANCE' | 'NEGATIVE_NET' | 'ZERO_PAY' | 'NEW_JOINER';
+
+export interface RunVarianceItem {
+  employeeId: string;
+  employeeName: string;
+  currentNet: number;
+  previousNet: number | null;
+  /** Net change vs last period, percent (null when no prior payslip). */
+  deltaPct: number | null;
+  flags: RunVarianceFlag[];
+}
+
+export interface RunVariance {
+  runId: string;
+  /** Anomaly threshold for |deltaPct|. */
+  thresholdPct: number;
+  /** Period compared against, or null if none. */
+  comparedToPeriod: string | null;
+  items: RunVarianceItem[];
+}
+
+/** Result of a sandbox (dry-run) calculation — numbers + variance, nothing persisted. */
+export interface RunDryRunResult {
+  dryRun: true;
+  employeeCount: number;
+  totalGross: number;
+  totalDeductions: number;
+  employerCost: number;
+  totalNet: number;
+  currency: string;
+  warnings: PayrollRunWarning[];
+  variance: RunVariance;
+}
+
 export interface PayrollRun {
   id: string;
   period: string;
@@ -363,6 +420,8 @@ export interface PayrollRun {
   approvedAt?: string | null;
   paidAt?: string | null;
   summary?: PayrollRunSummary;
+  /** Configurable multi-level approval chain (maker-checker). Present from REVIEW on. */
+  approvals?: RunApprovalLevel[];
   /** Statutory pack version pinned at calculate time; recompute uses this. */
   configSnapshotRef?: RunConfigSnapshotRef | null;
   /** Subject employee for single-employee runs (FnF). */

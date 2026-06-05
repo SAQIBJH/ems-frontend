@@ -1343,12 +1343,32 @@ amount from config alone.
 > (`/payroll/components`, `/payroll/statutory-packs`, `/payroll/employees/:id/salary`,
 > `/payroll/runs/:runId/inputs`) plus engine behaviour. Field casing camelCase.
 
-#### Approvals, variance, dry-run (Step 108)
+#### Approvals, variance, dry-run, audit (Step 108)
 
-- `POST /payroll/runs/:id/approvals/:level` — multi-level; enforces maker ≠ checker (`403 SELF_APPROVAL`).
-- `GET /payroll/runs/:id/variance` — anomaly list (net Δ% vs last period, negatives, zero-pay).
-- `POST /payroll/runs/:id/calculate?dryRun=true` — compute without persisting/publishing.
-- `POST /payroll/runs/:id/payslips/:slipId/recalculate` — single-employee reprocess.
+- **Approval chain.** On `calculate`, the run gains
+  `approvals: { level, label, status: PENDING|APPROVED, approver, approvedAt }[]` — a
+  configurable multi-level chain (one level by default; a second **Finance** level when
+  net exceeds a threshold). Returned on `GET /payroll/runs/:id`.
+- `POST /payroll/runs/:id/approvals/:level` — body `{ approver, notes? }`. Records a
+  level's sign-off and flips the run to `APPROVED` once **every** level is approved.
+  Enforces **maker ≠ checker** (`403 SELF_APPROVAL` if `approver === initiatedBy`),
+  one distinct approver per level (`403 SELF_APPROVAL`), sequential order
+  (`422 OUT_OF_ORDER`), and `422 INVALID_STATE` outside REVIEW. The legacy
+  `POST /payroll/runs/:id/approve` single-shot remains (approves the whole chain).
+- `GET /payroll/runs/:id/variance` →
+  `{ runId, thresholdPct, comparedToPeriod, items: { employeeId, employeeName, currentNet, previousNet, deltaPct, flags: (HIGH_VARIANCE|NEGATIVE_NET|ZERO_PAY|NEW_JOINER)[] }[] }`.
+  Compares per-employee net to the most recent prior REGULAR run.
+- `POST /payroll/runs/:id/calculate?dryRun=true` — computes numbers + variance in a
+  sandbox and returns `{ dryRun: true, employeeCount, totalGross, totalDeductions, employerCost, totalNet, currency, warnings, variance }` **without** persisting, changing
+  status, attaching claims, or moving money.
+- `POST /payroll/runs/:id/payslips/:slipId/recalculate` — body `{ actor }`. Recomputes
+  a single payslip deterministically (idempotent; same inputs → same numbers) and returns
+  the payslip detail.
+- `GET /payroll/runs/:id/audit` → `PayrollRunAuditEntry[]`
+  (`{ id, runId, action, actor, at, detail? }`). Every transition / override / approval
+  (`CALCULATE`, `APPROVE_L<n>`, `MARK_PAID`, `ADJUST`, `REPROCESS`, `CANCEL`) appends an entry.
+- **Granular permissions** (UI gating): `payroll:initiate | adjust | approve | disburse`
+  — segregation of duties. Resolved client-side, falling back to HR_ADMIN / SUPER_ADMIN.
 
 ---
 
