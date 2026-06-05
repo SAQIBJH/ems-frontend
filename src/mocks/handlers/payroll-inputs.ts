@@ -58,6 +58,16 @@ function parseInputsCsv(
 }
 
 export const payrollInputHandlers = [
+  // Payroll roster (id/code/name) — used by run-subject pickers (FnF).
+  http.get('/api/payroll/roster', () => {
+    const data = getRosterInputSeed().map((i) => ({
+      employeeId: i.employeeId,
+      employeeCode: i.employeeCode,
+      employeeName: i.employeeName,
+    }));
+    return HttpResponse.json({ success: true, data });
+  }),
+
   http.get('/api/payroll/runs/:runId/inputs', ({ params }) => {
     const { runId } = params as { runId: string };
     const meta = getRunMeta(runId);

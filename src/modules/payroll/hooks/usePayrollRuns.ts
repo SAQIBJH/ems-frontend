@@ -84,6 +84,22 @@ export function useMarkPaidPayrollRun() {
   });
 }
 
+export function useRunFnf(runId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'fnf'],
+    queryFn: () => payrollRunsApi.getFnf(runId!),
+    enabled: !!runId && enabled,
+  });
+}
+
+export function usePayrollRoster() {
+  return useQuery({
+    queryKey: ['payroll', 'roster'] as const,
+    queryFn: () => payrollRunsApi.listRoster(),
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
 export function useRunInputs(runId: string | null) {
   return useQuery({
     queryKey: [...RUNS_KEY, runId, 'inputs'],

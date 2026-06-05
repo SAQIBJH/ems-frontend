@@ -94,6 +94,13 @@ export interface LocalTax {
   slabs: LocalTaxSlab[];
 }
 
+/** Gratuity accrual policy (e.g. India: 15 days' wage per year, /26, min 5 years). */
+export interface GratuityPolicy {
+  daysPerYear: number;
+  monthDivisor: number;
+  minYears: number;
+}
+
 export interface StatutoryPack {
   id: string;
   /** ISO 3166-1 alpha-2. */
@@ -109,6 +116,8 @@ export interface StatutoryPack {
   taxRegimes: TaxRegime[];
   contributionSchemes: ContributionScheme[];
   localTaxes: LocalTax[];
+  /** Gratuity accrual policy (used in full & final settlement). */
+  gratuity?: GratuityPolicy | null;
   /** Component codes this pack expects to exist for statutory postings. */
   statutoryComponents: string[];
   createdAt: string;

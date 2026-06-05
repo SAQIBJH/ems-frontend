@@ -10,6 +10,8 @@ import type {
   PayrollInput,
   PayrollInputsPage,
   PayrollInputImportResult,
+  FnfSettlement,
+  RosterMember,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -126,6 +128,16 @@ export const payrollRunsApi = {
       `/payroll/runs/${runId}/inputs/import`,
       { csv },
     );
+    return data.data;
+  },
+
+  getFnf: async (runId: string): Promise<FnfSettlement> => {
+    const { data } = await apiClient.get<{ data: FnfSettlement }>(`/payroll/runs/${runId}/fnf`);
+    return data.data;
+  },
+
+  listRoster: async (): Promise<RosterMember[]> => {
+    const { data } = await apiClient.get<{ data: RosterMember[] }>('/payroll/roster');
     return data.data;
   },
 };

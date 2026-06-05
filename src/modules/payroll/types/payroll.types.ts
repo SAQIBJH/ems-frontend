@@ -292,10 +292,43 @@ export interface PayrollRunSummary {
   warnings: PayrollRunWarning[];
 }
 
+export type PayrollRunType = 'REGULAR' | 'OFF_CYCLE' | 'BONUS' | 'ARREARS' | 'FNF' | 'REVERSAL';
+
+/* ── Full & final settlement (§5.6) ───────────────────────────────────────── */
+
+export interface FnfParams {
+  employeeId: string;
+  /** YYYY-MM-DD last working day. */
+  lastWorkingDay: string;
+  yearsOfService: number;
+  leaveBalanceDays: number;
+  noticeShortfallDays: number;
+}
+
+export interface FnfLine {
+  code: string;
+  label: string;
+  /** Minor units. */
+  amount: number;
+}
+
+export interface FnfSettlement {
+  employeeId: string;
+  employeeName: string;
+  lastWorkingDay: string;
+  currency: string;
+  earnings: FnfLine[];
+  deductions: FnfLine[];
+  grossPayable: number;
+  totalRecovery: number;
+  netSettlement: number;
+}
+
 export interface PayrollRun {
   id: string;
   period: string;
   periodLabel: string;
+  type: PayrollRunType;
   status: PayrollRunStatus;
   employeeCount: number;
   totalGross: number;
@@ -312,6 +345,10 @@ export interface PayrollRun {
   summary?: PayrollRunSummary;
   /** Statutory pack version pinned at calculate time; recompute uses this. */
   configSnapshotRef?: RunConfigSnapshotRef | null;
+  /** Subject employee for single-employee runs (FnF). */
+  employeeId?: string | null;
+  /** FnF inputs, present on FNF runs. */
+  fnfParams?: FnfParams | null;
   createdAt: string;
 }
 
@@ -319,6 +356,14 @@ export interface PayrollRunInput {
   period: string;
   payGroupIds?: string[];
   includeAllActiveEmployees: boolean;
+  type?: PayrollRunType;
+  fnf?: FnfParams;
+}
+
+export interface RosterMember {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
 }
 
 /* ── Per-employee, per-run payroll inputs (§6) ────────────────────────────── */

@@ -44,7 +44,9 @@ import {
   useApprovePayrollRun,
   useMarkPaidPayrollRun,
   useCalculatePayrollRun,
+  useRunFnf,
   RUN_STATUS_CONFIG,
+  formatMoney,
   payrollRunsApi,
 } from '@/modules/payroll';
 import type { PayrollRunStatus, PayslipRunItem } from '@/modules/payroll';
@@ -146,6 +148,80 @@ function MarkPaidDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ── FnF settlement view ──────────────────────────────────────────────────── */
+
+function FnfDetail({ runId }: { runId: string }) {
+  const { data: fnf, isLoading, isError, refetch } = useRunFnf(runId);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-subtle bg-surface p-6">
+        <Loader2Icon className="size-4 animate-spin text-fg-muted" aria-hidden />
+      </div>
+    );
+  }
+  if (isError || !fnf) {
+    return (
+      <div className="rounded-lg border border-subtle bg-surface p-6">
+        <ErrorState message="Failed to load settlement" onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface">
+      <div className="border-b border-subtle px-4 py-3">
+        <h2 className="text-sm font-medium text-fg">
+          Full &amp; Final Settlement · {fnf.employeeName}
+        </h2>
+        <p className="text-xs text-fg-muted">Last working day {fnf.lastWorkingDay}</p>
+      </div>
+      <div className="grid gap-4 p-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-fg-muted">
+            Payable
+          </p>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-subtle">
+              {fnf.earnings.map((l) => (
+                <tr key={l.code}>
+                  <td className="py-1.5 text-fg">{l.label}</td>
+                  <td className="py-1.5 text-right tabular-nums text-fg">
+                    {formatMoney(l.amount, fnf.currency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-fg-muted">
+            Recovery
+          </p>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-subtle">
+              {fnf.deductions.map((l) => (
+                <tr key={l.code}>
+                  <td className="py-1.5 text-fg">{l.label}</td>
+                  <td className="py-1.5 text-right tabular-nums text-danger">
+                    −{formatMoney(l.amount, fnf.currency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="flex items-center justify-between border-t border-subtle px-4 py-3">
+        <span className="text-sm font-medium text-fg">Net settlement</span>
+        <span className="text-base font-bold tabular-nums text-fg">
+          {formatMoney(fnf.netSettlement, fnf.currency)}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -353,6 +429,11 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
         breadcrumbs={[{ label: 'Payroll', href: '/payroll' }, { label: run?.periodLabel ?? runId }]}
         actions={
           <div className="flex items-center gap-2">
+            {run && run.type !== 'REGULAR' && (
+              <span className="inline-flex items-center rounded bg-surface-raised px-2 py-0.5 text-xs font-medium text-fg-muted">
+                {run.type.replace(/_/g, ' ')}
+              </span>
+            )}
             {run && <StatusBadge status={run.status} />}
 
             <Button variant="outline" size="default" onClick={handleExport} disabled={exporting}>
@@ -477,36 +558,43 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
           </div>
         )}
 
-        {/* Period inputs — editable before calculation */}
-        {run?.status === 'DRAFT' && <RunInputsPanel runId={runId} />}
+        {/* FnF runs settle a single employee — show the settlement, not payslips */}
+        {run?.type === 'FNF' ? (
+          <FnfDetail runId={runId} />
+        ) : (
+          <>
+            {/* Period inputs — editable before calculation */}
+            {run?.status === 'DRAFT' && <RunInputsPanel runId={runId} />}
 
-        {/* Payslips table */}
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-fg">Payslips</h2>
-          <DynamicTable
-            columns={columns}
-            data={payslips}
-            isLoading={slipsLoading}
-            isError={slipsError}
-            errorMessage="Failed to load payslips"
-            onRetry={() => refetchSlips()}
-            emptyTitle="No payslips yet"
-            emptyDescription="Payslips appear after payroll is calculated."
-            pagination={
-              pagination
-                ? {
-                    page: pagination.page,
-                    pages: pagination.totalPages,
-                    total: pagination.total,
-                    pageSize: pagination.limit,
-                  }
-                : undefined
-            }
-            onPageChange={setPage}
-            rowLabel="payslips"
-            loadingRows={6}
-          />
-        </div>
+            {/* Payslips table */}
+            <div>
+              <h2 className="mb-3 text-sm font-medium text-fg">Payslips</h2>
+              <DynamicTable
+                columns={columns}
+                data={payslips}
+                isLoading={slipsLoading}
+                isError={slipsError}
+                errorMessage="Failed to load payslips"
+                onRetry={() => refetchSlips()}
+                emptyTitle="No payslips yet"
+                emptyDescription="Payslips appear after payroll is calculated."
+                pagination={
+                  pagination
+                    ? {
+                        page: pagination.page,
+                        pages: pagination.totalPages,
+                        total: pagination.total,
+                        pageSize: pagination.limit,
+                      }
+                    : undefined
+                }
+                onPageChange={setPage}
+                rowLabel="payslips"
+                loadingRows={6}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Payslip drawer */}

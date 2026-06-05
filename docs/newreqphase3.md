@@ -1281,8 +1281,21 @@ payslip detail adds `employerContributions[]` and (Step 100) a `ytd` block.
 #### Run types (Step 105)
 
 `POST /payroll/runs` body gains `type: REGULAR | OFF_CYCLE | BONUS | ARREARS | FNF | REVERSAL`
-(default `REGULAR`). FnF computes gratuity, leave encashment, notice recovery, loan
-recovery, final tax. Errors: `409 RUN_EXISTS` (unchanged), `422 INVALID_RUN_TYPE`.
+(default `REGULAR`) and, for FnF, `fnf: { employeeId, lastWorkingDay, yearsOfService, leaveBalanceDays, noticeShortfallDays }`.
+`409 RUN_EXISTS` applies only to a second **REGULAR** run for a period (off-cycle/bonus/FnF
+coexist); `422 INVALID_RUN_TYPE` on an unknown type. The run carries `type`, plus
+`employeeId` + `fnfParams` for FnF.
+
+- `GET /payroll/runs/:id/fnf` → `FnfSettlement` `{ employeeId, employeeName, lastWorkingDay,
+currency, earnings[], deductions[], grossPayable, totalRecovery, netSettlement }` (amounts
+  minor units). Earnings = pro-rated salary + leave encashment + **gratuity** (from the pinned
+  pack's `gratuity` policy: `daysPerYear`/`monthDivisor`/`minYears`); deductions = notice
+  recovery + outstanding-**loan recovery** + final tax. Calculating an FnF run sets the run
+  totals from the settlement.
+- `GET /payroll/roster` → `{ employeeId, employeeCode, employeeName }[]` (run-subject picker).
+
+> Arrears auto-detection from back-dated comp revisions is recorded via the `ARREARS` type;
+> full arrears computation lands with the broader run-recompute work (Step 108).
 
 #### Approvals, variance, dry-run (Step 108)
 

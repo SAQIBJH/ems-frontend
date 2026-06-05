@@ -1,6 +1,11 @@
 import { Parser } from 'expr-eval';
 import type { SalaryComponent, CalculatedComponent } from '../types/payroll.types';
-import type { ContributionScheme, TaxRegime, TaxSlab } from '../types/statutory.types';
+import type {
+  ContributionScheme,
+  GratuityPolicy,
+  TaxRegime,
+  TaxSlab,
+} from '../types/statutory.types';
 
 const parser = new Parser();
 
@@ -112,6 +117,19 @@ export interface ContributionResult {
  * scheme's `wageCeiling` (if any); employee and employer amounts are each the
  * configured rate of the capped base. Rates/ceilings are data — no `if (country)`.
  */
+/**
+ * Gratuity payout from a configured policy (e.g. India: monthlyWage × 15 × years / 26),
+ * zero below the eligibility floor. All parameters are data — no country constant.
+ */
+export function computeGratuity(
+  monthlyWage: number,
+  yearsOfService: number,
+  policy: GratuityPolicy,
+): number {
+  if (yearsOfService < policy.minYears) return 0;
+  return Math.round((monthlyWage * policy.daysPerYear * yearsOfService) / policy.monthDivisor);
+}
+
 export function computeContribution(
   rawBase: number,
   scheme: ContributionScheme,

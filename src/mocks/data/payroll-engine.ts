@@ -17,6 +17,9 @@ import type {
   PayslipYtd,
   PayrollInput,
   ReimbursementClaim,
+  FnfParams,
+  FnfLine,
+  FnfSettlement,
   PayrollRunDeptSummary,
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
@@ -24,6 +27,7 @@ import type { TaxRegime } from '@/modules/payroll/types/statutory.types';
 import {
   computeComponentBreakdown,
   computeContribution,
+  computeGratuity,
   projectPeriodTax,
   registerSlabTables,
 } from '@/modules/payroll/utils/formula.utils';
@@ -33,7 +37,7 @@ import { getGroupById } from '../handlers/payroll-groups';
 import { resolveActivePack } from '../handlers/payroll-statutory';
 import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
 import { getTaxDeclaration } from '../handlers/payroll-tax-declaration';
-import { loanEmiForPeriod } from '../handlers/payroll-loans';
+import { loanEmiForPeriod, outstandingLoanBalance } from '../handlers/payroll-loans';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
@@ -470,6 +474,86 @@ export function computeEmployeeYtd(employeeId: string, throughPeriod: string): P
     }
   }
   return ytd;
+}
+
+/* ── Full & final settlement ──────────────────────────────────────────────── */
+
+/**
+ * Compute a single employee's full & final settlement: pro-rated salary to the last
+ * working day, leave encashment, gratuity (from the pinned pack's policy), notice-period
+ * recovery, outstanding-loan recovery, and final tax. All formulas are config/data.
+ */
+export function computeFnf(
+  employeeId: string,
+  period: string,
+  params: FnfParams,
+): FnfSettlement | null {
+  const emp = ROSTER.find((e) => e.employeeId === employeeId);
+  if (!emp) return null;
+  const month = computeEmployeeMonth(emp, period);
+  if (!month) return null;
+
+  const basicMonthly = month.earnings.find((l) => l.code === 'BASIC')?.amount ?? 0;
+  const dailyWage = basicMonthly / 30;
+
+  // Pro-rate salary to the last working day within the month.
+  const { year, month: m } = parsePeriod(period);
+  const daysInMonth = new Date(year, m, 0).getDate();
+  const lwdDay = Math.min(
+    parseInt(params.lastWorkingDay.split('-')[2] ?? '', 10) || daysInMonth,
+    daysInMonth,
+  );
+  const proratedSalary = Math.round(month.grossEarnings * (lwdDay / daysInMonth));
+  const leaveEncashment = Math.round(dailyWage * params.leaveBalanceDays);
+
+  const pack = resolveActivePack(emp.country, period);
+  const gratuity = pack?.gratuity
+    ? computeGratuity(basicMonthly, params.yearsOfService, pack.gratuity)
+    : 0;
+
+  const noticeRecovery = Math.round(dailyWage * params.noticeShortfallDays);
+  const loanRecovery = outstandingLoanBalance(employeeId);
+  const finalTax = month.taxDeducted;
+
+  const earnings: FnfLine[] = [
+    { code: 'FNF_SALARY', label: 'Pro-rated salary', amount: proratedSalary },
+    { code: 'FNF_LEAVE_ENCASH', label: 'Leave encashment', amount: leaveEncashment },
+    { code: 'FNF_GRATUITY', label: 'Gratuity', amount: gratuity },
+  ].filter((l) => l.amount > 0);
+
+  const deductions: FnfLine[] = [
+    { code: 'FNF_NOTICE', label: 'Notice-period recovery', amount: noticeRecovery },
+    { code: 'FNF_LOAN', label: 'Loan recovery', amount: loanRecovery },
+    { code: 'TDS', label: 'Final tax (TDS)', amount: finalTax },
+  ].filter((l) => l.amount > 0);
+
+  const grossPayable = earnings.reduce((s, l) => s + l.amount, 0);
+  const totalRecovery = deductions.reduce((s, l) => s + l.amount, 0);
+
+  return {
+    employeeId,
+    employeeName: `${emp.firstName} ${emp.lastName}`,
+    lastWorkingDay: params.lastWorkingDay,
+    currency: CURRENCY,
+    earnings,
+    deductions,
+    grossPayable,
+    totalRecovery,
+    netSettlement: grossPayable - totalRecovery,
+  };
+}
+
+/** Roster summary (id/code/name) — for run-subject pickers (FnF). */
+export function getRosterSummary(): {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+}[] {
+  return ROSTER.map((e) => ({
+    employeeId: e.employeeId,
+    employeeCode: e.employeeCode,
+    employeeName: `${e.firstName} ${e.lastName}`,
+  }));
 }
 
 /** Resolve the "as of" period for a YTD query against a fiscal-year label. */

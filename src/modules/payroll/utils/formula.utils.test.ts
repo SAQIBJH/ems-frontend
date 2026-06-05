@@ -8,6 +8,7 @@ import {
   computeRegimeTax,
   projectPeriodTax,
   computeContribution,
+  computeGratuity,
   registerSlabTables,
 } from './formula.utils';
 import type { SalaryComponent } from '../types/payroll.types';
@@ -280,6 +281,19 @@ describe('computeContribution', () => {
     expect(r.base).toBe(10000000); // uncapped
     expect(r.employee).toBe(145000); // 1.45%
     expect(r.employer).toBe(145000);
+  });
+});
+
+describe('computeGratuity', () => {
+  const policy = { daysPerYear: 15, monthDivisor: 26, minYears: 5 };
+
+  it('applies the configured formula (wage × days × years / divisor)', () => {
+    // 52,000 × 15 × 10 / 26 = 300,000
+    expect(computeGratuity(52000, 10, policy)).toBe(300000);
+  });
+
+  it('returns 0 below the eligibility floor', () => {
+    expect(computeGratuity(52000, 4, policy)).toBe(0);
   });
 });
 

@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
-import type { PayrollRun } from '@/modules/payroll/types/payroll.types';
+import type { PayrollRun, PayrollRunType, FnfParams } from '@/modules/payroll/types/payroll.types';
 import type { RunConfigSnapshotRef } from '@/modules/payroll/types/statutory.types';
-import { computeRun } from '../data/payroll-engine';
+import { computeRun, computeFnf } from '../data/payroll-engine';
 import { resolveActivePack } from './payroll-statutory';
 import { getRunInputs } from './payroll-inputs';
 import { getClaimsForRun, attachApprovedClaimsToRun, markRunClaimsPaid } from './payroll-claims';
@@ -47,6 +47,7 @@ let runs: PayrollRun[] = [
     id: 'run-001',
     period: '2026-02',
     periodLabel: 'February 2026',
+    type: 'REGULAR',
     status: 'PAID',
     ...runTotals(),
     currency: 'INR',
@@ -62,6 +63,7 @@ let runs: PayrollRun[] = [
     id: 'run-002',
     period: '2026-03',
     periodLabel: 'March 2026',
+    type: 'REGULAR',
     status: 'PAID',
     ...runTotals(),
     currency: 'INR',
@@ -77,6 +79,7 @@ let runs: PayrollRun[] = [
     id: 'run-003',
     period: '2026-04',
     periodLabel: 'April 2026',
+    type: 'REGULAR',
     status: 'PAID',
     ...runTotals(),
     currency: 'INR',
@@ -92,6 +95,7 @@ let runs: PayrollRun[] = [
     id: 'run-004',
     period: '2026-05',
     periodLabel: 'May 2026',
+    type: 'REGULAR',
     status: 'DRAFT',
     employeeCount: 0,
     totalGross: 0,
@@ -155,9 +159,9 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    // Only runs that have been calculated have a meaningful summary.
+    // Only roster runs that have been calculated have a department summary.
     const computed =
-      run.status === 'DRAFT' || run.status === 'CANCELLED'
+      run.type === 'FNF' || run.status === 'DRAFT' || run.status === 'CANCELLED'
         ? { byDepartment: [], warnings: [] }
         : computeRun(
             run.id,
@@ -175,9 +179,52 @@ export const payrollRunHandlers = [
     });
   }),
 
+  http.get('/api/payroll/runs/:id/fnf', ({ params }) => {
+    const { id } = params as { id: string };
+    const run = runs.find((r) => r.id === id);
+    if (!run || run.type !== 'FNF' || !run.employeeId || !run.fnfParams) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'No FnF settlement for this run' } },
+        { status: 404 },
+      );
+    }
+    const settlement = computeFnf(run.employeeId, run.period, run.fnfParams);
+    if (!settlement) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Employee not found in payroll' } },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json({ success: true, data: settlement });
+  }),
+
   http.post('/api/payroll/runs', async ({ request }) => {
-    const body = (await request.json()) as { period: string; includeAllActiveEmployees: boolean };
-    if (runs.some((r) => r.period === body.period && r.status !== 'CANCELLED')) {
+    const body = (await request.json()) as {
+      period: string;
+      includeAllActiveEmployees: boolean;
+      type?: PayrollRunType;
+      fnf?: FnfParams;
+    };
+    const type: PayrollRunType = body.type ?? 'REGULAR';
+    const VALID_TYPES: PayrollRunType[] = [
+      'REGULAR',
+      'OFF_CYCLE',
+      'BONUS',
+      'ARREARS',
+      'FNF',
+      'REVERSAL',
+    ];
+    if (!VALID_TYPES.includes(type)) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'INVALID_RUN_TYPE', message: 'Unknown run type' } },
+        { status: 422 },
+      );
+    }
+    // Only one REGULAR run per period; off-cycle/bonus/FnF can coexist.
+    if (
+      type === 'REGULAR' &&
+      runs.some((r) => r.period === body.period && r.type === 'REGULAR' && r.status !== 'CANCELLED')
+    ) {
       return HttpResponse.json(
         {
           success: false,
@@ -194,6 +241,7 @@ export const payrollRunHandlers = [
         month: 'long',
         year: 'numeric',
       }),
+      type,
       status: 'DRAFT',
       employeeCount: 0,
       totalGross: 0,
@@ -206,6 +254,8 @@ export const payrollRunHandlers = [
       processedAt: null,
       approvedAt: null,
       paidAt: null,
+      employeeId: type === 'FNF' ? (body.fnf?.employeeId ?? null) : null,
+      fnfParams: type === 'FNF' ? (body.fnf ?? null) : null,
       createdAt: now,
     };
     runs = [...runs, created];
@@ -225,6 +275,25 @@ export const payrollRunHandlers = [
       setTimeout(() => {
         const run = runs.find((r) => r.id === id);
         if (!run) return;
+        // FnF runs settle a single employee — totals come from the settlement.
+        if (run.type === 'FNF' && run.employeeId && run.fnfParams) {
+          const fnf = computeFnf(run.employeeId, run.period, run.fnfParams);
+          runs = runs.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  status: 'REVIEW',
+                  employeeCount: fnf ? 1 : 0,
+                  totalGross: fnf?.grossPayable ?? 0,
+                  totalDeductions: fnf?.totalRecovery ?? 0,
+                  employerCost: 0,
+                  totalNet: fnf?.netSettlement ?? 0,
+                  configSnapshotRef: pinConfig(run.period),
+                }
+              : r,
+          );
+          return;
+        }
         const computed = computeRun(
           run.id,
           run.period,

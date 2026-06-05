@@ -95,6 +95,14 @@ export function loanEmiForPeriod(
   return lines;
 }
 
+/** Total current outstanding across an employee's active loans (for FnF recovery). */
+export function outstandingLoanBalance(employeeId: string): number {
+  return (loansByEmployee[employeeId] ?? [])
+    .map(withDerived)
+    .filter((l) => l.status === 'ACTIVE')
+    .reduce((s, l) => s + l.outstandingBalance, 0);
+}
+
 let idCounter = 100;
 
 export const payrollLoanHandlers = [
