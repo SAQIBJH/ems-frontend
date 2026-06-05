@@ -144,10 +144,10 @@ export interface EmployeeSalary {
   annualCtc: number;
   effectiveFrom: string;
   effectiveTo: string | null;
-  bankAccountName: string;
-  bankAccountNumber: string;
-  bankIfscCode: string;
-  bankName: string;
+  /** ISO 3166-1 alpha-2 — determines the bank-account field schema. */
+  country: string;
+  /** Bank account fields keyed per the country's bank schema (§3.4). */
+  bankAccount: Record<string, string>;
   calculatedComponents: CalculatedComponent[];
   monthlyGross: number;
   monthlyDeductions: number;
@@ -161,10 +161,8 @@ export interface EmployeeSalaryInput {
   payGroupId: string;
   annualCtc: number;
   effectiveFrom: string;
-  bankAccountName: string;
-  bankAccountNumber: string;
-  bankIfscCode: string;
-  bankName: string;
+  country: string;
+  bankAccount: Record<string, string>;
 }
 
 /* ── Payslips ─────────────────────────────────────────────────────────────── */

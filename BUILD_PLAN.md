@@ -4907,7 +4907,7 @@ All three must be clean.
 
 - [x] Step 93 — Component model: `EMPLOYER_CONTRIBUTION` + `VARIABLE` types
 - [x] Step 94 — Localization core: Country + LegalEntity + money minor-units
-- [ ] Step 95 — Per-country bank schema (DynamicForm-driven)
+- [x] Step 95 — Per-country bank schema (DynamicForm-driven)
 - [ ] Step 96 — Real MSW calculation pipeline (engine computes runs/payslips)
 
 **P1 — Statutory & tax engine**

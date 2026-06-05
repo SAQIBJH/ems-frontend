@@ -36,7 +36,7 @@ export type {
 } from './types/payroll.types';
 
 // Localization types
-export type { Country, LegalEntity, LegalEntityInput } from './types/localization.types';
+export type { BankField, Country, LegalEntity, LegalEntityInput } from './types/localization.types';
 
 // Money utils
 export {
@@ -89,6 +89,7 @@ export {
 } from './hooks/useEmployeeSalary';
 export {
   useCountries,
+  useBankSchema,
   useLegalEntities,
   useCreateLegalEntity,
   useUpdateLegalEntity,

@@ -13,6 +13,15 @@ export function useCountries() {
   });
 }
 
+export function useBankSchema(country: string | undefined) {
+  return useQuery({
+    queryKey: ['payroll', 'bank-schema', country] as const,
+    queryFn: () => localizationApi.getBankSchema(country as string),
+    enabled: !!country,
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
 export function useLegalEntities() {
   return useQuery({
     queryKey: LEGAL_ENTITIES_KEY,

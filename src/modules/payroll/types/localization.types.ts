@@ -40,3 +40,15 @@ export interface LegalEntityInput {
   registrationIds: Record<string, string>;
   active: boolean;
 }
+
+/* ── Per-country bank account schema ──────────────────────────────────────── */
+
+export interface BankField {
+  key: string;
+  label: string;
+  type: 'text';
+  required: boolean;
+  /** Optional validation regex (source string). */
+  regex?: string;
+  placeholder?: string;
+}

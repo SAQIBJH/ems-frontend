@@ -13,8 +13,13 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers';
 
-import { useEmployeeSalary, usePayrollComponents, COMPONENT_TYPE_CONFIG } from '@/modules/payroll';
-import type { SalaryComponent } from '@/modules/payroll';
+import {
+  useEmployeeSalary,
+  usePayrollComponents,
+  useBankSchema,
+  COMPONENT_TYPE_CONFIG,
+} from '@/modules/payroll';
+import type { SalaryComponent, EmployeeSalary } from '@/modules/payroll';
 
 import { SalaryAssignmentDrawer } from './SalaryAssignmentDrawer';
 
@@ -255,20 +260,8 @@ export function CompensationTab({ employeeId }: { employeeId: string }) {
         </table>
       </div>
 
-      {/* Bank details */}
-      {(salary.bankAccountName || salary.bankName) && (
-        <div className="rounded-lg border border-subtle bg-surface p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted mb-3">
-            Bank Details
-          </p>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <BankRow label="Account Name" value={salary.bankAccountName} />
-            <BankRow label="Bank Name" value={salary.bankName} />
-            <BankRow label="IFSC Code" value={salary.bankIfscCode} />
-            <BankRow label="Account Number" value={salary.bankAccountNumber} />
-          </div>
-        </div>
-      )}
+      {/* Bank details — labels resolved from the country bank schema */}
+      <BankDetailsCard salary={salary} />
 
       {/* History */}
       {salary.history.length > 0 && (
@@ -322,6 +315,26 @@ function BankRow({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-fg-muted">{label}</p>
       <p className="font-medium text-fg">{value || '—'}</p>
+    </div>
+  );
+}
+
+function BankDetailsCard({ salary }: { salary: EmployeeSalary }) {
+  const { data: bankSchema = [] } = useBankSchema(salary.country);
+  const entries = Object.entries(salary.bankAccount ?? {}).filter(([, value]) => value);
+  if (entries.length === 0) return null;
+  const labelFor = (key: string) => bankSchema.find((f) => f.key === key)?.label ?? key;
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface p-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted mb-3">
+        Bank Details
+      </p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        {entries.map(([key, value]) => (
+          <BankRow key={key} label={labelFor(key)} value={value} />
+        ))}
+      </div>
     </div>
   );
 }

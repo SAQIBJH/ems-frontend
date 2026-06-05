@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
+import type { Path } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2Icon } from 'lucide-react';
@@ -11,9 +12,24 @@ import type { AxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
-import { usePayGroups, useAssignSalary } from '@/modules/payroll';
+import {
+  usePayGroups,
+  useAssignSalary,
+  useCountries,
+  useBankSchema,
+  useLegalEntities,
+} from '@/modules/payroll';
+import { usePayrollStore } from '@/store/payroll.store';
 import type { EmployeeSalary } from '@/modules/payroll';
 
 /* ── schema ───────────────────────────────────────────────────────────────── */
@@ -22,10 +38,8 @@ const salaryAssignmentSchema = z.object({
   payGroupId: z.string().min(1, 'Pay group is required'),
   annualCtc: z.number().min(1, 'CTC must be greater than 0'),
   effectiveFrom: z.string().min(1, 'Effective date is required'),
-  bankAccountName: z.string(),
-  bankAccountNumber: z.string(),
-  bankIfscCode: z.string(),
-  bankName: z.string(),
+  country: z.string().min(2, 'Country is required'),
+  bankAccount: z.record(z.string(), z.string()),
 });
 
 type FormValues = z.infer<typeof salaryAssignmentSchema>;
@@ -48,7 +62,13 @@ export function SalaryAssignmentDrawer({
   const isEdit = !!existing;
 
   const { data: payGroups = [], isLoading: groupsLoading } = usePayGroups();
+  const { data: countries = [] } = useCountries();
+  const { data: entities = [] } = useLegalEntities();
+  const activeEntityId = usePayrollStore((s) => s.activeLegalEntityId);
   const assignMutation = useAssignSalary();
+
+  const defaultCountry =
+    entities.find((e) => e.id === activeEntityId)?.country ?? entities[0]?.country ?? 'IN';
 
   const form = useForm<FormValues>({
     resolver: zodResolver(salaryAssignmentSchema),
@@ -56,39 +76,59 @@ export function SalaryAssignmentDrawer({
       payGroupId: '',
       annualCtc: 0,
       effectiveFrom: '',
-      bankAccountName: '',
-      bankAccountNumber: '',
-      bankIfscCode: '',
-      bankName: '',
+      country: 'IN',
+      bankAccount: {},
     },
   });
 
-  /* Populate form when editing */
+  const country = form.watch('country');
+  const { data: bankSchema = [], isLoading: schemaLoading } = useBankSchema(country);
+
+  /* Populate form when opening */
   useEffect(() => {
-    if (open && existing) {
+    if (!open) return;
+    if (existing) {
       form.reset({
         payGroupId: existing.payGroupId,
         annualCtc: existing.annualCtc,
         effectiveFrom: existing.effectiveFrom,
-        bankAccountName: existing.bankAccountName ?? '',
-        bankAccountNumber: existing.bankAccountNumber ?? '',
-        bankIfscCode: existing.bankIfscCode ?? '',
-        bankName: existing.bankName ?? '',
+        country: existing.country || defaultCountry,
+        bankAccount: existing.bankAccount ?? {},
       });
-    } else if (open && !existing) {
+    } else {
       form.reset({
         payGroupId: payGroups[0]?.id ?? '',
         annualCtc: 0,
         effectiveFrom: new Date().toISOString().slice(0, 10),
-        bankAccountName: '',
-        bankAccountNumber: '',
-        bankIfscCode: '',
-        bankName: '',
+        country: defaultCountry,
+        bankAccount: {},
       });
     }
-  }, [open, existing, payGroups, form]);
+  }, [open, existing, payGroups, defaultCountry, form]);
+
+  function handleCountryChange(value: string) {
+    form.setValue('country', value);
+    form.setValue('bankAccount', {});
+    form.clearErrors('bankAccount');
+  }
 
   async function onSubmit(values: FormValues) {
+    // Validate bank fields against the country schema (required + regex).
+    form.clearErrors('bankAccount');
+    let hasError = false;
+    for (const field of bankSchema) {
+      const value = (values.bankAccount[field.key] ?? '').trim();
+      const path = `bankAccount.${field.key}` as Path<FormValues>;
+      if (field.required && !value) {
+        form.setError(path, { message: `${field.label} is required` });
+        hasError = true;
+      } else if (value && field.regex && !new RegExp(field.regex).test(value)) {
+        form.setError(path, { message: `Invalid ${field.label.toLowerCase()}` });
+        hasError = true;
+      }
+    }
+    if (hasError) return;
+
     try {
       await assignMutation.mutateAsync({ employeeId, input: values });
       toast.success(isEdit ? 'Salary updated' : 'Salary assigned');
@@ -98,6 +138,10 @@ export function SalaryAssignmentDrawer({
       toast.error(apiErr?.message ?? 'Failed to save salary configuration');
     }
   }
+
+  const bankErrors = form.formState.errors.bankAccount as
+    | Record<string, { message?: string }>
+    | undefined;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -110,21 +154,30 @@ export function SalaryAssignmentDrawer({
           {/* Pay Group */}
           <div className="space-y-1.5">
             <Label htmlFor="sal-paygroup">Pay Group *</Label>
-            <select
-              id="sal-paygroup"
-              {...form.register('payGroupId')}
-              className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 cursor-pointer"
-              disabled={groupsLoading}
-            >
-              <option value="">Select pay group…</option>
-              {payGroups
-                .filter((g) => g.active)
-                .map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} ({g.currency})
-                  </option>
-                ))}
-            </select>
+            <Controller
+              control={form.control}
+              name="payGroupId"
+              render={({ field }) => (
+                <Select value={field.value || undefined} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    id="sal-paygroup"
+                    className="w-full cursor-pointer"
+                    disabled={groupsLoading}
+                  >
+                    <SelectValue placeholder="Select pay group…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payGroups
+                      .filter((g) => g.active)
+                      .map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name} ({g.currency})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {form.formState.errors.payGroupId && (
               <p className="text-xs text-danger">{form.formState.errors.payGroupId.message}</p>
             )}
@@ -155,43 +208,60 @@ export function SalaryAssignmentDrawer({
             )}
           </div>
 
-          {/* Bank details section */}
-          <div className="rounded-lg border border-subtle p-4 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted">
-              Bank Details (optional)
-            </p>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="sal-bank-name">Account Holder Name</Label>
-              <Input
-                id="sal-bank-name"
-                placeholder="e.g. Priya Sharma"
-                {...form.register('bankAccountName')}
+          {/* Bank details section — fields driven by the country schema */}
+          <div className="space-y-4 rounded-lg border border-subtle p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted">
+                Bank Details
+              </p>
+              <Controller
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={(v) => handleCountryChange(v ?? '')}
+                  >
+                    <SelectTrigger className="h-7 w-[140px] cursor-pointer text-xs">
+                      <SelectValue placeholder="Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="sal-bank-acct">Account Number</Label>
-              <Input
-                id="sal-bank-acct"
-                placeholder="e.g. 1234567890"
-                {...form.register('bankAccountNumber')}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="sal-bank">Bank Name</Label>
-                <Input id="sal-bank" placeholder="e.g. HDFC Bank" {...form.register('bankName')} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sal-ifsc">IFSC Code</Label>
-                <Input
-                  id="sal-ifsc"
-                  placeholder="e.g. HDFC0001234"
-                  {...form.register('bankIfscCode')}
-                />
-              </div>
+            <div key={country} className="space-y-4">
+              {schemaLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-9 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : (
+                bankSchema.map((bf) => (
+                  <div key={bf.key} className="space-y-1.5">
+                    <Label htmlFor={`sal-bank-${bf.key}`}>
+                      {bf.label}
+                      {bf.required && ' *'}
+                    </Label>
+                    <Input
+                      id={`sal-bank-${bf.key}`}
+                      placeholder={bf.placeholder}
+                      {...form.register(`bankAccount.${bf.key}` as Path<FormValues>)}
+                    />
+                    {bankErrors?.[bf.key]?.message && (
+                      <p className="text-xs text-danger">{bankErrors[bf.key]?.message}</p>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
