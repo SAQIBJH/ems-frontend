@@ -4871,6 +4871,22 @@ All three must be clean.
 >   module structure; extend, don't rewrite. Keep all existing functionality.
 > - **Four component states** (loading/empty/error/success), dark mode, a11y,
 >   permission gates — §13/§10/§15. No `any`. No raw hex in JSX.
+> - **Design parity (Phase 3 design system) — non-negotiable.** Every new/changed
+>   payroll screen must match our current UI, the same bar as Phase 3 §25/§21. Before
+>   building a screen, read the relevant mock in
+>   `docs/ems-design-system/project/ui_kits/ems-app/` — primarily `PayrollScreen.jsx`,
+>   plus `SettingsScreen.jsx` for panel/drawer/form layouts — and its `ui.css` +
+>   `shell.css` rules (`section-card` card-header/card-body, `.tabs`, `.form-row`,
+>   `.settings-nav`, status-badge tints). **Reuse the already-restyled primitives,
+>   don't reinvent:** `PageHeader`, `StatsCard`, the Settings **two-pane sticky
+>   nav-card** layout (`grid-cols-[240px_1fr]`, `rounded-xl border bg-surface`,
+>   `sticky top-[88px]`), `DynamicTable`, `DynamicForm`, `ReportShell`, and the
+>   payroll module's existing drawers/dialogs. Tokens only (§12). New settings panels
+>   live under **Pay & Compliance** and match the existing settings panel chrome.
+> - **Prerequisite — do Step 86 first.** Step 86 (Payroll restyle) aligns the
+>   _existing_ payroll screens to `PayrollScreen.jsx`; it was blocked only on these
+>   payroll docs, which now exist. Complete Step 86 before Step 93 so all the new UI in
+>   this phase is built on an already-aligned visual base.
 
 > **Per-step protocol (every step):**
 >

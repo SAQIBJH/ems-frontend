@@ -1139,6 +1139,30 @@ reduces net pay) — this is what makes `CTC = net + employee deductions + emplo
 contributions` provable. Components carry a `statutoryTag` (which earnings form each
 contribution's wage base) and a `prorate` flag.
 
+### UI & design parity (Phase 3 design system)
+
+This phase adds and changes a lot of UI; it must match our **current** look, the same
+bar as §25/§21 — not a new style.
+
+- **Read the mock first.** Before building a payroll screen, open
+  `docs/ems-design-system/project/ui_kits/ems-app/PayrollScreen.jsx` (and
+  `SettingsScreen.jsx` for panel/drawer/form layouts) plus the relevant `ui.css` /
+  `shell.css` rules: `section-card` (card-header + card-body), `.tabs`, `.form-row`,
+  `.settings-nav`, status-badge tints.
+- **Reuse restyled primitives — do not reinvent:** `PageHeader`, `StatsCard`, the
+  Settings **two-pane sticky nav-card** layout (`grid-cols-[240px_1fr]`,
+  `rounded-xl border border-subtle bg-surface`, sidebar `sticky top-[88px]`),
+  `DynamicTable`, `DynamicForm`, `ReportShell`, shadcn `Tabs`/`Select`/`Dialog`/`Sheet`,
+  and the payroll module's existing drawers/dialogs.
+- **New settings panels** (Legal Entities, Statutory Packs, Payslip Template, Data
+  Policy, etc.) live under the **Pay & Compliance** group in `SettingsNav` and match
+  the existing settings panel chrome (`FormRow`, section cards).
+- Tokens only (§12), dark mode + responsive (§15), all four states (§13). Never use a
+  native `<select>` — always shadcn `Select`.
+- **Sequencing:** **Step 86 (Payroll restyle) is the visual baseline and must be
+  completed before Step 93.** It aligns the existing payroll screens to
+  `PayrollScreen.jsx`; the new steps then extend that aligned base.
+
 ### API policy
 
 - All new/changed payroll endpoints are authored in **`docs/newreqphase3.md` Domain F**
