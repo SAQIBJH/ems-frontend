@@ -1094,7 +1094,7 @@ finalized in their BUILD_PLAN step per §22.**
       "name": "Employees' Provident Fund",
       "wageBaseTag": "PF_WAGE",
       "wageCeiling": 1500000, // minor units
-      "employee": { "rate": 12, "component": "PF_EE" },
+      "employee": { "rate": 12, "component": "PF" }, // component code is tenant-defined
       "employer": { "rate": 12, "component": "PF_ER", "split": { "EPS": 8.33, "EPF": 3.67 } },
       "applicability": "GROSS_BELOW_CEILING_OPTIONAL",
     },
@@ -1151,6 +1151,15 @@ from the pinned pack's `taxRegimes[0]`, never a flat rate in code:
   component formula. No `IF()` chains, no per-country code.
 - The computed amount overrides the `TDS` payslip line; recompute is reproducible
   (same pinned pack → same numbers).
+
+**Statutory contributions (Step 99 — engine behavior, no new route).** For each
+`contributionScheme` in the pinned pack, the engine builds the **wage base** from
+earnings whose component `statutoryTag` matches the scheme's `wageBaseTag`, caps it at
+`wageCeiling`, then posts the employee `rate` as a **deduction** (`employee.component`)
+and the employer `rate` as an **employer contribution** (`employer.component`, an
+employer cost — never reduces net). Schemes with no tagged earnings (zero base) are not
+applicable and emit nothing. Component codes referenced by a scheme are tenant-defined
+(the IN seed uses `PF` / `PF_ER`).
 
 ---
 

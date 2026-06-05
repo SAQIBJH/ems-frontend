@@ -18,6 +18,7 @@ import type {
 } from '@/modules/payroll/types/payroll.types';
 import {
   computeComponentBreakdown,
+  computeContribution,
   projectPeriodTax,
   registerSlabTables,
 } from '@/modules/payroll/utils/formula.utils';
@@ -114,6 +115,13 @@ function resolveGroupComponents(payGroupId: string): SalaryComponent[] | null {
   return resolved;
 }
 
+/** Override a payslip line's amount by code, or append it if absent. */
+function upsertLine(lines: PayslipLine[], code: string, name: string, amount: number): void {
+  const existing = lines.find((l) => l.code === code);
+  if (existing) existing.amount = amount;
+  else lines.push({ code, name, amount, taxable: false });
+}
+
 function parsePeriod(period: string): { year: number; month: number } {
   const [year, month] = period.split('-').map(Number);
   return { year, month };
@@ -191,10 +199,37 @@ export function computeRun(
       else employerContributions.push(pl); // EMPLOYER_CONTRIBUTION | BENEFIT | REIMBURSEMENT
     }
 
+    const pack = resolveActivePack(emp.country, period);
+
+    // Statutory contributions: for each scheme in the pinned pack, build the wage
+    // base from earnings tagged with the scheme's statutoryTag, then derive the
+    // employee deduction + employer contribution (respecting the ceiling). Rates,
+    // ceilings, and the wage base are all data — no country logic in the engine.
+    if (pack) {
+      for (const scheme of pack.contributionSchemes) {
+        const rawBase = earnings
+          .filter((e) => compByCode.get(e.code)?.statutoryTag === scheme.wageBaseTag)
+          .reduce((s, e) => s + e.amount, 0);
+        if (rawBase <= 0) continue; // no tagged earnings → scheme not applicable
+        const { employee, employer } = computeContribution(rawBase, scheme);
+        upsertLine(
+          deductions,
+          scheme.employee.component,
+          compByCode.get(scheme.employee.component)?.name ?? `${scheme.name} (Employee)`,
+          employee,
+        );
+        upsertLine(
+          employerContributions,
+          scheme.employer.component,
+          compByCode.get(scheme.employer.component)?.name ?? `${scheme.name} (Employer)`,
+          employer,
+        );
+      }
+    }
+
     // Income tax (TDS): computed from the pinned pack's regime via progressive
     // slabs — never a flat rate in code. Project full-year taxable income, then
     // spread the regime tax across the year. (YTD true-up arrives in Step 100.)
-    const pack = resolveActivePack(emp.country, period);
     const regime = pack?.taxRegimes[0] ?? null;
     if (regime) {
       registerSlabTables({ [regime.code]: regime.slabs });

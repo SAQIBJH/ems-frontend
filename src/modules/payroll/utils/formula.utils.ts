@@ -1,6 +1,6 @@
 import { Parser } from 'expr-eval';
 import type { SalaryComponent, CalculatedComponent } from '../types/payroll.types';
-import type { TaxRegime, TaxSlab } from '../types/statutory.types';
+import type { ContributionScheme, TaxRegime, TaxSlab } from '../types/statutory.types';
 
 const parser = new Parser();
 
@@ -94,6 +94,34 @@ export function projectPeriodTax({
   const annualTax = computeRegimeTax(annualTaxable, regime);
   const remaining = Math.max(0, annualTax - ytdTaxPaid);
   return remaining / Math.max(1, periodsRemaining);
+}
+
+/* ── Statutory contributions (employee + employer split, wage base, ceiling) ── */
+
+export interface ContributionResult {
+  /** The wage base actually used, after applying the scheme's ceiling. */
+  base: number;
+  /** Employee-side deduction, minor units. */
+  employee: number;
+  /** Employer-side contribution (employer cost, never reduces net), minor units. */
+  employer: number;
+}
+
+/**
+ * Compute one contribution scheme over a wage base. The base is capped at the
+ * scheme's `wageCeiling` (if any); employee and employer amounts are each the
+ * configured rate of the capped base. Rates/ceilings are data — no `if (country)`.
+ */
+export function computeContribution(
+  rawBase: number,
+  scheme: ContributionScheme,
+): ContributionResult {
+  const base = scheme.wageCeiling != null ? Math.min(rawBase, scheme.wageCeiling) : rawBase;
+  return {
+    base,
+    employee: Math.round((base * scheme.employee.rate) / 100),
+    employer: Math.round((base * scheme.employer.rate) / 100),
+  };
 }
 
 export function evaluateFormula(formula: string, variables: Record<string, number>): number | null {

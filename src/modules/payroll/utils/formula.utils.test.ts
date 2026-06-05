@@ -7,10 +7,11 @@ import {
   evaluateSlab,
   computeRegimeTax,
   projectPeriodTax,
+  computeContribution,
   registerSlabTables,
 } from './formula.utils';
 import type { SalaryComponent } from '../types/payroll.types';
-import type { TaxRegime, TaxSlab } from '../types/statutory.types';
+import type { ContributionScheme, TaxRegime, TaxSlab } from '../types/statutory.types';
 
 /** Build a SalaryComponent with sensible defaults for the new required fields. */
 function comp(
@@ -237,6 +238,48 @@ describe('projectPeriodTax', () => {
     expect(
       projectPeriodTax({ annualTaxable: 1275000, regime, ytdTaxPaid: 12400, periodsRemaining: 4 }),
     ).toBe(12500);
+  });
+});
+
+describe('computeContribution', () => {
+  const epf: ContributionScheme = {
+    code: 'IN_EPF',
+    name: "Employees' Provident Fund",
+    wageBaseTag: 'PF_WAGE',
+    wageCeiling: 1500000,
+    employee: { rate: 12, component: 'PF' },
+    employer: { rate: 12, component: 'PF_ER' },
+    applicability: 'GROSS_BELOW_CEILING_OPTIONAL',
+  };
+
+  it('applies the configured rate to the wage base (below ceiling)', () => {
+    const r = computeContribution(50000, epf);
+    expect(r.base).toBe(50000);
+    expect(r.employee).toBe(6000); // 12% of 50,000
+    expect(r.employer).toBe(6000);
+  });
+
+  it('caps the wage base at the ceiling', () => {
+    const r = computeContribution(2000000, epf);
+    expect(r.base).toBe(1500000); // capped
+    expect(r.employee).toBe(180000); // 12% of 1,500,000
+    expect(r.employer).toBe(180000);
+  });
+
+  it('supports asymmetric employee/employer rates and uncapped schemes', () => {
+    const medicare: ContributionScheme = {
+      code: 'US_MEDICARE',
+      name: 'Medicare',
+      wageBaseTag: 'FICA_WAGE',
+      wageCeiling: null,
+      employee: { rate: 1.45, component: 'MED_EE' },
+      employer: { rate: 1.45, component: 'MED_ER' },
+      applicability: 'ALL_WAGES',
+    };
+    const r = computeContribution(10000000, medicare);
+    expect(r.base).toBe(10000000); // uncapped
+    expect(r.employee).toBe(145000); // 1.45%
+    expect(r.employer).toBe(145000);
   });
 });
 
