@@ -80,6 +80,15 @@ let groups: PayGroup[] = [
         overrideValue: null,
         overrideFormula: null,
       },
+      {
+        componentId: 'comp-009',
+        componentCode: 'PF_ER',
+        componentName: 'Provident Fund (Employer)',
+        componentType: 'EMPLOYER_CONTRIBUTION',
+        overrideCalculationType: null,
+        overrideValue: null,
+        overrideFormula: null,
+      },
     ],
     createdAt: '2024-01-15T10:00:00.000Z',
     updatedAt: '2024-01-15T10:00:00.000Z',
@@ -137,6 +146,10 @@ function enrichComponents(inputs: Array<PayGroupComponentInput>) {
 }
 
 let idCounter = 100;
+
+export function getGroupById(id: string): PayGroup | undefined {
+  return groups.find((g) => g.id === id);
+}
 
 export const payrollGroupHandlers = [
   http.get('/api/payroll/groups', () => {

@@ -204,10 +204,14 @@ export interface Payslip {
   company: PayslipCompany;
   earnings: PayslipLine[];
   deductions: PayslipLine[];
+  /** Employer-side contributions (employer cost) — never reduce net pay. */
+  employerContributions?: PayslipLine[];
   oneTimeAdditions: PayslipOneTime[];
   oneTimeDeductions: PayslipOneTime[];
   grossEarnings: number;
   totalDeductions: number;
+  /** Total employer cost (employer contributions + benefits). */
+  employerCost?: number;
   netPay: number;
   workingDays: number;
   presentDays: number;
@@ -278,6 +282,8 @@ export interface PayrollRun {
   employeeCount: number;
   totalGross: number;
   totalDeductions: number;
+  /** Total employer cost across the run (employer contributions + benefits). */
+  employerCost?: number;
   totalNet: number;
   currency: string;
   initiatedBy?: string;

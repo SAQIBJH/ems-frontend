@@ -146,6 +146,24 @@ let components: SalaryComponent[] = [
     createdAt: '2024-01-15T10:00:00.000Z',
     updatedAt: '2024-01-15T10:00:00.000Z',
   },
+  {
+    id: 'comp-009',
+    name: 'Provident Fund (Employer)',
+    code: 'PF_ER',
+    type: 'EMPLOYER_CONTRIBUTION',
+    calculationType: 'PERCENTAGE',
+    value: 12,
+    basisCode: 'BASIC',
+    formula: null,
+    taxable: false,
+    active: true,
+    displayOrder: 20,
+    description: 'Employer PF contribution at 12% of basic (employer cost, not a deduction)',
+    statutoryTag: 'PF_WAGE',
+    prorate: false,
+    createdAt: '2024-01-15T10:00:00.000Z',
+    updatedAt: '2024-01-15T10:00:00.000Z',
+  },
 ];
 
 let idCounter = 100;

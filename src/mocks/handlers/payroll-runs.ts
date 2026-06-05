@@ -1,5 +1,23 @@
 import { http, HttpResponse } from 'msw';
-import type { PayrollRun, PayslipRunPage } from '@/modules/payroll/types/payroll.types';
+import type { PayrollRun } from '@/modules/payroll/types/payroll.types';
+import { computeRun } from '../data/payroll-engine';
+
+// Canonical computed totals (the roster is fixed, so every run shares them until
+// per-period inputs land in Step 101). Derived from the engine — never hardcoded.
+const BASE = computeRun('base', '2026-05');
+
+function runTotals(): Pick<
+  PayrollRun,
+  'employeeCount' | 'totalGross' | 'totalDeductions' | 'employerCost' | 'totalNet'
+> {
+  return {
+    employeeCount: BASE.totals.employeeCount,
+    totalGross: BASE.totals.totalGross,
+    totalDeductions: BASE.totals.totalDeductions,
+    employerCost: BASE.totals.employerCost,
+    totalNet: BASE.totals.totalNet,
+  };
+}
 
 let runs: PayrollRun[] = [
   {
@@ -7,10 +25,7 @@ let runs: PayrollRun[] = [
     period: '2026-02',
     periodLabel: 'February 2026',
     status: 'PAID',
-    employeeCount: 48,
-    totalGross: 4800000,
-    totalDeductions: 614400,
-    totalNet: 4185600,
+    ...runTotals(),
     currency: 'INR',
     initiatedBy: 'hr@acme.test',
     approvedBy: 'superadmin@acme.test',
@@ -24,10 +39,7 @@ let runs: PayrollRun[] = [
     period: '2026-03',
     periodLabel: 'March 2026',
     status: 'PAID',
-    employeeCount: 50,
-    totalGross: 5000000,
-    totalDeductions: 640000,
-    totalNet: 4360000,
+    ...runTotals(),
     currency: 'INR',
     initiatedBy: 'hr@acme.test',
     approvedBy: 'superadmin@acme.test',
@@ -41,10 +53,7 @@ let runs: PayrollRun[] = [
     period: '2026-04',
     periodLabel: 'April 2026',
     status: 'PAID',
-    employeeCount: 50,
-    totalGross: 5000000,
-    totalDeductions: 640000,
-    totalNet: 4360000,
+    ...runTotals(),
     currency: 'INR',
     initiatedBy: 'hr@acme.test',
     approvedBy: 'superadmin@acme.test',
@@ -61,6 +70,7 @@ let runs: PayrollRun[] = [
     employeeCount: 0,
     totalGross: 0,
     totalDeductions: 0,
+    employerCost: 0,
     totalNet: 0,
     currency: 'INR',
     initiatedBy: 'hr@acme.test',
@@ -74,45 +84,9 @@ let runs: PayrollRun[] = [
 
 let idCounter = 100;
 
-const MOCK_PAYSLIPS: PayslipRunPage = {
-  items: [
-    {
-      id: 'rslip-001',
-      employeeId: 'emp-001',
-      employeeCode: 'E0001',
-      employeeName: 'Aman Kumar',
-      departmentName: 'Engineering',
-      designation: 'Senior Engineer',
-      currency: 'INR',
-      grossEarnings: 150000,
-      totalDeductions: 19100,
-      netPay: 130900,
-      workingDays: 22,
-      presentDays: 22,
-      lopDays: 0,
-      status: 'PENDING',
-      hasAdjustments: false,
-    },
-    {
-      id: 'rslip-002',
-      employeeId: 'emp-004',
-      employeeCode: 'E0004',
-      employeeName: 'Priya Sharma',
-      departmentName: 'Engineering',
-      designation: 'Software Engineer',
-      currency: 'INR',
-      grossEarnings: 100000,
-      totalDeductions: 12800,
-      netPay: 87200,
-      workingDays: 22,
-      presentDays: 21,
-      lopDays: 0,
-      status: 'PENDING',
-      hasAdjustments: false,
-    },
-  ],
-  pagination: { page: 1, limit: 20, total: 2, totalPages: 1 },
-};
+function payslipStatusFor(run: PayrollRun) {
+  return run.status === 'PAID' ? ('PAID' as const) : ('PENDING' as const);
+}
 
 export const payrollRunHandlers = [
   http.get('/api/payroll/runs', ({ request }) => {
@@ -147,17 +121,16 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
+    // Only runs that have been calculated have a meaningful summary.
+    const computed =
+      run.status === 'DRAFT' || run.status === 'CANCELLED'
+        ? { byDepartment: [], warnings: [] }
+        : computeRun(run.id, run.period, payslipStatusFor(run));
     return HttpResponse.json({
       success: true,
       data: {
         ...run,
-        summary: {
-          byDepartment: [
-            { departmentName: 'Engineering', employeeCount: 12, totalNet: 1245000 },
-            { departmentName: 'HR', employeeCount: 5, totalNet: 390000 },
-          ],
-          warnings: [],
-        },
+        summary: { byDepartment: computed.byDepartment, warnings: computed.warnings },
       },
     });
   }),
@@ -185,6 +158,7 @@ export const payrollRunHandlers = [
       employeeCount: 0,
       totalGross: 0,
       totalDeductions: 0,
+      employerCost: 0,
       totalNet: 0,
       currency: 'INR',
       initiatedBy: 'hr@acme.test',
@@ -205,17 +179,21 @@ export const payrollRunHandlers = [
       runs = runs.map((r, i) =>
         i === idx ? { ...r, status: 'CALCULATING', processedAt: new Date().toISOString() } : r,
       );
-      // Simulate completing to REVIEW after brief delay
+      // Compute real numbers from the engine, then move to REVIEW after a brief delay.
       setTimeout(() => {
+        const run = runs.find((r) => r.id === id);
+        if (!run) return;
+        const computed = computeRun(run.id, run.period, 'PENDING');
         runs = runs.map((r) =>
           r.id === id
             ? {
                 ...r,
                 status: 'REVIEW',
-                employeeCount: 48,
-                totalGross: 4800000,
-                totalDeductions: 614400,
-                totalNet: 4185600,
+                employeeCount: computed.totals.employeeCount,
+                totalGross: computed.totals.totalGross,
+                totalDeductions: computed.totals.totalDeductions,
+                employerCost: computed.totals.employerCost,
+                totalNet: computed.totals.totalNet,
               }
             : r,
         );
@@ -261,56 +239,60 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    return HttpResponse.json({ success: true, data: MOCK_PAYSLIPS });
+    const computed = computeRun(run.id, run.period, payslipStatusFor(run));
+    return HttpResponse.json({
+      success: true,
+      data: {
+        items: computed.items,
+        pagination: {
+          page: 1,
+          limit: computed.items.length || 1,
+          total: computed.items.length,
+          totalPages: 1,
+        },
+      },
+    });
   }),
 
   http.get('/api/payroll/runs/:runId/payslips/:payslipId', ({ params }) => {
-    const { payslipId } = params as { payslipId: string };
-    const item = MOCK_PAYSLIPS.items.find((p) => p.id === payslipId);
-    if (!item) {
+    const { runId, payslipId } = params as { runId: string; payslipId: string };
+    const run = runs.find((r) => r.id === runId);
+    if (!run) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Run not found' } },
+        { status: 404 },
+      );
+    }
+    const computed = computeRun(run.id, run.period, payslipStatusFor(run));
+    const detail = computed.details[payslipId];
+    if (!detail) {
       return HttpResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Payslip not found' } },
         { status: 404 },
       );
     }
-    const detail = {
-      ...item,
-      employee: {
-        id: item.employeeId,
-        firstName: item.employeeName.split(' ')[0],
-        lastName: item.employeeName.split(' ')[1] ?? '',
-        employeeCode: item.employeeCode,
-        designation: item.designation,
-        departmentName: item.departmentName,
-      },
-      company: { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null },
-      earnings: [
-        { code: 'BASIC', name: 'Basic Salary', amount: 50000, taxable: true },
-        { code: 'HRA', name: 'House Rent Allowance', amount: 20000, taxable: false },
-      ],
-      deductions: [
-        { code: 'PF', name: 'Provident Fund', amount: 6000 },
-        { code: 'TDS', name: 'TDS (Income Tax)', amount: 6600 },
-      ],
-      oneTimeAdditions: [],
-      oneTimeDeductions: [],
-      leaveDays: 0,
-      paymentReference: 'NEFT/2026/05/BATCH001',
-      generatedAt: new Date().toISOString(),
-    };
     return HttpResponse.json({ success: true, data: detail });
   }),
 
   http.patch('/api/payroll/runs/:runId/payslips/:payslipId', async ({ params, request }) => {
-    const { payslipId } = params as { payslipId: string };
+    const { runId, payslipId } = params as { runId: string; payslipId: string };
     const body = (await request.json()) as Record<string, unknown>;
-    const item = MOCK_PAYSLIPS.items.find((p) => p.id === payslipId);
-    return HttpResponse.json({ success: true, data: { ...item, ...body, hasAdjustments: true } });
+    const run = runs.find((r) => r.id === runId);
+    const computed = run ? computeRun(run.id, run.period, payslipStatusFor(run)) : null;
+    const detail = computed?.details[payslipId];
+    return HttpResponse.json({ success: true, data: { ...detail, ...body, hasAdjustments: true } });
   }),
 
-  http.get('/api/payroll/runs/:runId/export', () => {
-    const csv =
-      'employeeCode,employeeName,grossEarnings,totalDeductions,netPay\nE0001,Aman Kumar,150000,19100,130900\nE0004,Priya Sharma,100000,12800,87200';
+  http.get('/api/payroll/runs/:runId/export', ({ params }) => {
+    const { runId } = params as { runId: string };
+    const run = runs.find((r) => r.id === runId);
+    const computed = run ? computeRun(run.id, run.period, payslipStatusFor(run)) : BASE;
+    const header = 'employeeCode,employeeName,grossEarnings,totalDeductions,netPay';
+    const rows = computed.items.map(
+      (i) =>
+        `${i.employeeCode},${i.employeeName},${i.grossEarnings},${i.totalDeductions},${i.netPay}`,
+    );
+    const csv = [header, ...rows].join('\n');
     return new HttpResponse(csv, {
       status: 200,
       headers: {
