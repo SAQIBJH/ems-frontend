@@ -20,6 +20,8 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 
 import { useRunInputs, useUpdateRunInput, useImportRunInputs } from '../hooks/usePayrollRuns';
+import { usePayrollComponents } from '../hooks/usePayrollComponents';
+import { formatMoney, fromMinor, toMinor } from '../utils/money.utils';
 import type { PayrollInput } from '../types/payroll.types';
 
 /**
@@ -116,19 +118,106 @@ function ImportDialog({
   );
 }
 
+/** Per-employee variable-pay editor (incentive / commission / bonus). */
+function VariablePayDialog({
+  open,
+  onOpenChange,
+  runId,
+  input,
+  components,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  runId: string;
+  input: PayrollInput;
+  components: { code: string; name: string }[];
+}) {
+  const update = useUpdateRunInput();
+  const [amounts, setAmounts] = useState<Record<string, string>>(() => {
+    const seed: Record<string, string> = {};
+    for (const c of components) {
+      const minor = input.variablePay[c.code];
+      seed[c.code] = minor ? String(fromMinor(minor, 'INR')) : '';
+    }
+    return seed;
+  });
+
+  async function handleSave() {
+    const variablePay: Record<string, number> = {};
+    for (const c of components) {
+      const major = Number(amounts[c.code]);
+      if (Number.isFinite(major) && major > 0) variablePay[c.code] = toMinor(major, 'INR');
+    }
+    try {
+      await update.mutateAsync({ runId, employeeId: input.employeeId, body: { variablePay } });
+      toast.success('Variable pay saved.');
+      onOpenChange(false);
+    } catch {
+      toast.error('Failed to save variable pay');
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Variable pay · {input.employeeName}</DialogTitle>
+          <DialogDescription>
+            One-time incentive, commission, or bonus for this period.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-1">
+          {components.map((c) => (
+            <div key={c.code} className="flex items-center justify-between gap-3">
+              <Label htmlFor={`vp-${c.code}`}>{c.name}</Label>
+              <Input
+                id={`vp-${c.code}`}
+                type="number"
+                min={0}
+                value={amounts[c.code] ?? ''}
+                onChange={(e) => setAmounts((prev) => ({ ...prev, [c.code]: e.target.value }))}
+                placeholder="0"
+                className="w-40 tabular-nums"
+              />
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={update.isPending}>
+            {update.isPending && <Loader2Icon className="size-3.5 animate-spin" aria-hidden />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function RunInputsPanel({ runId }: { runId: string }) {
   const { data, isLoading, isError, refetch } = useRunInputs(runId);
   const update = useUpdateRunInput();
+  const { data: allComponents = [] } = usePayrollComponents();
   const [importOpen, setImportOpen] = useState(false);
+  const [variableFor, setVariableFor] = useState<PayrollInput | null>(null);
 
   const inputs = data?.inputs ?? [];
   const editable = data?.editable ?? false;
+  const variableComponents = allComponents
+    .filter((c) => c.type === 'VARIABLE' && c.active && c.code !== 'OT')
+    .map((c) => ({ code: c.code, name: c.name }));
 
   function commit(input: PayrollInput, field: 'lopDays' | 'leaveDays' | 'otHours', next: number) {
     update.mutate(
       { runId, employeeId: input.employeeId, body: { [field]: next } },
       { onError: () => toast.error('Failed to save input') },
     );
+  }
+
+  function variablePayTotal(input: PayrollInput): number {
+    return Object.values(input.variablePay).reduce((s, v) => s + v, 0);
   }
 
   return (
@@ -174,6 +263,7 @@ export function RunInputsPanel({ runId }: { runId: string }) {
                 <th className="px-3 py-2 font-medium">LOP days</th>
                 <th className="px-3 py-2 font-medium">Leave days</th>
                 <th className="px-3 py-2 font-medium">OT hours</th>
+                <th className="px-3 py-2 font-medium">Variable pay</th>
               </tr>
             </thead>
             <tbody>
@@ -207,6 +297,19 @@ export function RunInputsPanel({ runId }: { runId: string }) {
                       onCommit={(n) => commit(input, 'otHours', n)}
                     />
                   </td>
+                  <td className="px-3 py-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={!editable || variableComponents.length === 0}
+                      onClick={() => setVariableFor(input)}
+                    >
+                      {variablePayTotal(input) > 0
+                        ? formatMoney(variablePayTotal(input), 'INR')
+                        : 'Add'}
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -215,6 +318,15 @@ export function RunInputsPanel({ runId }: { runId: string }) {
       )}
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} runId={runId} />
+      {variableFor && (
+        <VariablePayDialog
+          open={!!variableFor}
+          onOpenChange={(v) => !v && setVariableFor(null)}
+          runId={runId}
+          input={variableFor}
+          components={variableComponents}
+        />
+      )}
     </div>
   );
 }

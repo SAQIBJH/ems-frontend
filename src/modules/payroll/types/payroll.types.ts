@@ -440,6 +440,42 @@ export interface LoanInput {
   startPeriod: string;
 }
 
+/* ── Reimbursement claims & variable pay (§6, §6.1) ───────────────────────── */
+
+export type ClaimStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'PAID';
+
+export interface ReimbursementCategory {
+  code: string;
+  label: string;
+  /** Per-period claim cap, minor units. */
+  monthlyCap: number;
+}
+
+export interface ReimbursementClaim {
+  id: string;
+  employeeId: string;
+  category: string;
+  /** Minor units. */
+  amount: number;
+  currency: string;
+  description?: string;
+  proofUrl?: string | null;
+  status: ClaimStatus;
+  /** The run this claim is attached to once approved. */
+  runId?: string | null;
+  submittedAt: string;
+  decidedAt?: string | null;
+  decidedBy?: string | null;
+}
+
+export interface ReimbursementClaimInput {
+  category: string;
+  amount: number;
+  currency?: string;
+  description?: string;
+  proofUrl?: string | null;
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {

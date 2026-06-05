@@ -16,6 +16,7 @@ import type {
   PayslipStatus,
   PayslipYtd,
   PayrollInput,
+  ReimbursementClaim,
   PayrollRunDeptSummary,
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
@@ -246,6 +247,7 @@ function computeEmployeeMonth(
   emp: RosterEmployee,
   period: string,
   input?: PayrollInput,
+  claims?: ReimbursementClaim[],
 ): EmployeeMonth | null {
   const components = resolveGroupComponents(emp.payGroupId);
   if (!components || components.length === 0) return null;
@@ -291,6 +293,19 @@ function computeEmployeeMonth(
         amount: otPay,
         taxable: otComp?.taxable ?? true,
       });
+  }
+
+  // Structured variable pay (incentive/commission/bonus) entered as run inputs —
+  // applied even when the component is not part of the employee's pay group.
+  for (const [code, value] of Object.entries(input?.variablePay ?? {})) {
+    if (code === 'OT' || value <= 0 || earnings.some((e) => e.code === code)) continue;
+    const comp = getComponentByCode(code);
+    earnings.push({
+      code,
+      name: comp?.name ?? code,
+      amount: Math.round(value),
+      taxable: comp?.taxable ?? true,
+    });
   }
 
   const pack = resolveActivePack(emp.country, period);
@@ -367,10 +382,17 @@ function computeEmployeeMonth(
     });
   }
 
-  // One-time, period-only additions/deductions supplied via the run input.
-  const oneTimeAdditions: PayslipOneTime[] = (input?.oneTime ?? [])
-    .filter((o) => o.kind === 'ADDITION')
-    .map((o) => ({ description: o.label, amount: o.amount }));
+  // One-time, period-only additions/deductions: run inputs + attached reimbursement
+  // claims (paid as non-taxable additions).
+  const oneTimeAdditions: PayslipOneTime[] = [
+    ...(input?.oneTime ?? [])
+      .filter((o) => o.kind === 'ADDITION')
+      .map((o) => ({ description: o.label, amount: o.amount })),
+    ...(claims ?? []).map((c) => ({
+      description: `${c.category} reimbursement`,
+      amount: c.amount,
+    })),
+  ];
   const oneTimeDeductions: PayslipOneTime[] = (input?.oneTime ?? [])
     .filter((o) => o.kind === 'DEDUCTION')
     .map((o) => ({ description: o.label, amount: o.amount }));
@@ -486,6 +508,7 @@ export function computeRun(
   period: string,
   status: PayslipStatus = 'PENDING',
   inputs?: Record<string, PayrollInput>,
+  claimsByEmployee?: Record<string, ReimbursementClaim[]>,
 ): ComputedRun {
   const label = periodLabel(period);
   const generatedAt = `${period}-28T10:00:00.000Z`;
@@ -502,7 +525,12 @@ export function computeRun(
   let employeeCount = 0;
 
   for (const emp of FULL_ROSTER) {
-    const month = computeEmployeeMonth(emp, period, inputs?.[emp.employeeId]);
+    const month = computeEmployeeMonth(
+      emp,
+      period,
+      inputs?.[emp.employeeId],
+      claimsByEmployee?.[emp.employeeId],
+    );
     if (!month) {
       warnings.push({
         employeeId: emp.employeeId,

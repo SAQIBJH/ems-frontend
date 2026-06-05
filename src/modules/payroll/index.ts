@@ -35,6 +35,10 @@ export type {
   LoanScheduleEntry,
   Loan,
   LoanInput,
+  ClaimStatus,
+  ReimbursementCategory,
+  ReimbursementClaim,
+  ReimbursementClaimInput,
   PayslipRunItem,
   PayrollRunWarning,
   PayrollRunDeptSummary,
@@ -86,6 +90,7 @@ export type { FormatMoneyOptions } from './utils/money.utils';
 // Services
 export { localizationApi } from './services/localization.api';
 export { loansApi } from './services/loans.api';
+export { claimsApi } from './services/claims.api';
 export { payrollComponentsApi } from './services/payroll-components.api';
 export { payGroupsApi } from './services/pay-groups.api';
 export { employeeSalaryApi } from './services/employee-salary.api';
@@ -130,6 +135,7 @@ export {
   useUpdateTaxDeclaration,
 } from './hooks/useEmployeeSalary';
 export { useEmployeeLoans, useCreateLoan, useForecloseLoan } from './hooks/useLoans';
+export { useClaims, useClaimCategories, useSubmitClaim, useDecideClaim } from './hooks/useClaims';
 export {
   useCountries,
   useBankSchema,
@@ -187,3 +193,4 @@ export { AdjustmentDialog } from './components/AdjustmentDialog';
 export { MyPayslipsPage } from './components/MyPayslipsPage';
 export { TaxDeclarationCard } from './components/TaxDeclarationCard';
 export { LoansCard } from './components/LoansCard';
+export { ClaimsCard } from './components/ClaimsCard';

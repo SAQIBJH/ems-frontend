@@ -13,6 +13,7 @@ import { payrollStatutoryHandlers } from './payroll-statutory';
 import { payrollInputHandlers } from './payroll-inputs';
 import { payrollTaxDeclarationHandlers } from './payroll-tax-declaration';
 import { payrollLoanHandlers } from './payroll-loans';
+import { payrollClaimHandlers } from './payroll-claims';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
 // Phase 2.5 — Settings: Integrations & Billing
@@ -85,6 +86,7 @@ export const handlers = [
   ...payrollInputHandlers,
   ...payrollTaxDeclarationHandlers,
   ...payrollLoanHandlers,
+  ...payrollClaimHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,
   ...settingsIntegrationHandlers,

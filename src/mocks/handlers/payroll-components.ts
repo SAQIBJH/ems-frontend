@@ -183,6 +183,31 @@ let components: SalaryComponent[] = [
     createdAt: '2024-01-15T10:00:00.000Z',
     updatedAt: '2024-01-15T10:00:00.000Z',
   },
+  ...(
+    [
+      ['comp-011', 'INCENTIVE', 'Incentive', 7],
+      ['comp-012', 'COMMISSION', 'Commission', 8],
+      ['comp-013', 'BONUS', 'Bonus', 9],
+    ] as const
+  ).map(([id, code, name, displayOrder]) => ({
+    id,
+    name,
+    code,
+    type: 'VARIABLE' as const,
+    calculationType: 'FLAT' as const,
+    // Input-driven: the amount is supplied per run via variable-pay inputs.
+    value: null,
+    basisCode: null,
+    formula: null,
+    taxable: true,
+    active: true,
+    displayOrder,
+    description: `${name} — variable pay entered per run`,
+    statutoryTag: null,
+    prorate: false,
+    createdAt: '2024-01-15T10:00:00.000Z',
+    updatedAt: '2024-01-15T10:00:00.000Z',
+  })),
 ];
 
 let idCounter = 100;

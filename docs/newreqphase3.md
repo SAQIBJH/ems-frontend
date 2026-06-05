@@ -1296,8 +1296,16 @@ recovery, final tax. Errors: `409 RUN_EXISTS` (unchanged), `422 INVALID_RUN_TYPE
 ### F.6 — Claims & variable pay (Step 104)
 
 `GET/POST/PATCH /payroll/reimbursement-claims` — `{ id, employeeId, category, amount,
-currency, proofUrl, status: SUBMITTED|APPROVED|REJECTED|PAID, runId }`. Approved claims
-attach to the next run. Variable pay entered via run inputs (§F.5).
+currency, description?, proofUrl, status: SUBMITTED|APPROVED|REJECTED|PAID, runId, submittedAt, decidedAt }`.
+`GET ?employeeId=&status=` filters; `POST { ...input, employeeId }` (errors `422 CLAIM_OVER_CAP`);
+`PATCH :id { status: APPROVED|REJECTED }` decides. `GET /payroll/reimbursement-categories`
+→ `{ code, label, monthlyCap }[]` (per-category caps, minor units).
+
+> **Run lifecycle:** on `calculate`, **approved, unattached** claims attach to the run
+> (`runId` set) and the engine pays each as a **non-taxable one-time addition**; on
+> `mark-paid` the attached claims become `PAID`. Structured **variable pay**
+> (incentive/commission/bonus) is entered per employee in the run inputs (`variablePay`,
+> §F.5) and the engine emits an earning line even when the component is not in the pay group.
 
 ---
 

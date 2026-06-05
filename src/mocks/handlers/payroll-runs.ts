@@ -4,6 +4,7 @@ import type { RunConfigSnapshotRef } from '@/modules/payroll/types/statutory.typ
 import { computeRun } from '../data/payroll-engine';
 import { resolveActivePack } from './payroll-statutory';
 import { getRunInputs } from './payroll-inputs';
+import { getClaimsForRun, attachApprovedClaimsToRun, markRunClaimsPaid } from './payroll-claims';
 
 // The demo tenant's payroll roster operates under the India legal entity.
 const RUN_COUNTRY = 'IN';
@@ -158,7 +159,13 @@ export const payrollRunHandlers = [
     const computed =
       run.status === 'DRAFT' || run.status === 'CANCELLED'
         ? { byDepartment: [], warnings: [] }
-        : computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id));
+        : computeRun(
+            run.id,
+            run.period,
+            payslipStatusFor(run),
+            getRunInputs(run.id),
+            getClaimsForRun(run.id),
+          );
     return HttpResponse.json({
       success: true,
       data: {
@@ -209,6 +216,8 @@ export const payrollRunHandlers = [
     const { id } = params as { id: string };
     const idx = runs.findIndex((r) => r.id === id);
     if (idx !== -1) {
+      // Attach approved reimbursement claims to this run as it is processed.
+      attachApprovedClaimsToRun(id);
       runs = runs.map((r, i) =>
         i === idx ? { ...r, status: 'CALCULATING', processedAt: new Date().toISOString() } : r,
       );
@@ -216,7 +225,13 @@ export const payrollRunHandlers = [
       setTimeout(() => {
         const run = runs.find((r) => r.id === id);
         if (!run) return;
-        const computed = computeRun(run.id, run.period, 'PENDING', getRunInputs(id));
+        const computed = computeRun(
+          run.id,
+          run.period,
+          'PENDING',
+          getRunInputs(id),
+          getClaimsForRun(id),
+        );
         runs = runs.map((r) =>
           r.id === id
             ? {
@@ -254,6 +269,7 @@ export const payrollRunHandlers = [
     const { id } = params as { id: string };
     const body = (await request.json()) as { paidAt: string; paymentReference: string };
     runs = runs.map((r) => (r.id === id ? { ...r, status: 'PAID', paidAt: body.paidAt } : r));
+    markRunClaimsPaid(id); // attached reimbursement claims are now paid
     const run = runs.find((r) => r.id === id);
     return HttpResponse.json({ success: true, data: run });
   }),
@@ -274,7 +290,13 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    const computed = computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id));
+    const computed = computeRun(
+      run.id,
+      run.period,
+      payslipStatusFor(run),
+      getRunInputs(run.id),
+      getClaimsForRun(run.id),
+    );
     return HttpResponse.json({
       success: true,
       data: {
@@ -298,7 +320,13 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    const computed = computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id));
+    const computed = computeRun(
+      run.id,
+      run.period,
+      payslipStatusFor(run),
+      getRunInputs(run.id),
+      getClaimsForRun(run.id),
+    );
     const detail = computed.details[payslipId];
     if (!detail) {
       return HttpResponse.json(
@@ -314,7 +342,13 @@ export const payrollRunHandlers = [
     const body = (await request.json()) as Record<string, unknown>;
     const run = runs.find((r) => r.id === runId);
     const computed = run
-      ? computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id))
+      ? computeRun(
+          run.id,
+          run.period,
+          payslipStatusFor(run),
+          getRunInputs(run.id),
+          getClaimsForRun(run.id),
+        )
       : null;
     const detail = computed?.details[payslipId];
     return HttpResponse.json({ success: true, data: { ...detail, ...body, hasAdjustments: true } });
@@ -324,7 +358,13 @@ export const payrollRunHandlers = [
     const { runId } = params as { runId: string };
     const run = runs.find((r) => r.id === runId);
     const computed = run
-      ? computeRun(run.id, run.period, payslipStatusFor(run), getRunInputs(run.id))
+      ? computeRun(
+          run.id,
+          run.period,
+          payslipStatusFor(run),
+          getRunInputs(run.id),
+          getClaimsForRun(run.id),
+        )
       : BASE;
     const header = 'employeeCode,employeeName,grossEarnings,totalDeductions,netPay';
     const rows = computed.items.map(

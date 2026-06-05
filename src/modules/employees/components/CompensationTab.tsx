@@ -20,6 +20,7 @@ import {
   COMPONENT_TYPE_CONFIG,
   TaxDeclarationCard,
   LoansCard,
+  ClaimsCard,
 } from '@/modules/payroll';
 import type { SalaryComponent, EmployeeSalary } from '@/modules/payroll';
 
@@ -270,6 +271,9 @@ export function CompensationTab({ employeeId }: { employeeId: string }) {
 
       {/* Loans & advances — HR view of schedule/balance */}
       <LoansCard employeeId={employeeId} mode="hr" />
+
+      {/* Reimbursement claims — HR approve/reject */}
+      <ClaimsCard employeeId={employeeId} mode="hr" />
 
       {/* History */}
       {salary.history.length > 0 && (
