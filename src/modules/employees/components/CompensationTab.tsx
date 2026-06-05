@@ -20,6 +20,7 @@ import {
   COMPONENT_TYPE_CONFIG,
   TaxDeclarationCard,
   LoansCard,
+  GarnishmentsCard,
   ClaimsCard,
 } from '@/modules/payroll';
 import type { SalaryComponent, EmployeeSalary } from '@/modules/payroll';
@@ -274,6 +275,9 @@ export function CompensationTab({ employeeId }: { employeeId: string }) {
 
       {/* Loans & advances — HR view of schedule/balance */}
       <LoansCard employeeId={employeeId} mode="hr" />
+
+      {/* Garnishments / court orders — HR manages legally-mandated deductions */}
+      <GarnishmentsCard employeeId={employeeId} mode="hr" />
 
       {/* Reimbursement claims — HR approve/reject */}
       <ClaimsCard employeeId={employeeId} mode="hr" />

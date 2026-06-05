@@ -13,6 +13,7 @@ import { payrollStatutoryHandlers } from './payroll-statutory';
 import { payrollInputHandlers } from './payroll-inputs';
 import { payrollTaxDeclarationHandlers } from './payroll-tax-declaration';
 import { payrollLoanHandlers } from './payroll-loans';
+import { payrollGarnishmentHandlers } from './payroll-garnishments';
 import { payrollClaimHandlers } from './payroll-claims';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
@@ -86,6 +87,7 @@ export const handlers = [
   ...payrollInputHandlers,
   ...payrollTaxDeclarationHandlers,
   ...payrollLoanHandlers,
+  ...payrollGarnishmentHandlers,
   ...payrollClaimHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,

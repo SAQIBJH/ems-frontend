@@ -1370,9 +1370,36 @@ currency, description?, proofUrl, status: SUBMITTED|APPROVED|REJECTED|PAID, runI
 
 ### F.7 — Garnishments (Step 107)
 
-`GET/POST/PATCH/DELETE /payroll/employees/:id/garnishments` —
-`{ id, type, priority, amount: { kind: 'FLAT'|'PERCENT_OF_DISPOSABLE', value }, protectedEarningsFloor, cap, reference, effectiveFrom, effectiveTo }`.
-Engine applies after statutory, before voluntary; honors priority + floor.
+`GET/POST/PATCH/DELETE /payroll/employees/:id/garnishments` — court-ordered, legally
+mandated deductions (not voluntary). **Roles:** HR_ADMIN / SUPER_ADMIN.
+
+```jsonc
+{
+  "id": "garn-001",
+  "employeeId": "emp-001",
+  "type": "CHILD_SUPPORT", // CHILD_SUPPORT | SPOUSAL_SUPPORT | TAX_LEVY | COURT_ORDER | DEFAULTED_LOAN
+  "priority": 1, // lower = satisfied first when disposable income is insufficient
+  "amount": { "kind": "PERCENT_OF_DISPOSABLE", "value": 20 }, // kind: FLAT (minor units) | PERCENT_OF_DISPOSABLE (percent)
+  "protectedEarningsFloor": 2500000, // minor units — minimum take-home retained
+  "cap": null, // minor units | null — optional per-order maximum
+  "reference": "COURT/2026/1234",
+  "effectiveFrom": "2026-04-01",
+  "effectiveTo": null,
+  "createdAt": "2026-03-15T00:00:00.000Z",
+}
+```
+
+- `GET` → `{ success, data: Garnishment[] }` sorted by `priority`. `POST` body is the
+  shape minus `id`/`employeeId`/`createdAt` (errors `422 INVALID_GARNISHMENT` on
+  non-positive amount or priority < 1). `DELETE :garnishmentId` → `{ deleted: true }`
+  (`404` if missing).
+- **Engine behaviour:** garnishments are applied **after** statutory deductions and
+  **before** voluntary ones (loans). Disposable = gross − statutory deductions; orders
+  are taken in priority order, each withholding a flat amount or percent-of-disposable,
+  optionally capped, and never reducing running take-home below the order's
+  `protectedEarningsFloor`. Posts a `GARN_<id>` deduction line. Money fields are minor
+  units (the engine converts disposable to minor for the order math, back to major for
+  the payslip line). No country rule lives in code — priority/floor/cap are all data.
 
 ---
 

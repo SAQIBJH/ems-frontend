@@ -192,6 +192,55 @@ export function minimumWageFloor(jurisdictions: string[], minimumWages: MinimumW
     .reduce((max, m) => Math.max(max, m.monthlyFloor), 0);
 }
 
+/* ── Garnishments / court orders (§5.7) ────────────────────────────────────── */
+
+export interface GarnishmentOrder {
+  id: string;
+  /** Lower number = satisfied first. */
+  priority: number;
+  kind: 'FLAT' | 'PERCENT_OF_DISPOSABLE';
+  /** FLAT: amount in the same unit as `disposable`. PERCENT: percent (0–100). */
+  value: number;
+  /** Minimum take-home the employee must retain, same unit as `disposable`. */
+  protectedEarningsFloor: number;
+  /** Optional per-order maximum, same unit as `disposable`; null = uncapped. */
+  cap: number | null;
+}
+
+export interface GarnishmentDeduction {
+  id: string;
+  /** Amount actually withheld, same unit as `disposable`. */
+  amount: number;
+}
+
+/**
+ * Apply court-ordered garnishments against disposable income. Orders are taken in
+ * **priority order** (lowest first); each order's desired amount is a flat value or a
+ * percent of the original disposable, optionally capped. An order can only take what
+ * keeps running take-home at or above its `protectedEarningsFloor` — so when income is
+ * insufficient, higher-priority orders are satisfied first and the floor is never
+ * breached. All amounts share `disposable`'s unit; no country rule lives in code.
+ */
+export function applyGarnishments(
+  disposable: number,
+  orders: GarnishmentOrder[],
+): GarnishmentDeduction[] {
+  const sorted = [...orders].sort((a, b) => a.priority - b.priority);
+  let remaining = disposable;
+  const out: GarnishmentDeduction[] = [];
+  for (const o of sorted) {
+    let desired = o.kind === 'FLAT' ? o.value : Math.round((disposable * o.value) / 100);
+    if (o.cap != null) desired = Math.min(desired, o.cap);
+    const available = Math.max(0, remaining - o.protectedEarningsFloor);
+    const actual = Math.max(0, Math.min(desired, available));
+    if (actual > 0) {
+      out.push({ id: o.id, amount: actual });
+      remaining -= actual;
+    }
+  }
+  return out;
+}
+
 export function evaluateFormula(formula: string, variables: Record<string, number>): number | null {
   try {
     const expr = parser.parse(formula);

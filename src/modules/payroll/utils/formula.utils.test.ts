@@ -13,7 +13,9 @@ import {
   evaluateLocalTax,
   resolveJurisdictions,
   minimumWageFloor,
+  applyGarnishments,
 } from './formula.utils';
+import type { GarnishmentOrder } from './formula.utils';
 import type { SalaryComponent } from '../types/payroll.types';
 import type {
   ContributionScheme,
@@ -356,6 +358,54 @@ describe('minimumWageFloor', () => {
   it('returns 0 when no jurisdiction has a configured floor', () => {
     expect(minimumWageFloor(['US-CA'], floors)).toBe(0);
     expect(minimumWageFloor([], floors)).toBe(0);
+  });
+});
+
+/* ── Garnishments / court orders (Step 107) ───────────────────────────────── */
+
+describe('applyGarnishments', () => {
+  const order = (partial: Partial<GarnishmentOrder> & Pick<GarnishmentOrder, 'id'>) => ({
+    priority: 1,
+    kind: 'FLAT' as const,
+    value: 0,
+    protectedEarningsFloor: 0,
+    cap: null,
+    ...partial,
+  });
+
+  it('withholds a flat amount and a percent of the original disposable', () => {
+    const result = applyGarnishments(100000, [
+      order({ id: 'a', kind: 'FLAT', value: 15000 }),
+      order({ id: 'b', priority: 2, kind: 'PERCENT_OF_DISPOSABLE', value: 20 }),
+    ]);
+    expect(result).toEqual([
+      { id: 'a', amount: 15000 },
+      { id: 'b', amount: 20000 }, // 20% of original 100,000
+    ]);
+  });
+
+  it('caps a single order at its configured maximum', () => {
+    const result = applyGarnishments(100000, [
+      order({ id: 'a', kind: 'PERCENT_OF_DISPOSABLE', value: 50, cap: 30000 }),
+    ]);
+    expect(result).toEqual([{ id: 'a', amount: 30000 }]); // 50% = 50,000, capped to 30,000
+  });
+
+  it('satisfies higher priority first and never breaches the protected floor', () => {
+    // Disposable 50,000; both want 40,000 but each must leave 25,000 take-home.
+    const result = applyGarnishments(50000, [
+      order({ id: 'low', priority: 2, kind: 'FLAT', value: 40000, protectedEarningsFloor: 25000 }),
+      order({ id: 'high', priority: 1, kind: 'FLAT', value: 40000, protectedEarningsFloor: 25000 }),
+    ]);
+    // Priority 1 takes 25,000 (leaving 25,000 = floor); priority 2 can take nothing more.
+    expect(result).toEqual([{ id: 'high', amount: 25000 }]);
+  });
+
+  it('omits orders that resolve to zero', () => {
+    const result = applyGarnishments(20000, [
+      order({ id: 'a', kind: 'FLAT', value: 5000, protectedEarningsFloor: 25000 }),
+    ]);
+    expect(result).toEqual([]); // floor already exceeds disposable
   });
 });
 

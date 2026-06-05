@@ -39,6 +39,11 @@ export type {
   ReimbursementCategory,
   ReimbursementClaim,
   ReimbursementClaimInput,
+  GarnishmentType,
+  GarnishmentAmountKind,
+  GarnishmentAmount,
+  Garnishment,
+  GarnishmentInput,
   PayslipRunItem,
   PayrollRunWarning,
   PayrollRunDeptSummary,
@@ -95,6 +100,7 @@ export type { FormatMoneyOptions } from './utils/money.utils';
 // Services
 export { localizationApi } from './services/localization.api';
 export { loansApi } from './services/loans.api';
+export { garnishmentsApi } from './services/garnishments.api';
 export { claimsApi } from './services/claims.api';
 export { payrollComponentsApi } from './services/payroll-components.api';
 export { payGroupsApi } from './services/pay-groups.api';
@@ -142,6 +148,11 @@ export {
   useUpdateTaxDeclaration,
 } from './hooks/useEmployeeSalary';
 export { useEmployeeLoans, useCreateLoan, useForecloseLoan } from './hooks/useLoans';
+export {
+  useGarnishments,
+  useCreateGarnishment,
+  useDeleteGarnishment,
+} from './hooks/useGarnishments';
 export { useClaims, useClaimCategories, useSubmitClaim, useDecideClaim } from './hooks/useClaims';
 export {
   useCountries,
@@ -201,4 +212,5 @@ export { AdjustmentDialog } from './components/AdjustmentDialog';
 export { MyPayslipsPage } from './components/MyPayslipsPage';
 export { TaxDeclarationCard } from './components/TaxDeclarationCard';
 export { LoansCard } from './components/LoansCard';
+export { GarnishmentsCard } from './components/GarnishmentsCard';
 export { ClaimsCard } from './components/ClaimsCard';

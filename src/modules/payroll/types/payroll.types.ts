@@ -545,6 +545,52 @@ export interface ReimbursementClaimInput {
   proofUrl?: string | null;
 }
 
+/* ── Garnishments / court orders (§5.7) ────────────────────────────────────── */
+
+export type GarnishmentType =
+  | 'CHILD_SUPPORT'
+  | 'SPOUSAL_SUPPORT'
+  | 'TAX_LEVY'
+  | 'COURT_ORDER'
+  | 'DEFAULTED_LOAN';
+
+export type GarnishmentAmountKind = 'FLAT' | 'PERCENT_OF_DISPOSABLE';
+
+export interface GarnishmentAmount {
+  kind: GarnishmentAmountKind;
+  /** FLAT: amount in minor units. PERCENT_OF_DISPOSABLE: percent of disposable (0–100). */
+  value: number;
+}
+
+export interface Garnishment {
+  id: string;
+  employeeId: string;
+  type: GarnishmentType;
+  /** Lower number = satisfied first when disposable income can't cover every order. */
+  priority: number;
+  amount: GarnishmentAmount;
+  /** Minimum take-home the employee must retain (minor units). */
+  protectedEarningsFloor: number;
+  /** Optional per-order maximum deduction (minor units); null = uncapped. */
+  cap: number | null;
+  /** Court / order reference. */
+  reference: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  createdAt: string;
+}
+
+export interface GarnishmentInput {
+  type: GarnishmentType;
+  priority: number;
+  amount: GarnishmentAmount;
+  protectedEarningsFloor: number;
+  cap?: number | null;
+  reference: string;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {

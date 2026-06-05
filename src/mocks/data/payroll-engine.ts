@@ -20,6 +20,7 @@ import type {
   FnfParams,
   FnfLine,
   FnfSettlement,
+  Garnishment,
   PayrollRunDeptSummary,
   PayrollRunWarning,
 } from '@/modules/payroll/types/payroll.types';
@@ -27,6 +28,7 @@ import type { TaxRegime } from '@/modules/payroll/types/statutory.types';
 import type { WorkLocation } from '@/modules/payroll/types/payroll.types';
 import { formatMoney, fromMinor, toMinor } from '@/modules/payroll/utils/money.utils';
 import {
+  applyGarnishments,
   computeComponentBreakdown,
   computeContribution,
   computeGratuity,
@@ -43,6 +45,7 @@ import { resolveActivePack } from '../handlers/payroll-statutory';
 import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
 import { getTaxDeclaration } from '../handlers/payroll-tax-declaration';
 import { loanEmiForPeriod, outstandingLoanBalance } from '../handlers/payroll-loans';
+import { getActiveGarnishments } from '../handlers/payroll-garnishments';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
@@ -53,6 +56,14 @@ const STD_HOURS_PER_DAY = 8;
 // Component codes priced from input hours (× hourly rate × multiplier), never as
 // flat variable-pay amounts — guards against double-pricing.
 const HOURS_PRICED = new Set(['OT', 'SHIFT', 'ONCALL']);
+
+const GARNISHMENT_LABELS: Record<Garnishment['type'], string> = {
+  CHILD_SUPPORT: 'Child support',
+  SPOUSAL_SUPPORT: 'Spousal support',
+  TAX_LEVY: 'Tax levy',
+  COURT_ORDER: 'Court attachment',
+  DEFAULTED_LOAN: 'Loan recovery order',
+};
 
 interface RosterEmployee {
   employeeId: string;
@@ -446,6 +457,37 @@ function computeEmployeeMonth(
         amount: taxDeducted,
         taxable: false,
       });
+  }
+
+  // Court-ordered garnishments: applied after statutory deductions, before voluntary
+  // ones (loans). Disposable = gross − statutory deductions so far. Order money is in
+  // minor units, so convert disposable to minor and the withheld amounts back to major.
+  const garnishments = getActiveGarnishments(emp.employeeId, period);
+  if (garnishments.length > 0) {
+    const grossNow = earnings.reduce((s, e) => s + e.amount, 0);
+    const statutoryNow = deductions.reduce((s, d) => s + d.amount, 0);
+    const disposableMinor = toMinor(grossNow - statutoryNow, CURRENCY);
+    const withheld = applyGarnishments(
+      disposableMinor,
+      garnishments.map((g) => ({
+        id: g.id,
+        priority: g.priority,
+        kind: g.amount.kind,
+        value: g.amount.value,
+        protectedEarningsFloor: g.protectedEarningsFloor,
+        cap: g.cap,
+      })),
+    );
+    for (const w of withheld) {
+      const g = garnishments.find((x) => x.id === w.id);
+      if (!g) continue;
+      deductions.push({
+        code: `GARN_${g.id}`,
+        name: GARNISHMENT_LABELS[g.type],
+        amount: fromMinor(w.amount, CURRENCY),
+        taxable: false,
+      });
+    }
   }
 
   // Loan / advance EMI recovery — a scheduled deduction for this period.
