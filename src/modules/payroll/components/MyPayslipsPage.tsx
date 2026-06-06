@@ -24,6 +24,7 @@ import { useAuth } from '@/providers';
 import { useEmployeePayslips } from '@/modules/payroll';
 import { PayslipDrawer } from './PayslipDrawer';
 import { TaxDeclarationCard } from './TaxDeclarationCard';
+import { TaxFormsCard } from './TaxFormsCard';
 import { LoansCard } from './LoansCard';
 import { ClaimsCard } from './ClaimsCard';
 import type { PayslipStatus, PayslipSummary } from '../types/payroll.types';
@@ -190,6 +191,9 @@ export function MyPayslipsPage() {
 
         {/* Tax declaration — employee self-service */}
         {user?.employeeId && <TaxDeclarationCard employeeId={user.employeeId} mode="employee" />}
+
+        {/* Annual tax forms — self-service generation + download */}
+        {user?.employeeId && <TaxFormsCard employeeId={user.employeeId} />}
 
         {/* Loans & advances — employee self-service */}
         {user?.employeeId && <LoansCard employeeId={user.employeeId} mode="employee" />}

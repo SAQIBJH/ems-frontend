@@ -94,6 +94,12 @@ export type {
   PayrollEventCategory,
   PayrollEventCatalogEntry,
   PayrollEvent,
+  TaxFormType,
+  TaxFormRow,
+  TaxFormSection,
+  TaxFormParty,
+  TaxFormDocument,
+  TaxFormOption,
 } from './types/payroll.types';
 
 // Localization types
@@ -139,6 +145,7 @@ export { payGroupsApi } from './services/pay-groups.api';
 export { employeeSalaryApi } from './services/employee-salary.api';
 export { payrollRunsApi } from './services/payroll-runs.api';
 export { payslipTemplatesApi } from './services/payslip-templates.api';
+export { taxFormsApi } from './services/tax-forms.api';
 
 // Hooks
 export {
@@ -182,6 +189,7 @@ export {
   useEventCatalogue,
 } from './hooks/usePayrollRuns';
 export { usePayslipTemplate, useUpdatePayslipTemplate } from './hooks/usePayslipTemplate';
+export { useTaxForm } from './hooks/useTaxForm';
 export {
   usePayrollPermissions,
   PAYROLL_PERMISSIONS,
@@ -251,6 +259,7 @@ export {
   DEFAULT_PAYSLIP_TEMPLATE,
   PAYROLL_EVENT_CATALOGUE,
   PAYROLL_EVENT_CONFIG,
+  TAX_FORM_OPTIONS,
 } from './constants';
 
 // Validations
@@ -277,6 +286,8 @@ export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
 export { DisbursementPanel } from './components/DisbursementPanel';
 export { PayslipTemplatePanel } from './components/PayslipTemplatePanel';
+export { TaxFormDrawer } from './components/TaxFormDrawer';
+export { TaxFormsCard } from './components/TaxFormsCard';
 export { RunInputsPanel } from './components/RunInputsPanel';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';

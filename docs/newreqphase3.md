@@ -1512,9 +1512,20 @@ downstream systems (accounting, BI, HRIS) and in-app notifications.
   subscribable catalogue.
 - `GET /payroll/events[?runId=]` → `{ id, type, runId, at, summary }[]`, most-recent first.
 
-**Statutory documents (Step 112).**
+**Statutory documents (Step 112).** Annual tax forms are **template-driven** — a generic,
+country-agnostic engine fills a form template (sections + fields) from the employee's YTD
+ledger + statutory pack. No per-country React component; a new form type is added by
+registering a template. **Role:** EMPLOYEE (self-service for own forms) / HR_ADMIN.
 
-- `GET /payroll/employees/:id/tax-form?fy=&type=FORM16|W2|P60` — generated document (from YTD + pack).
+- **TaxFormDocument** =
+  `{ type: FORM16|W2|P60, title, fiscalYear, jurisdiction, authority, currency, employer: TaxFormParty, employee: TaxFormParty, sections: TaxFormSection[], generatedAt }`.
+- **TaxFormParty** = `{ name, subtitle?, identifiers: { label, value }[] }`
+  (e.g. PAN/SSN/NINO, TAN/EIN/PAYE-ref — labels come from the template).
+- **TaxFormSection** = `{ title, rows: { label, value }[] }` (values pre-formatted, so the
+  client renders generically).
+- `GET /payroll/employees/:id/tax-form?fy=&type=FORM16|W2|P60` → `TaxFormDocument`
+  (`fy` defaults to the current fiscal year; `422 UNKNOWN_FORM_TYPE` for an unknown type;
+  `404` if the employee has no payroll data).
 
 ---
 

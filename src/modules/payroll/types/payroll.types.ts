@@ -777,6 +777,50 @@ export interface PayslipTemplateInput {
   fields?: PayslipTemplateField[];
 }
 
+/* ── Annual tax forms (§10) ────────────────────────────────────────────────── */
+
+export type TaxFormType = 'FORM16' | 'W2' | 'P60';
+
+/** A label/value line in a tax-form section (value is server pre-formatted). */
+export interface TaxFormRow {
+  label: string;
+  value: string;
+}
+
+export interface TaxFormSection {
+  title: string;
+  rows: TaxFormRow[];
+}
+
+/** Employer or employee block, with template-defined statutory identifiers. */
+export interface TaxFormParty {
+  name: string;
+  subtitle?: string;
+  identifiers: { label: string; value: string }[];
+}
+
+/** A fully-resolved annual tax form, built generically from a template + YTD + pack. */
+export interface TaxFormDocument {
+  type: TaxFormType;
+  title: string;
+  fiscalYear: string;
+  /** ISO 3166-1 alpha-2 jurisdiction the form is filed in. */
+  jurisdiction: string;
+  /** Issuing authority (e.g. Income Tax Department, IRS, HMRC). */
+  authority: string;
+  currency: string;
+  employer: TaxFormParty;
+  employee: TaxFormParty;
+  sections: TaxFormSection[];
+  generatedAt: string;
+}
+
+export interface TaxFormOption {
+  type: TaxFormType;
+  label: string;
+  description: string;
+}
+
 /* ── Events & webhook catalogue (§20) ──────────────────────────────────────── */
 
 export type PayrollEventType =

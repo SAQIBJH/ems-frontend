@@ -7,6 +7,7 @@ import type {
   PayoutStatus,
   PayslipTemplate,
   PayrollEventCatalogEntry,
+  TaxFormOption,
 } from '../types/payroll.types';
 
 export const COMPONENT_TYPE_CONFIG: Record<
@@ -107,6 +108,13 @@ export const DEFAULT_PAYSLIP_TEMPLATE: PayslipTemplate = {
   ],
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
+
+/** Selectable annual tax forms (labels mirror the server-side template registry). */
+export const TAX_FORM_OPTIONS: TaxFormOption[] = [
+  { type: 'FORM16', label: 'Form 16', description: 'India — TDS certificate' },
+  { type: 'W2', label: 'Form W-2', description: 'United States — wage & tax statement' },
+  { type: 'P60', label: 'P60', description: 'United Kingdom — end-of-year certificate' },
+];
 
 /** The subscribable webhook/notification event catalogue (§20). */
 export const PAYROLL_EVENT_CATALOGUE: PayrollEventCatalogEntry[] = [

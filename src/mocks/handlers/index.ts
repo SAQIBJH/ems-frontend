@@ -19,6 +19,7 @@ import { payrollClaimHandlers } from './payroll-claims';
 import { payrollDisbursementHandlers } from './payroll-disbursement';
 import { payrollEventHandlers } from './payroll-events';
 import { payrollTemplateHandlers } from './payroll-templates';
+import { payrollTaxFormHandlers } from './payroll-tax-forms';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
 // Phase 2.5 — Settings: Integrations & Billing
@@ -97,6 +98,7 @@ export const handlers = [
   ...payrollDisbursementHandlers,
   ...payrollEventHandlers,
   ...payrollTemplateHandlers,
+  ...payrollTaxFormHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,
   ...settingsIntegrationHandlers,
