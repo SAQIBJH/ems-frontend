@@ -141,6 +141,35 @@ export function useRunFnf(runId: string | null, enabled = true) {
   });
 }
 
+/* ── Disbursement (§9) ──────────────────────────────────────────────────────── */
+
+export function useRunPaymentBatch(runId: string | null) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'payment-batch'],
+    queryFn: () => payrollRunsApi.getPaymentBatch(runId!),
+    enabled: !!runId,
+  });
+}
+
+export function useCreatePaymentBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => payrollRunsApi.createPaymentBatch(runId),
+    onSuccess: (_data, runId) =>
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'payment-batch'] }),
+  });
+}
+
+export function useReconcilePaymentBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ batchId }: { runId: string; batchId: string }) =>
+      payrollRunsApi.reconcileBatch(batchId),
+    onSuccess: (_data, { runId }) =>
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'payment-batch'] }),
+  });
+}
+
 export function usePayrollRoster() {
   return useQuery({
     queryKey: ['payroll', 'roster'] as const,

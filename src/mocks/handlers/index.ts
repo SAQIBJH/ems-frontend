@@ -16,6 +16,7 @@ import { payrollLoanHandlers } from './payroll-loans';
 import { payrollGarnishmentHandlers } from './payroll-garnishments';
 import { payrollWorkerHandlers } from './payroll-workers';
 import { payrollClaimHandlers } from './payroll-claims';
+import { payrollDisbursementHandlers } from './payroll-disbursement';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
 // Phase 2.5 — Settings: Integrations & Billing
@@ -91,6 +92,7 @@ export const handlers = [
   ...payrollGarnishmentHandlers,
   ...payrollWorkerHandlers,
   ...payrollClaimHandlers,
+  ...payrollDisbursementHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,
   ...settingsIntegrationHandlers,

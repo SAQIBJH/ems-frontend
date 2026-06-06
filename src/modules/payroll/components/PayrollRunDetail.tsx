@@ -65,6 +65,7 @@ import type {
 import { PayslipDrawer } from './PayslipDrawer';
 import { AdjustmentDialog } from './AdjustmentDialog';
 import { RunInputsPanel } from './RunInputsPanel';
+import { DisbursementPanel } from './DisbursementPanel';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -819,6 +820,11 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Disbursement — bank file + per-payslip payout lifecycle, once approved */}
+        {run && run.type !== 'FNF' && (run.status === 'APPROVED' || run.status === 'PAID') && (
+          <DisbursementPanel runId={run.id} currency={run.currency} />
         )}
 
         {/* FnF runs settle a single employee — show the settlement, not payslips */}

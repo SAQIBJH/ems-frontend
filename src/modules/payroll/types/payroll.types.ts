@@ -719,6 +719,55 @@ export interface CostSummary {
   fxRates: Record<string, number>;
 }
 
+/* ── Disbursement & payments (§9) ──────────────────────────────────────────── */
+
+/** Per-payslip payout status, reconciled back from the bank/gateway. */
+export type PayoutStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'RETURNED';
+
+/** Overall lifecycle of a payment batch. */
+export type PaymentBatchStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED';
+
+/** Bank-file format codes — each resolves to a config-driven column spec, not code. */
+export type BankFileFormat = 'NACH' | 'ACH' | 'SEPA' | 'BACS';
+
+/** One employee's payout within a batch, tracked through the payout lifecycle. */
+export interface PaymentBatchLine {
+  payslipId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  /** Net payable — run-domain major units (mirrors the payslip net). */
+  amount: number;
+  currency: string;
+  status: PayoutStatus;
+  /** Reason set when a payout is FAILED or RETURNED; null otherwise. */
+  failureReason: string | null;
+  /** Bank/gateway payout reference, set once PAID. */
+  payoutRef: string | null;
+}
+
+/** A run's payout ledger — one line per payslip, reconciled from the bank/gateway. */
+export interface PaymentBatch {
+  id: string;
+  runId: string;
+  count: number;
+  /** Sum of line amounts — run-domain major units. */
+  totalAmount: number;
+  currency: string;
+  status: PaymentBatchStatus;
+  createdAt: string;
+  /** Timestamp of the last reconcile step; null until first reconciled. */
+  reconciledAt: string | null;
+  lines: PaymentBatchLine[];
+}
+
+/** A selectable bank-file format option (label + country description). */
+export interface BankFileFormatOption {
+  code: BankFileFormat;
+  label: string;
+  description: string;
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {

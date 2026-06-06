@@ -78,6 +78,12 @@ export type {
   PayrollRunsParams,
   PayslipsPage,
   PayslipRunPage,
+  PayoutStatus,
+  PaymentBatchStatus,
+  BankFileFormat,
+  PaymentBatchLine,
+  PaymentBatch,
+  BankFileFormatOption,
 } from './types/payroll.types';
 
 // Localization types
@@ -157,6 +163,9 @@ export {
   useImportRunInputs,
   useRunFnf,
   usePayrollRoster,
+  useRunPaymentBatch,
+  useCreatePaymentBatch,
+  useReconcilePaymentBatch,
 } from './hooks/usePayrollRuns';
 export {
   usePayrollPermissions,
@@ -217,7 +226,14 @@ export {
 export type { ComponentTotals, PeriodTaxArgs, ContributionResult } from './utils/formula.utils';
 
 // Constants
-export { COMPONENT_TYPE_CONFIG, CALCULATION_TYPE_CONFIG, RUN_STATUS_CONFIG } from './constants';
+export {
+  COMPONENT_TYPE_CONFIG,
+  CALCULATION_TYPE_CONFIG,
+  RUN_STATUS_CONFIG,
+  BANK_FILE_FORMATS,
+  PAYOUT_STATUS_CONFIG,
+  PAYMENT_BATCH_STATUS_CONFIG,
+} from './constants';
 
 // Validations
 export { salaryComponentSchema } from './validations/salary-component.schema';
@@ -241,6 +257,7 @@ export { GlobalWorkforceScreen } from './components/GlobalWorkforceScreen';
 export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
+export { DisbursementPanel } from './components/DisbursementPanel';
 export { RunInputsPanel } from './components/RunInputsPanel';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';

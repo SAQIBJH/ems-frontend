@@ -1449,9 +1449,29 @@ entity abroad). **Roles:** HR_ADMIN / SUPER_ADMIN. Money is minor units.
 
 ### F.9 — Disbursement (Step 110)
 
-- `POST /payroll/runs/:id/payment-batch` → `{ id, runId, count, totalAmount, currency, status }`.
-- `GET /payroll/runs/:id/bank-file?format=NACH|ACH|SEPA|BACS` → file download (format config-driven).
-- `GET /payroll/payment-batches/:id/status` → per-payslip `PENDING|PROCESSING|PAID|FAILED|RETURNED`.
+Post-approval payout. A **payment batch** turns an approved run's payslips into a
+per-employee payout ledger; the **bank file** is generated from a **config-driven
+format registry** (no `if (country === …)` — each format is an ordered column spec read
+from data, so a new format is added by entering config, not code). The per-payslip
+status lifecycle is `PENDING → PROCESSING → PAID | FAILED | RETURNED`, reconciled back
+from the (mock) bank/gateway. **Roles:** HR_ADMIN / SUPER_ADMIN. Line amounts mirror the
+run's payslip net (run-domain major units) with the line's ISO currency.
+
+- **PaymentBatchLine** =
+  `{ payslipId, employeeId, employeeCode, employeeName, amount, currency, status: PENDING|PROCESSING|PAID|FAILED|RETURNED, failureReason, payoutRef }`.
+- **PaymentBatch** =
+  `{ id, runId, count, totalAmount, currency, status: PENDING|PROCESSING|COMPLETED, createdAt, reconciledAt, lines: PaymentBatchLine[] }`.
+- `GET /payroll/runs/:id/payment-batch` → `PaymentBatch | null` (the latest batch for the
+  run; `null` before one is generated).
+- `POST /payroll/runs/:id/payment-batch` → `PaymentBatch` (one line per payslip, all
+  `PENDING`; `422 RUN_NOT_PAYABLE` unless the run is `APPROVED` or `PAID`).
+- `GET /payroll/runs/:id/bank-file?format=NACH|ACH|SEPA|BACS` → text file download
+  (`Content-Disposition: attachment`); columns come from the format registry
+  (`422 UNKNOWN_FORMAT` for an unknown code). Format is config-driven, never branched.
+- `GET /payroll/payment-batches/:id/status` → `PaymentBatch` (per-payslip statuses).
+- `POST /payroll/payment-batches/:id/reconcile` → `PaymentBatch` — simulates the
+  bank/gateway callback, advancing the lifecycle one step (`PENDING`→`PROCESSING` for all
+  lines, then `PROCESSING`→`PAID`/`FAILED`/`RETURNED`; batch → `COMPLETED`).
 
 ---
 

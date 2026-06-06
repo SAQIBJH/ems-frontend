@@ -15,6 +15,8 @@ import type {
   RunVariance,
   PayrollRunAuditEntry,
   RunDryRunResult,
+  PaymentBatch,
+  BankFileFormat,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -181,6 +183,46 @@ export const payrollRunsApi = {
 
   listRoster: async (): Promise<RosterMember[]> => {
     const { data } = await apiClient.get<{ data: RosterMember[] }>('/payroll/roster');
+    return data.data;
+  },
+
+  /* ── Disbursement (§9) ──────────────────────────────────────────────────── */
+
+  getPaymentBatch: async (runId: string): Promise<PaymentBatch | null> => {
+    const { data } = await apiClient.get<{ data: PaymentBatch | null }>(
+      `/payroll/runs/${runId}/payment-batch`,
+    );
+    return data.data;
+  },
+
+  createPaymentBatch: async (runId: string): Promise<PaymentBatch> => {
+    const { data } = await apiClient.post<{ data: PaymentBatch }>(
+      `/payroll/runs/${runId}/payment-batch`,
+      {},
+    );
+    return data.data;
+  },
+
+  downloadBankFile: async (runId: string, format: BankFileFormat): Promise<Blob> => {
+    const response = await apiClient.get(`/payroll/runs/${runId}/bank-file`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+
+  getBatchStatus: async (batchId: string): Promise<PaymentBatch> => {
+    const { data } = await apiClient.get<{ data: PaymentBatch }>(
+      `/payroll/payment-batches/${batchId}/status`,
+    );
+    return data.data;
+  },
+
+  reconcileBatch: async (batchId: string): Promise<PaymentBatch> => {
+    const { data } = await apiClient.post<{ data: PaymentBatch }>(
+      `/payroll/payment-batches/${batchId}/reconcile`,
+      {},
+    );
     return data.data;
   },
 };
