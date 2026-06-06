@@ -29,6 +29,7 @@ import { analyticsHandlers } from './analytics';
 // Phase 2.5 — Settings: Integrations & Billing
 import { settingsIntegrationHandlers } from './settings-integrations';
 // Phase 3 — Net-new modules
+import { timesheetHandlers } from './timesheets';
 import { recruitmentHandlers } from './recruitment';
 import { performanceHandlers } from './performance';
 import { assetsHandlers } from './assets';
@@ -52,6 +53,7 @@ import { announcementsHandlers } from './announcements';
 //   GET  /analytics/attrition        — Phase 2 analytics (MSW)
 //   GET  /analytics/payroll-cost     — Phase 2 analytics (MSW)
 //   GET  /analytics/department-performance — Phase 2 analytics (MSW)
+//   All  /timesheets/*                — Timesheets (MSW)
 //   All  /recruitment/*               — Phase 3 recruitment (MSW)
 //   All  /performance/*               — Phase 3 performance (MSW)
 //   All  /assets/*                    — Phase 3 assets (MSW)
@@ -110,6 +112,7 @@ export const handlers = [
   ...reportsHandlers,
   ...analyticsHandlers,
   ...settingsIntegrationHandlers,
+  ...timesheetHandlers,
   ...recruitmentHandlers,
   ...performanceHandlers,
   ...assetsHandlers,
