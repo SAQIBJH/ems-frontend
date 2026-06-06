@@ -163,6 +163,8 @@ export function SalaryComponentDrawer({
       prorate: true,
       payInPeriods: null,
       description: null,
+      glAccountCode: null,
+      costCenterRule: 'DEPARTMENT',
     },
   });
 
@@ -189,6 +191,8 @@ export function SalaryComponentDrawer({
         prorate: component.prorate,
         payInPeriods: component.payInPeriods,
         description: component.description ?? null,
+        glAccountCode: component.glAccountCode ?? null,
+        costCenterRule: component.costCenterRule ?? 'DEPARTMENT',
       });
     } else {
       const maxOrder =
@@ -208,6 +212,8 @@ export function SalaryComponentDrawer({
         prorate: true,
         payInPeriods: null,
         description: null,
+        glAccountCode: null,
+        costCenterRule: 'DEPARTMENT',
       });
     }
   }, [open, component]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -673,6 +679,53 @@ export function SalaryComponentDrawer({
                   />
                 </div>
               )}
+            </div>
+
+            <hr className="border-subtle" />
+
+            {/* Section 3 — Accounting */}
+            <div className="space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-fg-muted">
+                Accounting
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* GL account */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="comp-gl-account">
+                    GL account <span className="font-normal text-fg-muted">(optional)</span>
+                  </Label>
+                  <Input
+                    id="comp-gl-account"
+                    {...form.register('glAccountCode', {
+                      setValueAs: (v: string) => (v ? v : null),
+                    })}
+                    placeholder="5000 — Salaries & wages"
+                  />
+                  <p className="text-xs text-fg-muted">Account this component posts to.</p>
+                </div>
+
+                {/* Cost center rule */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="comp-cost-center">Cost center</Label>
+                  <Controller
+                    control={form.control}
+                    name="costCenterRule"
+                    render={({ field }) => (
+                      <Select value={field.value ?? 'DEPARTMENT'} onValueChange={field.onChange}>
+                        <SelectTrigger id="comp-cost-center" className="w-full cursor-pointer">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DEPARTMENT">Allocate by department</SelectItem>
+                          <SelectItem value="NONE">No allocation</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <p className="text-xs text-fg-muted">How cost is split in the journal.</p>
+                </div>
+              </div>
             </div>
           </div>
 

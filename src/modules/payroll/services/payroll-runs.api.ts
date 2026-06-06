@@ -19,6 +19,8 @@ import type {
   BankFileFormat,
   PayrollEvent,
   PayrollEventCatalogEntry,
+  JournalDocument,
+  JournalExportFormat,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -250,5 +252,22 @@ export const payrollRunsApi = {
       '/payroll/event-catalogue',
     );
     return data.data;
+  },
+
+  /* ── Accounting journal (§11) ───────────────────────────────────────────── */
+
+  getJournal: async (runId: string): Promise<JournalDocument> => {
+    const { data } = await apiClient.get<{ data: JournalDocument }>(
+      `/payroll/runs/${runId}/journal`,
+    );
+    return data.data;
+  },
+
+  exportJournal: async (runId: string, format: JournalExportFormat): Promise<Blob> => {
+    const response = await apiClient.get(`/payroll/runs/${runId}/journal/export`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
   },
 };

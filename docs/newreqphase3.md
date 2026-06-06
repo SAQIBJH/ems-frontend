@@ -1531,9 +1531,23 @@ registering a template. **Role:** EMPLOYEE (self-service for own forms) / HR_ADM
 
 ### F.11 — Accounting (Step 113)
 
-- `GET /payroll/runs/:id/journal` → double-entry lines
-  `{ account, costCenter, debit, credit, currency }[]` (mapped via component `glAccountCode`/`costCenterRule`).
-- `GET /payroll/runs/:id/journal/export?format=TALLY|QUICKBOOKS|CSV`.
+Each run produces a **balanced double-entry journal**, derived generically from the run's
+computed payslips + each component's `glAccountCode` / `costCenterRule` (config, not code).
+Expense lines are cost-centred by department; payable + net-pay control accounts are tenant
+config. **Roles:** HR_ADMIN / SUPER_ADMIN. Amounts are run-domain major units.
+
+- **Component config (extends `SalaryComponent`):** `glAccountCode: string | null` (the GL
+  account the component posts to) and `costCenterRule: DEPARTMENT | NONE` (how its cost is
+  allocated). Editable in the Salary Components drawer.
+- **JournalLine** = `{ account, costCenter, debit, credit, currency }` (one of debit/credit is 0).
+- **JournalDocument** =
+  `{ runId, period, currency, lines: JournalLine[], totalDebit, totalCredit, balanced, generatedAt }`.
+- `GET /payroll/runs/:id/journal` → `JournalDocument`. Earnings + employer-contribution
+  components debit their expense account (cost-centred by department); deductions credit their
+  payable account; employer contributions credit the employer-liability control account; net
+  pay credits the net-pay control account — so `totalDebit === totalCredit`.
+- `GET /payroll/runs/:id/journal/export?format=TALLY|QUICKBOOKS|CSV` → file download
+  (format-specific serializer selected from a registry; `422 UNKNOWN_FORMAT` otherwise).
 
 ---
 

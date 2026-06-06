@@ -8,6 +8,8 @@ export type ComponentType =
   | 'REIMBURSEMENT'
   | 'VARIABLE';
 export type CalculationType = 'FLAT' | 'PERCENTAGE' | 'FORMULA';
+/** How a component's cost is allocated to cost centers in the GL journal (§11). */
+export type CostCenterRule = 'DEPARTMENT' | 'NONE';
 export type PaySchedule = 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
 export type PayrollRunStatus =
   | 'DRAFT'
@@ -42,6 +44,10 @@ export interface SalaryComponent {
    * Models scheduled pay (13th/14th-month, holiday allowance) as config, not code.
    */
   payInPeriods: number[] | null;
+  /** GL account this component posts to in the accounting journal (§11). */
+  glAccountCode?: string | null;
+  /** How this component's cost is allocated to cost centers in the journal (§11). */
+  costCenterRule?: CostCenterRule;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +67,8 @@ export interface SalaryComponentInput {
   prorate?: boolean;
   payInPeriods?: number[] | null;
   description?: string | null;
+  glAccountCode?: string | null;
+  costCenterRule?: CostCenterRule;
 }
 
 /* ── Pay Groups ───────────────────────────────────────────────────────────── */
@@ -850,6 +858,38 @@ export interface PayrollEvent {
   runId: string | null;
   at: string;
   summary: string;
+}
+
+/* ── Accounting: GL journal (§11) ──────────────────────────────────────────── */
+
+/** One double-entry journal line — exactly one of debit/credit is non-zero. */
+export interface JournalLine {
+  account: string;
+  costCenter: string | null;
+  /** Run-domain major units. */
+  debit: number;
+  credit: number;
+  currency: string;
+}
+
+/** A run's full accounting journal — balanced when totalDebit === totalCredit. */
+export interface JournalDocument {
+  runId: string;
+  period: string;
+  currency: string;
+  lines: JournalLine[];
+  totalDebit: number;
+  totalCredit: number;
+  balanced: boolean;
+  generatedAt: string;
+}
+
+export type JournalExportFormat = 'TALLY' | 'QUICKBOOKS' | 'CSV';
+
+export interface JournalExportOption {
+  format: JournalExportFormat;
+  label: string;
+  description: string;
 }
 
 /* ── Disbursement & payments (§9) ──────────────────────────────────────────── */

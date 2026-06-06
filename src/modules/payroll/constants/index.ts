@@ -8,6 +8,7 @@ import type {
   PayslipTemplate,
   PayrollEventCatalogEntry,
   TaxFormOption,
+  JournalExportOption,
 } from '../types/payroll.types';
 
 export const COMPONENT_TYPE_CONFIG: Record<
@@ -108,6 +109,13 @@ export const DEFAULT_PAYSLIP_TEMPLATE: PayslipTemplate = {
   ],
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
+
+/** Selectable accounting-export formats (§11). */
+export const JOURNAL_EXPORT_FORMATS: JournalExportOption[] = [
+  { format: 'CSV', label: 'CSV journal', description: 'Generic double-entry CSV' },
+  { format: 'TALLY', label: 'Tally', description: 'Tally journal voucher' },
+  { format: 'QUICKBOOKS', label: 'QuickBooks', description: 'QuickBooks Online import' },
+];
 
 /** Selectable annual tax forms (labels mirror the server-side template registry). */
 export const TAX_FORM_OPTIONS: TaxFormOption[] = [

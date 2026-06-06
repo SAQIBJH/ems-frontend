@@ -32,6 +32,8 @@ export const salaryComponentSchema = z
     prorate: z.boolean(),
     payInPeriods: z.array(z.number().int().min(1).max(12)).nullable().optional(),
     description: z.string().max(500).nullable().optional(),
+    glAccountCode: z.string().max(60).nullable().optional(),
+    costCenterRule: z.enum(['DEPARTMENT', 'NONE']).optional(),
   })
   .superRefine((data, ctx) => {
     // VARIABLE components are input-driven (amount supplied per run) — no base

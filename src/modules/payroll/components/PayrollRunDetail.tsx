@@ -71,6 +71,7 @@ import { PayslipDrawer } from './PayslipDrawer';
 import { AdjustmentDialog } from './AdjustmentDialog';
 import { RunInputsPanel } from './RunInputsPanel';
 import { DisbursementPanel } from './DisbursementPanel';
+import { JournalPanel } from './JournalPanel';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -933,6 +934,13 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
         {run && run.type !== 'FNF' && (run.status === 'APPROVED' || run.status === 'PAID') && (
           <DisbursementPanel runId={run.id} currency={run.currency} />
         )}
+
+        {/* Accounting journal — double-entry GL posting, once calculated */}
+        {run &&
+          run.type !== 'FNF' &&
+          run.status !== 'DRAFT' &&
+          run.status !== 'CALCULATING' &&
+          run.status !== 'CANCELLED' && <JournalPanel runId={run.id} />}
 
         {/* FnF runs settle a single employee — show the settlement, not payslips */}
         {run?.type === 'FNF' ? (

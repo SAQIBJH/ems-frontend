@@ -1,5 +1,9 @@
 import { http, HttpResponse } from 'msw';
-import type { SalaryComponent } from '@/modules/payroll/types/payroll.types';
+import type {
+  SalaryComponent,
+  ComponentType,
+  CostCenterRule,
+} from '@/modules/payroll/types/payroll.types';
 
 let components: SalaryComponent[] = [
   {
@@ -302,6 +306,52 @@ let components: SalaryComponent[] = [
   })),
 ];
 
+/* ── GL account seed (§11) — accounting config, editable per component ──────── */
+
+// Per-component GL account. The chart of accounts is tenant config; the journal
+// engine reads these — it never derives an account from a country rule.
+const GL_SEED: Record<string, string> = {
+  BASIC: '5000 — Salaries & wages',
+  HRA: '5010 — House rent allowance',
+  LTA: '5020 — Leave travel allowance',
+  SPECIAL_ALLOW: '5030 — Special allowance',
+  MEDICAL: '5040 — Employee benefits',
+  OT: '5050 — Overtime & shift',
+  SHIFT: '5050 — Overtime & shift',
+  ONCALL: '5050 — Overtime & shift',
+  THIRTEENTH: '5060 — Statutory bonus',
+  INCENTIVE: '5070 — Incentives & bonus',
+  COMMISSION: '5070 — Incentives & bonus',
+  BONUS: '5070 — Incentives & bonus',
+  CAR_PERK: '5080 — Perquisites',
+  PF: '2200 — Provident fund payable',
+  PROF_TAX: '2210 — Professional tax payable',
+  TDS: '2300 — TDS payable',
+  PF_ER: '5100 — Employer PF expense',
+};
+
+// Default account by type when a component has no explicit GL account configured.
+const GL_DEFAULT: Record<ComponentType, string> = {
+  EARNING: '5000 — Salaries & wages',
+  DEDUCTION: '2390 — Other payables',
+  EMPLOYER_CONTRIBUTION: '5100 — Employer contributions',
+  BENEFIT: '5040 — Employee benefits',
+  REIMBURSEMENT: '5090 — Reimbursements',
+  VARIABLE: '5070 — Variable pay',
+};
+
+// Expense-side components are cost-centred by department; liabilities are not.
+function defaultCostCenterRule(type: ComponentType): CostCenterRule {
+  return type === 'DEDUCTION' ? 'NONE' : 'DEPARTMENT';
+}
+
+// Inject accounting config into every seed component (tenant config, overridable).
+components = components.map((c) => ({
+  ...c,
+  glAccountCode: c.glAccountCode ?? GL_SEED[c.code] ?? GL_DEFAULT[c.type],
+  costCenterRule: c.costCenterRule ?? defaultCostCenterRule(c.type),
+}));
+
 let idCounter = 100;
 
 export function getComponentById(id: string) {
@@ -334,6 +384,8 @@ export const payrollComponentHandlers = [
     const created: SalaryComponent = {
       ...body,
       payInPeriods: body.payInPeriods ?? null,
+      glAccountCode: body.glAccountCode ?? GL_DEFAULT[body.type],
+      costCenterRule: body.costCenterRule ?? defaultCostCenterRule(body.type),
       id: `comp-${++idCounter}`,
       createdAt: now,
       updatedAt: now,

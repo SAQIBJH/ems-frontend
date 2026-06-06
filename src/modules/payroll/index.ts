@@ -2,6 +2,7 @@
 export type {
   ComponentType,
   CalculationType,
+  CostCenterRule,
   PaySchedule,
   PayrollRunStatus,
   PayslipStatus,
@@ -100,6 +101,10 @@ export type {
   TaxFormParty,
   TaxFormDocument,
   TaxFormOption,
+  JournalLine,
+  JournalDocument,
+  JournalExportFormat,
+  JournalExportOption,
 } from './types/payroll.types';
 
 // Localization types
@@ -187,6 +192,7 @@ export {
   usePublishPayrollRun,
   useRunEvents,
   useEventCatalogue,
+  useRunJournal,
 } from './hooks/usePayrollRuns';
 export { usePayslipTemplate, useUpdatePayslipTemplate } from './hooks/usePayslipTemplate';
 export { useTaxForm } from './hooks/useTaxForm';
@@ -260,6 +266,7 @@ export {
   PAYROLL_EVENT_CATALOGUE,
   PAYROLL_EVENT_CONFIG,
   TAX_FORM_OPTIONS,
+  JOURNAL_EXPORT_FORMATS,
 } from './constants';
 
 // Validations
@@ -285,6 +292,7 @@ export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
 export { DisbursementPanel } from './components/DisbursementPanel';
+export { JournalPanel } from './components/JournalPanel';
 export { PayslipTemplatePanel } from './components/PayslipTemplatePanel';
 export { TaxFormDrawer } from './components/TaxFormDrawer';
 export { TaxFormsCard } from './components/TaxFormsCard';

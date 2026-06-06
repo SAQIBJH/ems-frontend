@@ -199,6 +199,14 @@ export function useEventCatalogue() {
   });
 }
 
+export function useRunJournal(runId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'journal'],
+    queryFn: () => payrollRunsApi.getJournal(runId!),
+    enabled: !!runId && enabled,
+  });
+}
+
 export function usePayrollRoster() {
   return useQuery({
     queryKey: ['payroll', 'roster'] as const,
