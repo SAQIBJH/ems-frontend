@@ -1385,6 +1385,16 @@ of the run — e.g. a pending investigation or a disputed amount.
 - `GET /payroll/runs/:runId/payslips` and the single-payslip read reflect `HELD`
   by overlaying the hold store on the computed status.
 
+#### Import overtime/LOP from timesheets (Step T6)
+
+- `POST /payroll/runs/:id/inputs/from-timesheets` — reads **APPROVED** timesheets whose
+  week falls in the run's period and pre-fills run inputs: each employee's
+  `overtimeHours → otHours` (raises pay via the tenant's `OT` component); when the
+  timesheet setting `unloggedHoursPolicy === 'DEDUCT'`, the standard-hours shortfall →
+  added `lopDays` (lowers pay). Unpaid-**leave** LOP is untouched (leave-driven).
+  Allowed only while the run is `DRAFT`/`REVIEW`; never edits a `PAID` run. Returns
+  `{ updated, items }`. Audit: `INPUTS_FROM_TIMESHEETS`. Full contract: **Domain G.6**.
+
 #### Cancel / void a run (Step 118)
 
 - `POST /payroll/runs/:id/cancel` — body `{ reason?, actor? }`. Sets the run to
@@ -1877,3 +1887,118 @@ Final verification gate for the phase:
   ceiling literal in code (all read from the `StatutoryPack`), bank & statutory-ID
   fields render from the country schema via `DynamicForm`, and payslip/tax-form/return
   layouts come from templates — verified by code audit at Step 117.
+
+---
+
+## Domain G — Timesheets
+
+> Screens: `/timesheets` (My Timesheet · Approvals · Projects tabs), a Settings panel,
+> and a Reports utilization panel. MSW handler: `src/mocks/handlers/timesheets.ts`
+> (register in `src/mocks/handlers/index.ts`). Standing rules: `CLAUDE.md §27`.
+> Field casing **camelCase**. **Hours are decimal numbers** (e.g. `7.5`); dates
+> `YYYY-MM-DD`; a week is its Monday (`weekStart`). All envelopes follow the app
+> convention: `{ success, data }` on success; the shared error envelope on failure.
+> Roles: `timesheets:write` (employee) · `:approve` (manager/HR) · `:admin` (HR) ·
+> `:read` (auditor).
+
+### G.1 — Projects & tasks (Step T1)
+
+```jsonc
+// Project
+{ "id": "prj-1", "name": "Acme Mobile App", "code": "AMA", "clientName": "Acme Inc",
+  "status": "ACTIVE",            // ACTIVE | ARCHIVED
+  "billable": true, "defaultRate": 0, "memberIds": ["emp-001"],
+  "createdAt": "…", "updatedAt": "…" }
+// Task
+{ "id": "tsk-1", "projectId": "prj-1", "name": "Frontend", "billable": true, "active": true }
+```
+
+- `GET /timesheets/projects` → `Project[]`
+- `POST /timesheets/projects` → `Project` (201)
+- `PATCH /timesheets/projects/:id` → `Project`
+- `DELETE /timesheets/projects/:id` → archives (`status: ARCHIVED`) if it has entries,
+  hard-deletes otherwise. `404` if absent.
+- `GET /timesheets/projects/:id/tasks` → `Task[]`
+- `POST /timesheets/projects/:id/tasks` → `Task` (201)
+- `PATCH /timesheets/tasks/:id` → `Task`
+
+### G.2 — Employee weekly timesheet + entries (Step T2)
+
+```jsonc
+// TimeEntry
+{ "id": "te-1", "timesheetId": "ts-1", "employeeId": "emp-001",
+  "projectId": "prj-1", "taskId": "tsk-1", "date": "2026-06-08",
+  "hours": 7.5, "billable": true, "note": "Sprint work", "source": "MANUAL" } // MANUAL | TIMER
+// Timesheet (one per employee per week)
+{ "id": "ts-1", "employeeId": "emp-001", "employeeName": "Aman Kumar",
+  "weekStart": "2026-06-08", "weekEnd": "2026-06-14",
+  "status": "DRAFT",            // DRAFT | SUBMITTED | APPROVED | REJECTED
+  "totalHours": 38, "billableHours": 30, "overtimeHours": 0, "standardHours": 40,
+  "submittedAt": null, "decidedBy": null, "decidedAt": null, "comment": null,
+  "entries": [ /* TimeEntry[] */ ] }
+```
+
+- `GET /timesheets?week=YYYY-MM-DD&employeeId=` → `Timesheet` for that week (self if
+  `employeeId` omitted). Returns a synthesized `DRAFT` (empty `entries`) when none
+  exists yet, so the grid always has a week to edit.
+- `POST /timesheets/entries` — body `{ weekStart, projectId, taskId, date, hours, billable?, note? }`
+  → `TimeEntry` (201). Creates/attaches to the week's timesheet; `422` if the week is
+  not `DRAFT`/`REJECTED` (can't edit a submitted/approved week).
+- `PATCH /timesheets/entries/:id` → `TimeEntry`.
+- `DELETE /timesheets/entries/:id` → `{ id }`.
+- `POST /timesheets/:id/submit` → `Timesheet` (`DRAFT`/`REJECTED` → `SUBMITTED`).
+  `422 EMPTY_TIMESHEET` if zero hours; `422` if already submitted/approved.
+- `overtimeHours` is derived server-side: `max(0, totalHours − standardHours)` (the
+  `standardHours` comes from G.6 settings) — this is what Step T6 imports to payroll.
+
+> **Timer (Step T4)** is **client-side state (Zustand)** — there are no dedicated timer
+> endpoints. Starting/stopping the timer is UI-only; **stop** simply calls
+> `POST /timesheets/entries` with `source: "TIMER"` for the elapsed duration.
+
+### G.3 — Approvals (Step T3)
+
+- `GET /timesheets/approvals?status=SUBMITTED` → `Timesheet[]` (manager/HR queue;
+  managers see their team, HR sees all).
+- `POST /timesheets/:id/approve` — body `{ comment? }` → `Timesheet` (`SUBMITTED` →
+  `APPROVED`). `422` if not `SUBMITTED`.
+- `POST /timesheets/:id/reject` — body `{ comment }` → `Timesheet` (`SUBMITTED` →
+  `REJECTED`; the employee can edit & resubmit).
+
+### G.4 — Reports & summary (Step T5)
+
+- `GET /timesheets/summary?range=30d|90d&employeeId=` →
+  `{ totalHours, billableHours, nonBillableHours, overtimeHours, utilizationPct,
+   byProject: { projectId, projectName, hours, billableHours }[],
+   byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
+- Surfaces as a **Reports → (new) Timesheets** category panel, report type
+  `timesheets/utilization` (additive to `reports.types.ts` — `ReportShell` +
+  `ChartEngine`, same pattern as the payroll registers).
+
+### G.5 — Settings (Step T7)
+
+```json
+{
+  "standardWeeklyHours": 40,
+  "overtimeThresholdHours": 40,
+  "roundingMinutes": 15,
+  "approvalRequired": true,
+  "unloggedHoursPolicy": "FLAG",
+  "billableDefault": true,
+  "updatedAt": "…"
+}
+```
+
+- `GET /timesheets/settings` → `TimesheetSettings`
+- `PATCH /timesheets/settings` — body partial `TimesheetSettingsInput`.
+  `unloggedHoursPolicy ∈ IGNORE | FLAG | DEDUCT` (default `FLAG`; only `DEDUCT` lets a
+  timesheet shortfall reduce pay — see Step T6).
+
+### G.6 — Payroll integration (Step T6) — also in Domain F.5
+
+- `POST /payroll/runs/:id/inputs/from-timesheets` → reads **APPROVED** timesheets whose
+  week falls in the run's period, maps each employee's `overtimeHours` →
+  `PayrollInput.otHours`; when `unloggedHoursPolicy === 'DEDUCT'`, maps the
+  standard-hours shortfall → additional `lopDays`. Returns `{ updated, items }`. LOP
+  from unpaid **leave** is unchanged (leave-driven). Never edits a `PAID` run. Audit:
+  `INPUTS_FROM_TIMESHEETS`. Surfaced as an **"Import from timesheets"** action on the
+  run **Inputs** panel.

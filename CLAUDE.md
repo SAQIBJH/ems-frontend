@@ -1179,3 +1179,87 @@ Identical to §25: **Build → Test Gate (`pnpm typecheck`, `pnpm lint`, plus th
 `[x]` in the BUILD_PLAN tracker → STOP and wait for "next".** Never advance to the
 next step until the user says "next". Every screen still owes all four states (§13),
 dark mode + responsive (§15), permission gates (§10), and no `any` / no raw hex (§12).
+
+---
+
+## 27. Timesheets module (Steps T1–T8)
+
+> Read this before working on any Timesheet step. It is the standing context for the
+> whole phase. `BUILD_PLAN.md` "PHASE: Timesheets" carries the step-by-step runbook;
+> `docs/newreqphase3.md` **Domain G** is the authoritative API contract.
+
+### What this is
+
+A Zoho-style **timesheet** for employees: log worked hours against **projects/tasks**
+on a weekly grid (manual entry or a start/stop **timer**), submit the week, get
+manager/HR **approval**, and report on utilization & billable hours. It is **distinct
+from Attendance** (presence / clock-in): attendance answers "was the person in?"; the
+timesheet answers "what did their hours go to?".
+
+### Module boundary (locked)
+
+- Lives in its **own domain** `modules/timesheets/` + routes `/timesheets/*`,
+  **MSW-backed** (no live backend), field casing **camelCase** — same pattern as the
+  Phase-3 net-new modules (Recruitment / Performance / Assets).
+- Does **not** change the live `/employees`, `/auth`, or `/attendance` contracts.
+  Projects, tasks, time entries, and timesheets are timesheet-domain data only.
+- New nav item **Timesheets** in `AppShell.tsx` `NAV_ITEMS`, inserted **between
+  Attendance and Leave**: `{ label: 'Timesheets', href: '/timesheets', icon: Timer }`.
+- Hours are **decimal numbers** (e.g. `7.5`), not minor units. A "week" is identified
+  by its Monday (`weekStart`, `YYYY-MM-DD`). Dates are `YYYY-MM-DD`.
+
+### Payroll & leave integration model (locked decision)
+
+**One source of truth per signal — never double-count:**
+
+- **Overtime → raises pay.** Approved timesheet overtime hours feed the payroll run's
+  `otHours` input via a new, **approval-gated** endpoint
+  `POST /payroll/runs/:id/inputs/from-timesheets` (Domain F, Step T6). The OT premium is
+  the tenant's `OT` **salary component** value (config) — never a hardcoded rate; if no
+  `OT` component exists, OT hours pay nothing.
+- **Unpaid leave → lowers pay.** LOP stays **Leave-module-driven** (a leave type with
+  `paid: false` → approved → LOP days → run input). The timesheet does **not** own
+  absences.
+- **Timesheet shortfall** (logged < standard hours) is a **FLAG only** (surfaced in
+  review) — it never auto-deducts pay, EXCEPT when a tenant opts in via the timesheet
+  setting `unloggedHoursPolicy: IGNORE | FLAG | DEDUCT` (default `FLAG`).
+- Nothing changes pay live: timesheet figures affect a run only when imported, then
+  **Calculate → Review → Approve**; a **PAID run is immutable** — corrections go to
+  arrears/off-cycle (§26).
+
+### UI & architecture parity (same bar as §25 / §21 / §26)
+
+- **Reuse, don't reinvent:** `PageHeader`, `StatsCard`, shadcn
+  `Tabs/Dialog/Select/Sheet/Switch`, `DynamicTable` (approvals & projects lists),
+  `DynamicForm` + RHF + Zod (entry & project forms), `ReportShell` + `ChartEngine`
+  (utilization report), and the Settings **two-pane sticky nav-card** layout for the
+  timesheet settings panel.
+- Tokens only — no raw hex (§12). **Never a native `<select>`** — always shadcn `Select`.
+- All four states (§13), dark mode + responsive 768/1280/1440/1920 (§15), permission
+  gates (§10). No `any`.
+- The **timer** is the only genuinely client-only state → **Zustand** (§9); everything
+  else is server state via TanStack Query. Never copy server data into Zustand.
+
+### Permissions (new keys; mirror the payroll style)
+
+`timesheets:write` (EMPLOYEE — own entries/timer/submit), `timesheets:approve`
+(MANAGER / HR_ADMIN — approve/reject team), `timesheets:admin` (HR_ADMIN / SUPER_ADMIN —
+projects/tasks, settings, all reports), `timesheets:read` (AUDITOR). HR_ADMIN /
+SUPER_ADMIN fall back to all, as elsewhere.
+
+### API policy
+
+All new/changed endpoints are authored in **`docs/newreqphase3.md` Domain G**
+(camelCase) **before** wiring, then the MSW handler (`src/mocks/handlers/timesheets.ts`,
+registered in `src/mocks/handlers/index.ts`), then types mirror the shape (§22). The
+single payroll change (`inputs/from-timesheets`) is documented under **Domain F**
+(Step T6). When the backend ships these, the only change is flipping
+`NEXT_PUBLIC_USE_MOCKS` / removing the handler — no app-code change.
+
+### Per-step workflow
+
+Identical to §25/§26: **Build → Test Gate (`pnpm typecheck`, `pnpm lint`, plus the
+named `pnpm test` file where rollup/calculation logic is added) → commit the exact
+message → mark `[x]` in the BUILD_PLAN tracker → STOP and wait for "next".** Every
+screen owes all four states (§13), dark mode + responsive (§15), permission gates
+(§10), and no `any` / no raw hex (§12).

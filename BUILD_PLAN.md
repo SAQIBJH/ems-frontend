@@ -5523,3 +5523,241 @@ critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
 **Commit:** `chore(payroll): self-service consolidation and final verification gate`
 
 **STOP.** Phase complete — Payroll Global Implementation. 🎉
+
+---
+
+# PHASE: Timesheets (Steps T1–T8)
+
+> **Goal:** add a Zoho-style **timesheet** for employees — log worked hours against
+> **projects/tasks** on a weekly grid (manual entry or a timer), submit the week, get
+> manager/HR **approval**, report on utilization & billable hours, and feed approved
+> overtime into payroll. Built **MSW-first** (no live backend), its own domain, without
+> changing the live `/employees` or `/attendance` contracts.
+>
+> **Standing rules:** `CLAUDE.md §27`. **API contracts:** `docs/newreqphase3.md`
+> **Domain G** (+ the one payroll change in Domain F.5).
+
+> **Standing context (do not re-read each step):**
+>
+> - **Own domain, MSW-backed, camelCase.** `modules/timesheets/` + `/timesheets/*`
+>   routes; same pattern as the Phase-3 net-new modules. Hours are **decimal numbers**;
+>   a week is its Monday (`weekStart`).
+> - **Distinct from Attendance.** Attendance = presence; timesheet = where hours go.
+> - **Integration model (locked, CLAUDE.md §27):** overtime → payroll `otHours` via the
+>   gated `from-timesheets` import; unpaid leave (LOP) stays **leave-driven**; timesheet
+>   shortfall is a **FLAG** unless a tenant opts into `unloggedHoursPolicy: DEDUCT`.
+>   Pay only changes on **Calculate → Review → Approve**; a PAID run is immutable.
+> - **New/changed endpoints → `docs/newreqphase3.md` Domain G** (camelCase) first, then
+>   the MSW handler (`src/mocks/handlers/timesheets.ts`, registered in
+>   `src/mocks/handlers/index.ts`), then types mirror the shape (§22).
+> - **Reuse the engines & primitives — don't reinvent:** `PageHeader`, `StatsCard`,
+>   shadcn `Tabs/Dialog/Select/Sheet/Switch`, `DynamicTable`, `DynamicForm` + RHF + Zod,
+>   `ReportShell` + `ChartEngine`, the Settings two-pane nav-card layout.
+> - **Four states** (§13), dark mode + responsive (§15), permission gates (§10), tokens
+>   only / never a native `<select>` (§12), no `any`. The **timer** is the only
+>   client-only state → **Zustand** (§9).
+> - **Permissions:** `timesheets:write | approve | admin | read` (mirror payroll keys).
+
+> **Per-step protocol (every step):**
+>
+> 1. Build everything listed under **Build:** in the step.
+> 2. Run **Test Gate**: `pnpm typecheck` (clean), `pnpm lint` (clean), and where the
+>    step adds rollup/mapping logic, the named `pnpm test` file (green). Show full output.
+> 3. If anything fails, fix completely before proceeding.
+> 4. Update `docs/newreqphase3.md` Domain G (or F.5 for T6) for any new/changed endpoint
+>    **before** wiring it.
+> 5. Commit with the exact conventional-format message in the step.
+> 6. Mark the step `[x]` in the progress tracker below.
+> 7. **STOP.** Write "Step TN complete. Waiting for you to say next." — then wait. **Do
+>    not start the next step until the user says "next".**
+
+#### Timesheets — Progress tracker
+
+- [ ] Step T1 — Module foundation: projects & tasks + nav + permissions
+- [ ] Step T2 — Weekly grid + time entries (manual)
+- [ ] Step T3 — Submit & approval workflow
+- [ ] Step T4 — Start/stop timer (Zustand)
+- [ ] Step T5 — Utilization report (Reports module)
+- [ ] Step T6 — Payroll integration (overtime → `otHours`; opt-in LOP)
+- [ ] Step T7 — Settings panel + dashboard widget
+- [ ] Step T8 — Final verification gate
+
+---
+
+### Step T1 — Module foundation: projects & tasks + nav + permissions
+
+**Context:** `CLAUDE.md §27`; `newreqphase3.md` Domain G.1.
+
+**Build:**
+
+1. Scaffold `modules/timesheets/` (§6 anatomy): `types/timesheet.types.ts` (Project,
+   Task, TimeEntry, Timesheet, TimesheetSettings + inputs), `constants` (status configs,
+   billable tints), `index.ts` barrel.
+2. Document **Domain G.1** + author MSW handler `src/mocks/handlers/timesheets.ts`
+   (projects/tasks CRUD), register in `handlers/index.ts`. Seed 2–3 demo projects/tasks.
+3. `services/projects.api.ts` + `hooks/useProjects`, `useTasks` (+ create/update/delete).
+4. Route `src/app/(dashboard)/timesheets/page.tsx` → `TimesheetScreen` shell with tabs
+   (My Timesheet · Approvals · Projects); only the **Projects** tab built this step —
+   `ProjectsPanel` (DynamicTable) + `ProjectDrawer` (DynamicForm/RHF+Zod), `:admin` gated.
+5. Add **Timesheets** nav item to `AppShell.tsx` (icon `Timer`, between Attendance and
+   Leave) + `timesheets:*` permission keys (`usePermissions`/matrix wiring).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(timesheets): module foundation, projects and tasks`
+
+**STOP.** Write "Step T1 complete. Waiting for you to say next."
+
+---
+
+### Step T2 — Weekly grid + time entries (manual)
+
+**Context:** Domain G.2.
+
+**Build:**
+
+1. Domain G.2 endpoints in the handler (week fetch/synthesize, entries CRUD) + types.
+2. `services/timesheets.api.ts` + `hooks/useWeekTimesheet`, `useTimeEntries`,
+   `useUpsertTimeEntry`, `useDeleteTimeEntry` (optimistic where sensible).
+3. `WeeklyGrid.tsx` — rows = project/task, columns = Mon–Sun, per-day & week totals;
+   week navigation (prev/this/next) via date-fns; all four states.
+4. `TimeEntryDialog.tsx` (RHF + Zod) — project/task pickers (shadcn Select), date, hours,
+   billable, note. `utils/rollups.ts` — pure day/week/billable/overtime rollups.
+5. **My Timesheet** tab renders the grid for the signed-in employee (`:write`).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test src/modules/timesheets/utils/rollups.test.ts`
+
+**Commit:** `feat(timesheets): weekly grid and time entries`
+
+**STOP.** Write "Step T2 complete. Waiting for you to say next."
+
+---
+
+### Step T3 — Submit & approval workflow
+
+**Context:** Domain G.2 (submit) + G.3.
+
+**Build:**
+
+1. `POST /timesheets/:id/submit`, `GET /timesheets/approvals`, approve/reject endpoints
+   - status transitions (DRAFT→SUBMITTED→APPROVED/REJECTED; REJECTED re-editable).
+2. `TimesheetSubmitBar` (week total + Submit, disabled on empty), `TimesheetStatusBadge`.
+3. `ApprovalsTab` — `DynamicTable` of submitted weeks with inline Approve/Reject
+   (comment dialog), `:approve` gated (managers = team, HR = all).
+4. Reuse the notifications/events pattern for "submitted"/"approved"/"rejected".
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(timesheets): submit and approval workflow`
+
+**STOP.** Write "Step T3 complete. Waiting for you to say next."
+
+---
+
+### Step T4 — Start/stop timer (Zustand)
+
+**Context:** `CLAUDE.md §27` (timer is client-only).
+
+**Build:**
+
+1. `store/timer.slice.ts` (Zustand) — running flag, draft {projectId,taskId,note},
+   startedAt; persist across navigation within the session.
+2. `TimerBar.tsx` — pick project/task, Start/Stop, live elapsed; **Stop** creates a
+   `TimeEntry` (`source: TIMER`) for today via `useUpsertTimeEntry` and clears the timer.
+3. Surface the timer on the My Timesheet tab; guard against double-pricing (a TIMER
+   entry is a normal entry — no separate API).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(timesheets): start/stop timer`
+
+**STOP.** Write "Step T4 complete. Waiting for you to say next."
+
+---
+
+### Step T5 — Utilization report (Reports module)
+
+**Context:** Domain G.4.
+
+**Build:**
+
+1. `GET /timesheets/summary` endpoint (totals, billable split, overtime, byProject,
+   byEmployee).
+2. Add a **Timesheets** category + `timesheets/utilization` report type to
+   `reports.types.ts` / `REPORT_NAV` / `ReportsPage` panelMap (additive — mirror the
+   payroll registers wiring from Step 114).
+3. `TimesheetUtilizationReport.tsx` — `ReportShell` + `ChartEngine` (billable vs
+   non-billable, hours by project) + `DynamicTable` (by employee). `:admin`/`:approve`.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(timesheets): utilization report`
+
+**STOP.** Write "Step T5 complete. Waiting for you to say next."
+
+---
+
+### Step T6 — Payroll integration (overtime → `otHours`; opt-in LOP)
+
+**Context:** `CLAUDE.md §27` integration model; `newreqphase3.md` F.5 + G.6.
+
+**Build:**
+
+1. Document + add `POST /payroll/runs/:id/inputs/from-timesheets` (Domain F.5) in the
+   payroll-runs handler: read APPROVED timesheets in the run's period → set per-employee
+   `otHours` from `overtimeHours`; when `unloggedHoursPolicy === 'DEDUCT'`, add the
+   shortfall to `lopDays`. Guard: `DRAFT`/`REVIEW` only; audit `INPUTS_FROM_TIMESHEETS`.
+2. Service method + hook; an **"Import from timesheets"** button on the run **Inputs**
+   panel (`RunInputsPanel`), `payroll:initiate` gated, with a result toast.
+3. Mapping unit test (overtime→otHours; DEDUCT shortfall→lopDays; leave LOP untouched;
+   no change to a PAID run).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test src/mocks/handlers/__tests__/from-timesheets.test.ts`
+
+**Commit:** `feat(timesheets): payroll overtime and lop import integration`
+
+**STOP.** Write "Step T6 complete. Waiting for you to say next."
+
+---
+
+### Step T7 — Settings panel + dashboard widget
+
+**Context:** Domain G.5.
+
+**Build:**
+
+1. `GET/PATCH /timesheets/settings` + `TimesheetSettingsPanel` — standard weekly hours,
+   overtime threshold, rounding, approval required, `unloggedHoursPolicy`,
+   billable-default. Use the Settings two-pane chrome; `:admin` gated.
+   (New top-level **Timesheets** settings group, or under a sensible existing group.)
+2. Employee dashboard widget — "Hours this week / pending approval" `StatsCard` linking
+   to `/timesheets`.
+3. (Optional) read-only attendance-vs-timesheet reconciliation flag on the day drawer
+   using the existing `GET /attendance/records` (no contract change).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint`
+
+**Commit:** `feat(timesheets): settings panel and dashboard widget`
+
+**STOP.** Write "Step T7 complete. Waiting for you to say next."
+
+---
+
+### Step T8 — Final verification gate
+
+**Context:** `CLAUDE.md §27`.
+
+**Build:**
+
+1. Sweep every timesheet screen — dark + light, 768/1280/1440/1920; fix a11y
+   (keyboard, labels, focus). All four states present everywhere.
+2. Confirm Domain G is complete & every handler is MSW-only behind
+   `NEXT_PUBLIC_USE_MOCKS`; no `/employees` or `/attendance` contract changed; no `any`,
+   no raw hex, no native `<select>`.
+3. Finalize docs.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm build`
+
+**Commit:** `chore(timesheets): final verification gate`
+
+**STOP.** Phase complete — Timesheets. 🎉
