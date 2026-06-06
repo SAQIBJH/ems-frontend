@@ -1828,3 +1828,25 @@ replace the set). Surfaced as a **Settings → Pay & Compliance → Data Policy*
 
 Pay-equity surfaces as a Reports payroll panel (`payroll/pay-equity`); the audit pack
 downloads from the run-detail screen.
+
+---
+
+### F.15 — Self-service consolidation & verification (Step 117)
+
+**No new endpoints.** Step 117 consolidates existing employee self-service into one
+tabbed **My Pay** area (`/payroll/my-payslips`) — Payslips, Comp Statement, Tax
+Declaration, Claims, Loans, Tax Forms — reusing the live/MSW endpoints already in
+F.4/F.6/F.10. The comp statement reads `GET /payroll/employees/:id/salary` (F.4).
+
+Final verification gate for the phase:
+
+- **Domain F is complete** — every payroll endpoint (F.0–F.14) is documented above.
+- **All payroll handlers are MSW-only**, gated behind `NEXT_PUBLIC_USE_MOCKS` (the
+  worker starts only when the flag is set — `src/mocks/MSWProvider.tsx`). When the
+  backend ships a documented endpoint, flip the flag / drop the handler — no app-code
+  change.
+- **No-hardcode checklist (`PAYROLL_SYSTEM_DESIGN.md §16`) passes**: no
+  `if (country === …)` branch in calculation or UI logic, no tax/contribution rate or
+  ceiling literal in code (all read from the `StatutoryPack`), bank & statutory-ID
+  fields render from the country schema via `DynamicForm`, and payslip/tax-form/return
+  layouts come from templates — verified by code audit at Step 117.

@@ -353,6 +353,7 @@ export { RunInputsPanel } from './components/RunInputsPanel';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';
 export { MyPayslipsPage } from './components/MyPayslipsPage';
+export { CompStatementCard } from './components/CompStatementCard';
 export { TaxDeclarationCard } from './components/TaxDeclarationCard';
 export { LoansCard } from './components/LoansCard';
 export { GarnishmentsCard } from './components/GarnishmentsCard';
