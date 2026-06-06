@@ -263,6 +263,16 @@ export function getRunVariance(runId: string): RunVariance | null {
   return run ? buildVariance(run) : null;
 }
 
+/** The full run record by id (null if unknown). Reused by the audit pack (§21). */
+export function getRunRecord(runId: string): PayrollRun | undefined {
+  return runs.find((r) => r.id === runId);
+}
+
+/** A run's immutable audit trail. Reused by the audit pack (§21). */
+export function getRunAuditEntries(runId: string): PayrollRunAuditEntry[] {
+  return runAudit[runId] ?? [];
+}
+
 export const payrollRunHandlers = [
   http.get('/api/payroll/runs', ({ request }) => {
     const url = new URL(request.url);

@@ -1148,3 +1148,70 @@ export interface MigrationStatusInput {
   sandboxMode?: boolean;
   goLivePeriod?: string | null;
 }
+
+/* ── Compliance & assurance reporting (§21) ────────────────────────────────── */
+
+export type PayEquityGroupBy = 'gender' | 'level' | 'location';
+
+export interface PayEquityGroup {
+  group: string;
+  headcount: number;
+  /** Mean / median compensation — major units. */
+  meanPay: number;
+  medianPay: number;
+  /** Gap vs the reference (highest-mean) group, percent (reference = 0). */
+  meanGapPct: number;
+  medianGapPct: number;
+}
+
+export interface PayEquityReport {
+  groupBy: PayEquityGroupBy;
+  currency: string;
+  /** Highest-mean group, used as the 0% reference. */
+  referenceGroup: string;
+  /** Largest disadvantage vs reference across groups. */
+  overallMeanGapPct: number;
+  overallMedianGapPct: number;
+  groups: PayEquityGroup[];
+  generatedAt: string;
+}
+
+/** Per-country data residency & retention policy (§14, §21). */
+export interface DataResidencyPolicy {
+  /** ISO 3166-1 alpha-2. */
+  country: string;
+  /** Storage region the country's payroll data must stay in. */
+  residencyRegion: string;
+  retentionYears: number;
+  /** A legal hold overrides retention-based deletion. */
+  statutoryHold: boolean;
+}
+
+export interface DataPolicy {
+  defaultRetentionYears: number;
+  policies: DataResidencyPolicy[];
+  updatedAt: string;
+}
+
+export interface DataPolicyInput {
+  defaultRetentionYears?: number;
+  policies?: DataResidencyPolicy[];
+}
+
+/** The assembled audit assurance pack for a run (exported as JSON). */
+export interface AuditPack {
+  run: {
+    id: string;
+    period: string;
+    periodLabel: string;
+    status: PayrollRunStatus;
+    employeeCount: number;
+    totalGross: number;
+    totalNet: number;
+    currency: string;
+  };
+  configPin: RunConfigSnapshotRef | null;
+  approvalChain: RunApprovalLevel[];
+  auditLog: PayrollRunAuditEntry[];
+  generatedAt: string;
+}

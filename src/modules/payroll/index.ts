@@ -126,6 +126,13 @@ export type {
   ParallelReconcileInput,
   MigrationStatus,
   MigrationStatusInput,
+  PayEquityGroupBy,
+  PayEquityGroup,
+  PayEquityReport,
+  DataResidencyPolicy,
+  DataPolicy,
+  DataPolicyInput,
+  AuditPack,
 } from './types/payroll.types';
 
 // Localization types
@@ -173,6 +180,7 @@ export { payrollRunsApi } from './services/payroll-runs.api';
 export { payslipTemplatesApi } from './services/payslip-templates.api';
 export { taxFormsApi } from './services/tax-forms.api';
 export { payrollMigrationApi } from './services/migration.api';
+export { payrollComplianceApi } from './services/compliance.api';
 
 // Hooks
 export {
@@ -271,6 +279,7 @@ export {
   useMigrationStatus,
   useUpdateMigrationStatus,
 } from './hooks/useMigration';
+export { usePayEquityReport, useDataPolicy, useUpdateDataPolicy } from './hooks/useCompliance';
 
 // Utils
 export {
@@ -335,6 +344,8 @@ export { PayrollRunDetail } from './components/PayrollRunDetail';
 export { DisbursementPanel } from './components/DisbursementPanel';
 export { JournalPanel } from './components/JournalPanel';
 export { StatutoryFilingPanel } from './components/StatutoryFilingPanel';
+export { AuditPackPanel } from './components/AuditPackPanel';
+export { DataPolicyPanel } from './components/DataPolicyPanel';
 export { PayslipTemplatePanel } from './components/PayslipTemplatePanel';
 export { TaxFormDrawer } from './components/TaxFormDrawer';
 export { TaxFormsCard } from './components/TaxFormsCard';

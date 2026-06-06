@@ -283,7 +283,8 @@ export type ReportType =
   | 'payroll/salary-register'
   | 'payroll/statutory-register'
   | 'payroll/bank-advice'
-  | 'payroll/variance-register';
+  | 'payroll/variance-register'
+  | 'payroll/pay-equity';
 
 export interface ReportExportRequest {
   reportType: ReportType;

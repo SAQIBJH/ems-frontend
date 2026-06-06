@@ -1745,8 +1745,86 @@ tabs for Pay Calendar, Opening Balances, Historical Payslips, Parallel Run, Go-L
 
 ### F.14 — Compliance reporting (Step 116)
 
-- `GET /payroll/reports/pay-equity?groupBy=gender|level|location` → gap metrics.
-- `GET /payroll/reports/audit-pack?runId=` → immutable run history + approval chain +
-  config-version pins + override log (export).
-- Data residency/retention config: `GET/PATCH /payroll/settings/data-policy`.
-  **New error codes:** same `INVALID_HEAD_EMPLOYEE` (422) as PATCH above.
+> Role: HR_ADMIN / SUPER_ADMIN. MSW handler file:
+> `src/mocks/handlers/payroll-compliance.ts`. Money fields are **major units**.
+
+#### GET /payroll/reports/pay-equity?groupBy=gender|level|location
+
+Pay-equity / gender-pay-gap & diversity pay analysis — computed from compensation +
+demographics. Each group's mean/median pay and the gap vs the highest-paid
+(reference) group.
+
+```jsonc
+{
+  "success": true,
+  "data": {
+    "groupBy": "gender",
+    "currency": "INR",
+    "referenceGroup": "Male",
+    "overallMeanGapPct": 12.4, // largest disadvantage vs reference, mean
+    "overallMedianGapPct": 9.8,
+    "groups": [
+      {
+        "group": "Male",
+        "headcount": 5,
+        "meanPay": 1860000,
+        "medianPay": 1680000,
+        "meanGapPct": 0,
+        "medianGapPct": 0,
+      },
+      {
+        "group": "Female",
+        "headcount": 5,
+        "meanPay": 1629600,
+        "medianPay": 1515600,
+        "meanGapPct": 12.4,
+        "medianGapPct": 9.8,
+      },
+    ],
+    "generatedAt": "…",
+  },
+}
+```
+
+`gap% = (referenceMean − groupMean) / referenceMean × 100` (reference group = 0).
+`422 UNKNOWN_GROUP_BY` for an unknown `groupBy`.
+
+#### GET /payroll/reports/audit-pack?runId=
+
+Audit assurance pack for a run — **immutable run history + approval chain +
+config-version pins + override/action log** — returned as a downloadable JSON file:
+
+```
+Content-Type: application/json
+Content-Disposition: attachment; filename="audit-pack-<period>-<runId>.json"
+```
+
+Body assembles `{ run: { id, period, status, totals, currency }, configPin:
+RunConfigSnapshotRef, approvalChain: RunApprovalLevel[], auditLog:
+PayrollRunAuditEntry[], generatedAt }`. `404 NOT_FOUND` if the run is absent.
+
+#### GET/PATCH /payroll/settings/data-policy
+
+Per-country data residency & retention. `DataPolicy`:
+
+```json
+{
+  "defaultRetentionYears": 7,
+  "policies": [
+    {
+      "country": "IN",
+      "residencyRegion": "ap-south-1",
+      "retentionYears": 8,
+      "statutoryHold": true
+    },
+    { "country": "GB", "residencyRegion": "eu-west-2", "retentionYears": 6, "statutoryHold": false }
+  ],
+  "updatedAt": "…"
+}
+```
+
+PATCH body (`DataPolicyInput`): `{ defaultRetentionYears?, policies? }` (policies
+replace the set). Surfaced as a **Settings → Pay & Compliance → Data Policy** panel.
+
+Pay-equity surfaces as a Reports payroll panel (`payroll/pay-equity`); the audit pack
+downloads from the run-detail screen.

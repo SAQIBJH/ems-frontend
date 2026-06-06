@@ -673,6 +673,28 @@ export function getRosterSummary(): {
   }));
 }
 
+export interface RosterCompRow {
+  employeeId: string;
+  employeeName: string;
+  departmentName: string;
+  designation: string;
+  annualCtc: number;
+  /** ISO 3166-2 residence jurisdiction (location dimension for pay-equity). */
+  jurisdiction: string;
+}
+
+/** Roster compensation rows — comp basis for pay-equity / diversity analysis (§21). */
+export function getRosterComp(): RosterCompRow[] {
+  return ROSTER.map((e) => ({
+    employeeId: e.employeeId,
+    employeeName: `${e.firstName} ${e.lastName}`,
+    departmentName: e.departmentName,
+    designation: e.designation,
+    annualCtc: e.annualCtc,
+    jurisdiction: e.residenceJurisdiction,
+  }));
+}
+
 /** Resolve the "as of" period for a YTD query against a fiscal-year label. */
 export function ytdThroughPeriodForFy(country: string, fyLabel: string): string {
   const startMonth = getFiscalYearStartMonth(country);

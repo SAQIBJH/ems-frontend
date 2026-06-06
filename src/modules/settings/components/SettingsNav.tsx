@@ -23,6 +23,7 @@ import {
   UsersIcon,
   CalendarClockIcon,
   ScaleIcon,
+  DatabaseIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers';
@@ -135,6 +136,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Payslip Template',
         slug: 'pay/payslip-template',
         icon: FileTextIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+      },
+      {
+        label: 'Data Policy',
+        slug: 'pay/data-policy',
+        icon: DatabaseIcon,
         roles: ['HR_ADMIN', 'SUPER_ADMIN'],
       },
     ],

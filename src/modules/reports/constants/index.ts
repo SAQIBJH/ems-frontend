@@ -42,6 +42,7 @@ export const REPORT_NAV: ReportNavGroup[] = [
       { label: 'Statutory Register', value: 'payroll/statutory-register' },
       { label: 'Bank Advice', value: 'payroll/bank-advice' },
       { label: 'Variance Register', value: 'payroll/variance-register' },
+      { label: 'Pay Equity', value: 'payroll/pay-equity' },
     ],
   },
 ];
