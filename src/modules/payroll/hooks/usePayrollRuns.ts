@@ -170,6 +170,35 @@ export function useReconcilePaymentBatch() {
   });
 }
 
+/* ── Publish & events (§10, §20) ─────────────────────────────────────────────── */
+
+export function usePublishPayrollRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => payrollRunsApi.publish(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, id] });
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, id, 'events'] });
+    },
+  });
+}
+
+export function useRunEvents(runId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'events'],
+    queryFn: () => payrollRunsApi.listEvents(runId!),
+    enabled: !!runId && enabled,
+  });
+}
+
+export function useEventCatalogue() {
+  return useQuery({
+    queryKey: ['payroll', 'event-catalogue'] as const,
+    queryFn: () => payrollRunsApi.getEventCatalogue(),
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
 export function usePayrollRoster() {
   return useQuery({
     queryKey: ['payroll', 'roster'] as const,

@@ -205,7 +205,18 @@
   .no-print {
     display: none !important;
   }
+  /* Print-isolate the payslip: hide the whole app, show only the slip at top-left. */
+  body * {
+    visibility: hidden;
+  }
+  .payslip-print-root,
+  .payslip-print-root * {
+    visibility: visible;
+  }
   .payslip-print-root {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
     display: block !important;
   }
 }

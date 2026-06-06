@@ -1477,11 +1477,44 @@ run's payslip net (run-domain major units) with the line's ISO currency.
 
 ### F.10 — Documents & events (Step 111–112)
 
-- `GET/PATCH /payroll/payslip-templates` — `{ id, name, locale, sections[], logoUrl, fields[] }`.
-- `POST /payroll/runs/:id/publish` — make payslips visible to employees.
+**Payslip template (config-driven, Step 111).** One tenant-level template; the payslip
+layout is **data** (section order/visibility/labels, header fields, logo, locale) — not a
+per-country React component. **Roles:** HR_ADMIN / SUPER_ADMIN.
+
+- **PayslipTemplateSection** =
+  `{ key: earnings|deductions|employerContributions|oneTime|ytd|attendance|paymentInfo, label, enabled, order }`
+  (`label` carries the locale-specific heading; `order` + `enabled` drive layout).
+- **PayslipTemplateField** =
+  `{ key: employeeCode|designation|department|pan|payDate|paymentRef, label, enabled }`
+  (header fields shown on the slip).
+- **PayslipTemplate** =
+  `{ id, name, locale, logoUrl, sections: PayslipTemplateSection[], fields: PayslipTemplateField[], updatedAt }`.
+- `GET /payroll/payslip-templates` → `PayslipTemplate` (single tenant template).
+- `PATCH /payroll/payslip-templates { name?, locale?, logoUrl?, sections?, fields? }` → updated
+  `PayslipTemplate`.
+
+**Publish workflow (Step 111).** Payslips are visible to employees only once their run is
+published.
+
+- A run carries `published: boolean` and `publishedAt: string | null`.
+- `POST /payroll/runs/:id/publish` → `PayrollRun` (sets `published`/`publishedAt`;
+  `422 RUN_NOT_PUBLISHABLE` unless the run is `APPROVED` or `PAID`). Emits `payslip.published`
+  and notifies affected employees.
+- Employee payslip reads (`GET /payroll/employees/:id/payslips[/:slipId]`) return only
+  payslips whose run is **published**.
+
+**Events & webhook catalogue (Step 111).** Lifecycle transitions emit immutable events for
+downstream systems (accounting, BI, HRIS) and in-app notifications.
+
+- **Event types:** `payroll.run.created|calculated|approved|paid`, `payslip.published`,
+  `payment.failed`, `salary.revised`, `claim.approved`.
+- `GET /payroll/event-catalogue` → `{ type, label, description, category }[]` — the
+  subscribable catalogue.
+- `GET /payroll/events[?runId=]` → `{ id, type, runId, at, summary }[]`, most-recent first.
+
+**Statutory documents (Step 112).**
+
 - `GET /payroll/employees/:id/tax-form?fy=&type=FORM16|W2|P60` — generated document (from YTD + pack).
-- **Event catalogue** (webhooks/notifications): `payroll.run.created|calculated|approved|paid`,
-  `payslip.published`, `payment.failed`, `salary.revised`, `claim.approved`.
 
 ---
 

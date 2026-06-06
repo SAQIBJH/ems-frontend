@@ -422,6 +422,9 @@ export interface PayrollRun {
   summary?: PayrollRunSummary;
   /** Configurable multi-level approval chain (maker-checker). Present from REVIEW on. */
   approvals?: RunApprovalLevel[];
+  /** Whether payslips for this run are visible to employees (publish workflow, §10). */
+  published?: boolean;
+  publishedAt?: string | null;
   /** Statutory pack version pinned at calculate time; recompute uses this. */
   configSnapshotRef?: RunConfigSnapshotRef | null;
   /** Subject employee for single-employee runs (FnF). */
@@ -717,6 +720,92 @@ export interface CostSummary {
   groups: CostSummaryGroup[];
   /** Currency → rate applied to consolidate into the base currency. */
   fxRates: Record<string, number>;
+}
+
+/* ── Payslip template & documents (§10) ────────────────────────────────────── */
+
+/** A renderable payslip section — its presence/order/heading are all config. */
+export type PayslipSectionKey =
+  | 'earnings'
+  | 'deductions'
+  | 'employerContributions'
+  | 'oneTime'
+  | 'ytd'
+  | 'attendance'
+  | 'paymentInfo';
+
+export interface PayslipTemplateSection {
+  key: PayslipSectionKey;
+  /** Locale-specific section heading. */
+  label: string;
+  enabled: boolean;
+  order: number;
+}
+
+/** A header field shown on the slip — toggled and labelled by config. */
+export type PayslipHeaderFieldKey =
+  | 'employeeCode'
+  | 'designation'
+  | 'department'
+  | 'pan'
+  | 'payDate'
+  | 'paymentRef';
+
+export interface PayslipTemplateField {
+  key: PayslipHeaderFieldKey;
+  label: string;
+  enabled: boolean;
+}
+
+/** Tenant-level payslip layout — data, not a per-country component. */
+export interface PayslipTemplate {
+  id: string;
+  name: string;
+  /** BCP-47 locale: the slip's language + date/number formatting. */
+  locale: string;
+  logoUrl: string | null;
+  sections: PayslipTemplateSection[];
+  fields: PayslipTemplateField[];
+  updatedAt: string;
+}
+
+export interface PayslipTemplateInput {
+  name?: string;
+  locale?: string;
+  logoUrl?: string | null;
+  sections?: PayslipTemplateSection[];
+  fields?: PayslipTemplateField[];
+}
+
+/* ── Events & webhook catalogue (§20) ──────────────────────────────────────── */
+
+export type PayrollEventType =
+  | 'payroll.run.created'
+  | 'payroll.run.calculated'
+  | 'payroll.run.approved'
+  | 'payroll.run.paid'
+  | 'payslip.published'
+  | 'payment.failed'
+  | 'salary.revised'
+  | 'claim.approved';
+
+export type PayrollEventCategory = 'run' | 'payslip' | 'payment' | 'employee';
+
+/** One entry in the subscribable webhook/notification catalogue. */
+export interface PayrollEventCatalogEntry {
+  type: PayrollEventType;
+  label: string;
+  description: string;
+  category: PayrollEventCategory;
+}
+
+/** An immutable lifecycle event emitted for downstream systems and notifications. */
+export interface PayrollEvent {
+  id: string;
+  type: PayrollEventType;
+  runId: string | null;
+  at: string;
+  summary: string;
 }
 
 /* ── Disbursement & payments (§9) ──────────────────────────────────────────── */

@@ -131,6 +131,12 @@ const NAV_GROUPS: NavGroup[] = [
         icon: CalendarClockIcon,
         roles: ['HR_ADMIN', 'SUPER_ADMIN'],
       },
+      {
+        label: 'Payslip Template',
+        slug: 'pay/payslip-template',
+        icon: FileTextIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+      },
     ],
   },
   {

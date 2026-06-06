@@ -84,6 +84,16 @@ export type {
   PaymentBatchLine,
   PaymentBatch,
   BankFileFormatOption,
+  PayslipSectionKey,
+  PayslipTemplateSection,
+  PayslipHeaderFieldKey,
+  PayslipTemplateField,
+  PayslipTemplate,
+  PayslipTemplateInput,
+  PayrollEventType,
+  PayrollEventCategory,
+  PayrollEventCatalogEntry,
+  PayrollEvent,
 } from './types/payroll.types';
 
 // Localization types
@@ -128,6 +138,7 @@ export { payrollComponentsApi } from './services/payroll-components.api';
 export { payGroupsApi } from './services/pay-groups.api';
 export { employeeSalaryApi } from './services/employee-salary.api';
 export { payrollRunsApi } from './services/payroll-runs.api';
+export { payslipTemplatesApi } from './services/payslip-templates.api';
 
 // Hooks
 export {
@@ -166,7 +177,11 @@ export {
   useRunPaymentBatch,
   useCreatePaymentBatch,
   useReconcilePaymentBatch,
+  usePublishPayrollRun,
+  useRunEvents,
+  useEventCatalogue,
 } from './hooks/usePayrollRuns';
+export { usePayslipTemplate, useUpdatePayslipTemplate } from './hooks/usePayslipTemplate';
 export {
   usePayrollPermissions,
   PAYROLL_PERMISSIONS,
@@ -233,6 +248,9 @@ export {
   BANK_FILE_FORMATS,
   PAYOUT_STATUS_CONFIG,
   PAYMENT_BATCH_STATUS_CONFIG,
+  DEFAULT_PAYSLIP_TEMPLATE,
+  PAYROLL_EVENT_CATALOGUE,
+  PAYROLL_EVENT_CONFIG,
 } from './constants';
 
 // Validations
@@ -258,6 +276,7 @@ export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
 export { DisbursementPanel } from './components/DisbursementPanel';
+export { PayslipTemplatePanel } from './components/PayslipTemplatePanel';
 export { RunInputsPanel } from './components/RunInputsPanel';
 export { PayslipDrawer } from './components/PayslipDrawer';
 export { AdjustmentDialog } from './components/AdjustmentDialog';

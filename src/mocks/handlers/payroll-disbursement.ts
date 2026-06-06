@@ -9,6 +9,7 @@ import { buildBankFile, isBankFileFormat, type BankFileRowInput } from '../data/
 import { getRunMeta } from './payroll-runs';
 import { getRunInputs } from './payroll-inputs';
 import { getClaimsForRun } from './payroll-claims';
+import { emitPayrollEvent } from './payroll-events';
 
 /* ── In-memory payment-batch store ─────────────────────────────────────────── */
 
@@ -182,6 +183,14 @@ export const payrollDisbursementHandlers = [
       );
     }
     reconcileBatch(batch);
+    const failed = batch.lines.filter((l) => l.status === 'FAILED' || l.status === 'RETURNED');
+    if (failed.length > 0) {
+      emitPayrollEvent(
+        'payment.failed',
+        batch.runId,
+        `${failed.length} payout${failed.length === 1 ? '' : 's'} failed or returned`,
+      );
+    }
     return HttpResponse.json({ success: true, data: batch });
   }),
 ];

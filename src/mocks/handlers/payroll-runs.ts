@@ -14,9 +14,19 @@ import { computeRun, computeFnf, type ComputedRun } from '../data/payroll-engine
 import { resolveActivePack } from './payroll-statutory';
 import { getRunInputs } from './payroll-inputs';
 import { getClaimsForRun, attachApprovedClaimsToRun, markRunClaimsPaid } from './payroll-claims';
+import { emitPayrollEvent } from './payroll-events';
 
 // The demo tenant's payroll roster operates under the India legal entity.
 const RUN_COUNTRY = 'IN';
+
+// Runs whose payslips are visible to employees (publish workflow, §10). Seeded with the
+// historical PAID runs; new runs publish explicitly via POST /runs/:id/publish.
+const publishedRuns = new Set<string>(['run-001', 'run-002', 'run-003']);
+
+/** Whether a run's payslips are published (consumed by the employee payslip handlers). */
+export function isRunPublished(runId: string): boolean {
+  return publishedRuns.has(runId);
+}
 
 // Runs whose net exceeds this threshold need a second approval level (HR → Finance).
 const SECOND_LEVEL_THRESHOLD = 5_000_000; // engine major units (₹50,00,000)
@@ -104,6 +114,8 @@ let runs: PayrollRun[] = [
     processedAt: '2026-02-26T10:00:00.000Z',
     approvedAt: '2026-02-27T09:00:00.000Z',
     paidAt: '2026-02-28T00:00:00.000Z',
+    published: true,
+    publishedAt: '2026-02-28T00:00:00.000Z',
     configSnapshotRef: pinConfig('2026-02'),
     createdAt: '2026-02-23T08:00:00.000Z',
   },
@@ -120,6 +132,8 @@ let runs: PayrollRun[] = [
     processedAt: '2026-03-28T10:00:00.000Z',
     approvedAt: '2026-03-29T09:00:00.000Z',
     paidAt: '2026-03-31T00:00:00.000Z',
+    published: true,
+    publishedAt: '2026-03-31T00:00:00.000Z',
     configSnapshotRef: pinConfig('2026-03'),
     createdAt: '2026-03-25T08:00:00.000Z',
   },
@@ -136,6 +150,8 @@ let runs: PayrollRun[] = [
     processedAt: '2026-04-28T10:00:00.000Z',
     approvedAt: '2026-04-29T09:00:00.000Z',
     paidAt: '2026-04-30T00:00:00.000Z',
+    published: true,
+    publishedAt: '2026-04-30T00:00:00.000Z',
     configSnapshotRef: pinConfig('2026-04'),
     createdAt: '2026-04-25T08:00:00.000Z',
   },
@@ -156,6 +172,8 @@ let runs: PayrollRun[] = [
     processedAt: null,
     approvedAt: null,
     paidAt: null,
+    published: false,
+    publishedAt: null,
     createdAt: '2026-05-01T08:00:00.000Z',
   },
 ];
@@ -372,6 +390,7 @@ export const payrollRunHandlers = [
       createdAt: now,
     };
     runs = [...runs, created];
+    emitPayrollEvent('payroll.run.created', created.id, `${created.periodLabel} run created`);
     return HttpResponse.json({ success: true, data: created }, { status: 201 });
   }),
 
@@ -430,6 +449,11 @@ export const payrollRunHandlers = [
               }
             : r,
         );
+        emitPayrollEvent(
+          'payroll.run.calculated',
+          id,
+          `${r0.periodLabel} settlement calculated — ready for review`,
+        );
         return;
       }
       const computed = computeRun(
@@ -455,6 +479,11 @@ export const payrollRunHandlers = [
               configSnapshotRef: pinConfig(r0.period),
             }
           : r,
+      );
+      emitPayrollEvent(
+        'payroll.run.calculated',
+        id,
+        `${r0.periodLabel} calculated — ready for review`,
       );
     }, 2000);
 
@@ -488,6 +517,7 @@ export const payrollRunHandlers = [
     );
     appendAudit(id, 'APPROVE', actor, body.notes);
     const run = runs.find((r) => r.id === id);
+    if (run) emitPayrollEvent('payroll.run.approved', id, `${run.periodLabel} approved`);
     return HttpResponse.json({ success: true, data: run });
   }),
 
@@ -564,6 +594,7 @@ export const payrollRunHandlers = [
         : r,
     );
     appendAudit(id, `APPROVE_L${lvl}`, approver || 'unknown', body.notes ?? target.label);
+    if (allApproved) emitPayrollEvent('payroll.run.approved', id, `${run.periodLabel} approved`);
     return HttpResponse.json({ success: true, data: runs.find((r) => r.id === id) });
   }),
 
@@ -622,7 +653,43 @@ export const payrollRunHandlers = [
     markRunClaimsPaid(id); // attached reimbursement claims are now paid
     appendAudit(id, 'MARK_PAID', body.actor ?? 'system', body.paymentReference);
     const run = runs.find((r) => r.id === id);
+    if (run) emitPayrollEvent('payroll.run.paid', id, `${run.periodLabel} marked paid`);
     return HttpResponse.json({ success: true, data: run });
+  }),
+
+  // Publish payslips — make them visible to employees (only once approved/paid).
+  http.post('/api/payroll/runs/:id/publish', async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json().catch(() => ({}))) as { actor?: string };
+    const run = runs.find((r) => r.id === id);
+    if (!run) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Run not found' } },
+        { status: 404 },
+      );
+    }
+    if (run.status !== 'APPROVED' && run.status !== 'PAID') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'RUN_NOT_PUBLISHABLE',
+            message: 'Only an approved run can be published',
+          },
+        },
+        { status: 422 },
+      );
+    }
+    const now = new Date().toISOString();
+    publishedRuns.add(id);
+    runs = runs.map((r) => (r.id === id ? { ...r, published: true, publishedAt: now } : r));
+    appendAudit(id, 'PUBLISH', body.actor ?? 'system', 'Payslips published to employees');
+    emitPayrollEvent(
+      'payslip.published',
+      id,
+      `${run.periodLabel} payslips published to ${run.employeeCount} employees`,
+    );
+    return HttpResponse.json({ success: true, data: runs.find((r) => r.id === id) });
   }),
 
   http.post('/api/payroll/runs/:id/cancel', async ({ params, request }) => {

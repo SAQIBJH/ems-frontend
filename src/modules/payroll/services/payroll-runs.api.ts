@@ -17,6 +17,8 @@ import type {
   RunDryRunResult,
   PaymentBatch,
   BankFileFormat,
+  PayrollEvent,
+  PayrollEventCatalogEntry,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -222,6 +224,30 @@ export const payrollRunsApi = {
     const { data } = await apiClient.post<{ data: PaymentBatch }>(
       `/payroll/payment-batches/${batchId}/reconcile`,
       {},
+    );
+    return data.data;
+  },
+
+  /* ── Publish & events (§10, §20) ────────────────────────────────────────── */
+
+  publish: async (runId: string): Promise<PayrollRun> => {
+    const { data } = await apiClient.post<{ data: PayrollRun }>(
+      `/payroll/runs/${runId}/publish`,
+      {},
+    );
+    return data.data;
+  },
+
+  listEvents: async (runId?: string): Promise<PayrollEvent[]> => {
+    const { data } = await apiClient.get<{ data: PayrollEvent[] }>('/payroll/events', {
+      params: runId ? { runId } : undefined,
+    });
+    return data.data;
+  },
+
+  getEventCatalogue: async (): Promise<PayrollEventCatalogEntry[]> => {
+    const { data } = await apiClient.get<{ data: PayrollEventCatalogEntry[] }>(
+      '/payroll/event-catalogue',
     );
     return data.data;
   },

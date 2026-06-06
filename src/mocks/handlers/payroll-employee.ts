@@ -5,6 +5,7 @@ import {
   currentPeriodString,
   ytdThroughPeriodForFy,
 } from '../data/payroll-engine';
+import { isRunPublished } from './payroll-runs';
 
 const SALARY_RECORDS: Record<string, EmployeeSalary> = {
   'emp-001': {
@@ -343,9 +344,12 @@ export const payrollEmployeeHandlers = [
 
   http.get('/api/payroll/employees/:employeeId/payslips', ({ params }) => {
     const { employeeId } = params as { employeeId: string };
-    const page = PAYSLIP_DATA[employeeId] ?? {
-      items: [],
-      pagination: { page: 1, limit: 12, total: 0, totalPages: 0 },
+    const source = PAYSLIP_DATA[employeeId];
+    // Publish gate (§10): employees see a payslip only once its run is published.
+    const items = (source?.items ?? []).filter((s) => isRunPublished(s.payrollRunId));
+    const page: PayslipsPage = {
+      items,
+      pagination: { page: 1, limit: 12, total: items.length, totalPages: items.length ? 1 : 0 },
     };
     return HttpResponse.json({ success: true, data: page });
   }),
@@ -354,7 +358,8 @@ export const payrollEmployeeHandlers = [
     const { employeeId, payslipId } = params as { employeeId: string; payslipId: string };
     const page = PAYSLIP_DATA[employeeId];
     const summary = page?.items.find((s) => s.id === payslipId);
-    if (!summary) {
+    // Unpublished payslips are not yet visible to the employee.
+    if (!summary || !isRunPublished(summary.payrollRunId)) {
       return HttpResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Payslip not found' } },
         { status: 404 },

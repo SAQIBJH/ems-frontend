@@ -49,9 +49,13 @@ import {
   useReprocessPayslip,
   useRunVariance,
   useRunAudit,
+  useRunEvents,
+  usePublishPayrollRun,
   usePayrollPermissions,
   useRunFnf,
   RUN_STATUS_CONFIG,
+  PAYROLL_EVENT_CATALOGUE,
+  PAYROLL_EVENT_CONFIG,
   formatMoney,
   payrollRunsApi,
 } from '@/modules/payroll';
@@ -60,6 +64,7 @@ import type {
   PayslipRunItem,
   PayrollRun,
   RunVarianceFlag,
+  PayrollEventType,
 } from '@/modules/payroll';
 
 import { PayslipDrawer } from './PayslipDrawer';
@@ -448,6 +453,71 @@ function AuditPanel({ runId }: { runId: string }) {
   );
 }
 
+/* ── Lifecycle events (webhook/notification feed) ─────────────────────────── */
+
+const EVENT_META = new Map<PayrollEventType, { label: string; category: string }>(
+  PAYROLL_EVENT_CATALOGUE.map((e) => [e.type, { label: e.label, category: e.category }]),
+);
+
+function EventsPanel({ runId }: { runId: string }) {
+  const [open, setOpen] = useState(false);
+  const { data: events = [] } = useRunEvents(runId, open);
+
+  return (
+    <div className="rounded-lg border border-subtle bg-surface">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left"
+      >
+        <h3 className="text-sm font-semibold text-fg">Events</h3>
+        {open ? (
+          <ChevronDownIcon className="size-4 text-fg-muted" aria-hidden />
+        ) : (
+          <ChevronRightIcon className="size-4 text-fg-muted" aria-hidden />
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-subtle">
+          {events.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-fg-muted">
+              No events emitted yet.
+            </div>
+          ) : (
+            <ul className="divide-y divide-subtle">
+              {events.map((e) => {
+                const meta = EVENT_META.get(e.type);
+                const cfg =
+                  PAYROLL_EVENT_CONFIG[
+                    (meta?.category ?? 'run') as keyof typeof PAYROLL_EVENT_CONFIG
+                  ];
+                return (
+                  <li key={e.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium',
+                          cfg.color,
+                        )}
+                      >
+                        {e.type}
+                      </span>
+                      <span className="text-xs text-fg-muted">{e.summary}</span>
+                    </div>
+                    <div className="text-right text-xs text-fg-muted">
+                      {format(new Date(e.at), 'dd MMM, HH:mm')}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main component ───────────────────────────────────────────────────────── */
 
 interface PayrollRunDetailProps {
@@ -481,6 +551,18 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
   const calculateMutation = useCalculatePayrollRun();
   const dryRunMutation = useDryRunPayrollRun();
   const reprocessMutation = useReprocessPayslip();
+  const publishMutation = usePublishPayrollRun();
+
+  async function handlePublish() {
+    if (!run) return;
+    try {
+      await publishMutation.mutateAsync(run.id);
+      toast.success('Payslips published — employees can now view them.');
+    } catch (err) {
+      const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
+      toast.error(apiErr?.message ?? 'Failed to publish payslips');
+    }
+  }
 
   async function handleReprocess(payslipId: string, name: string) {
     if (!run) return;
@@ -683,6 +765,11 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
               </span>
             )}
             {run && <StatusBadge status={run.status} />}
+            {run?.published && (
+              <span className="inline-flex items-center rounded bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                Published
+              </span>
+            )}
 
             <Button variant="outline" size="default" onClick={handleExport} disabled={exporting}>
               {exporting ? (
@@ -719,6 +806,23 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
                 Calculate Payroll
               </Button>
             )}
+
+            {run &&
+              (run.status === 'APPROVED' || run.status === 'PAID') &&
+              !run.published &&
+              perms.canApprove && (
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handlePublish}
+                  disabled={publishMutation.isPending}
+                >
+                  {publishMutation.isPending && (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  )}
+                  Publish Payslips
+                </Button>
+              )}
 
             {run?.status === 'APPROVED' && perms.canDisburse && (
               <Button size="default" onClick={() => setMarkPaidOpen(true)}>
@@ -796,6 +900,9 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
 
         {/* Audit trail — every transition / override / approval */}
         {run && <AuditPanel runId={run.id} />}
+
+        {/* Lifecycle events — webhook/notification feed */}
+        {run && <EventsPanel runId={run.id} />}
 
         {/* Department summary */}
         {run?.summary?.byDepartment && run.summary.byDepartment.length > 0 && (
