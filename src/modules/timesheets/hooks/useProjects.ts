@@ -7,6 +7,7 @@ export const TIMESHEET_KEYS = {
   tasks: (projectId: string) => ['timesheets', 'tasks', projectId] as const,
   week: (week: string, employeeId?: string) =>
     ['timesheets', 'week', week, employeeId ?? 'self'] as const,
+  approvals: (status: string) => ['timesheets', 'approvals', status] as const,
 };
 
 export function useProjects() {

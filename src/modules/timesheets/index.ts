@@ -35,6 +35,10 @@ export {
   useTimeEntries,
   useUpsertTimeEntry,
   useDeleteTimeEntry,
+  useSubmitTimesheet,
+  useTimesheetApprovals,
+  useApproveTimesheet,
+  useRejectTimesheet,
 } from './hooks/useTimesheets';
 export {
   useTimesheetPermissions,
@@ -64,6 +68,8 @@ export { projectSchema } from './validations/project.schema';
 export type { ProjectFormValues } from './validations/project.schema';
 export { timeEntrySchema } from './validations/timeEntry.schema';
 export type { TimeEntryFormValues } from './validations/timeEntry.schema';
+export { rejectTimesheetSchema } from './validations/approval.schema';
+export type { RejectTimesheetFormValues } from './validations/approval.schema';
 
 // Components
 export { TimesheetScreen } from './components/TimesheetScreen';
@@ -71,3 +77,6 @@ export { ProjectsPanel } from './components/ProjectsPanel';
 export { ProjectDrawer } from './components/ProjectDrawer';
 export { WeeklyGrid } from './components/WeeklyGrid';
 export { TimeEntryDialog } from './components/TimeEntryDialog';
+export { TimesheetStatusBadge } from './components/TimesheetStatusBadge';
+export { TimesheetSubmitBar } from './components/TimesheetSubmitBar';
+export { ApprovalsTab } from './components/ApprovalsTab';

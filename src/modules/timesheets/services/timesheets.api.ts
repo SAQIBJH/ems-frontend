@@ -41,4 +41,32 @@ export const timesheetsApi = {
     const { data } = await apiClient.delete<{ data: { id: string } }>(`/timesheets/entries/${id}`);
     return data.data;
   },
+
+  /** Submit a DRAFT/REJECTED week for approval → SUBMITTED. */
+  submit: async (id: string): Promise<Timesheet> => {
+    const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/submit`);
+    return data.data;
+  },
+
+  /** Approval queue — submitted weeks awaiting a decision. */
+  listApprovals: async (status: Timesheet['status'] = 'SUBMITTED'): Promise<Timesheet[]> => {
+    const { data } = await apiClient.get<{ data: Timesheet[] }>(
+      `/timesheets/approvals?status=${status}`,
+    );
+    return data.data;
+  },
+
+  approve: async (id: string, comment?: string): Promise<Timesheet> => {
+    const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/approve`, {
+      comment,
+    });
+    return data.data;
+  },
+
+  reject: async (id: string, comment: string): Promise<Timesheet> => {
+    const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/reject`, {
+      comment,
+    });
+    return data.data;
+  },
 };

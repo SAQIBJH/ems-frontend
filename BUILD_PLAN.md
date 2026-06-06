@@ -5575,7 +5575,7 @@ critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
 
 - [x] Step T1 — Module foundation: projects & tasks + nav + permissions
 - [x] Step T2 — Weekly grid + time entries (manual)
-- [ ] Step T3 — Submit & approval workflow
+- [x] Step T3 — Submit & approval workflow
 - [ ] Step T4 — Start/stop timer (Zustand)
 - [ ] Step T5 — Utilization report (Reports module)
 - [ ] Step T6 — Payroll integration (overtime → `otHours`; opt-in LOP)

@@ -1,14 +1,13 @@
 'use client';
 
 import { parseAsString, useQueryState } from 'nuqs';
-import { ClockIcon } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/shared/layouts/PageHeader';
-import { EmptyState } from '@/components/feedback/EmptyState';
 import { useAuth } from '@/providers';
 
 import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
+import { ApprovalsTab } from './ApprovalsTab';
 import { ProjectsPanel } from './ProjectsPanel';
 import { WeeklyGrid } from './WeeklyGrid';
 
@@ -48,11 +47,7 @@ export function TimesheetScreen() {
           </TabsContent>
 
           <TabsContent value="approvals">
-            <EmptyState
-              title="Approvals coming soon"
-              description="Submitted timesheets will appear here for review."
-              illustration={<ClockIcon className="size-8 text-fg-muted" />}
-            />
+            <ApprovalsTab />
           </TabsContent>
 
           <TabsContent value="projects">

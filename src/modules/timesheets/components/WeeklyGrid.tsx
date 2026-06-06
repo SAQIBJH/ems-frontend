@@ -25,9 +25,11 @@ import {
   rollupByDay,
   type GridRow,
 } from '../utils/rollups';
-import { TIMESHEET_STATUS_CONFIG } from '../constants';
+import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
 import type { Task, TimeEntry } from '../types/timesheet.types';
 import { TimeEntryDialog } from './TimeEntryDialog';
+import { TimesheetStatusBadge } from './TimesheetStatusBadge';
+import { TimesheetSubmitBar } from './TimesheetSubmitBar';
 
 interface WeeklyGridProps {
   /** Employee whose week this is; omit for the signed-in user (self). */
@@ -75,9 +77,9 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
   }, [taskQueries]);
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
+  const perms = useTimesheetPermissions();
   const status = timesheet?.status ?? 'DRAFT';
   const editable = status === 'DRAFT' || status === 'REJECTED';
-  const statusCfg = TIMESHEET_STATUS_CONFIG[status];
 
   const weekLabel = `${format(parseISO(week), 'MMM d')} – ${format(parseISO(getWeekEnd(week)), 'MMM d, yyyy')}`;
 
@@ -139,14 +141,7 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
           <ChevronRightIcon className="size-4" aria-hidden />
         </Button>
         <span className="ml-1 text-sm font-medium text-fg">{weekLabel}</span>
-        <span
-          className={cn(
-            'inline-flex items-center rounded px-2 py-0.5 text-xs font-medium',
-            statusCfg.color,
-          )}
-        >
-          {statusCfg.label}
-        </span>
+        <TimesheetStatusBadge status={status} />
       </div>
       {editable && (
         <Button size="sm" onClick={openNew}>
@@ -196,6 +191,16 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
         <StatsCard label="Overtime" value={`${fmtHours(overtime)}h`} accent="var(--warning-500)" />
         <StatsCard label="Standard week" value={`${fmtHours(standard)}h`} />
       </div>
+
+      {/* Submit / decision state */}
+      {timesheet && (
+        <TimesheetSubmitBar
+          timesheet={timesheet}
+          week={week}
+          employeeId={employeeId}
+          canWrite={perms.canWrite}
+        />
+      )}
 
       {/* Grid */}
       {rows.length === 0 ? (

@@ -5,7 +5,7 @@ import {
   type TimeEntryInput,
   type TimeEntryPatch,
 } from '../services/timesheets.api';
-import type { TimeEntry } from '../types/timesheet.types';
+import type { TimeEntry, Timesheet } from '../types/timesheet.types';
 import { TIMESHEET_KEYS } from './useProjects';
 
 /** The week's timesheet (synthesized DRAFT when none exists yet). */
@@ -47,5 +47,49 @@ export function useDeleteTimeEntry(week: string, employeeId?: string) {
   return useMutation({
     mutationFn: (id: string) => timesheetsApi.deleteEntry(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(week, employeeId) }),
+  });
+}
+
+/** Submit the current week for approval (DRAFT/REJECTED → SUBMITTED). */
+export function useSubmitTimesheet(week: string, employeeId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => timesheetsApi.submit(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(week, employeeId) });
+      void qc.invalidateQueries({ queryKey: ['timesheets', 'approvals'] });
+    },
+  });
+}
+
+/** The approval queue (submitted weeks awaiting a decision). */
+export function useTimesheetApprovals(status: Timesheet['status'] = 'SUBMITTED') {
+  return useQuery({
+    queryKey: TIMESHEET_KEYS.approvals(status),
+    queryFn: () => timesheetsApi.listApprovals(status),
+  });
+}
+
+export function useApproveTimesheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
+      timesheetsApi.approve(id, comment),
+    onSuccess: (ts) => {
+      void qc.invalidateQueries({ queryKey: ['timesheets', 'approvals'] });
+      void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(ts.weekStart, ts.employeeId) });
+    },
+  });
+}
+
+export function useRejectTimesheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) =>
+      timesheetsApi.reject(id, comment),
+    onSuccess: (ts) => {
+      void qc.invalidateQueries({ queryKey: ['timesheets', 'approvals'] });
+      void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(ts.weekStart, ts.employeeId) });
+    },
   });
 }

@@ -17,6 +17,8 @@ const EMPLOYEE_NAMES: Record<string, string> = {
   'emp-001': 'Aman Kumar',
   'emp-002': 'Priya Nair',
 };
+/** Display name recorded as the decider on approve/reject (demo). */
+const DECIDER_NAME = 'HR Admin';
 function employeeName(id: string): string {
   return EMPLOYEE_NAMES[id] ?? 'Employee';
 }
@@ -207,6 +209,82 @@ function synthesizeWeek(employeeId: string, weekStart: string): Timesheet {
   recompute(ts);
 })();
 
+/** Seed a SUBMITTED week for a teammate so the Approvals queue isn't empty. */
+(function seedApprovalQueue() {
+  const lastWeek = format(
+    addDays(parseISO(mondayOf(format(new Date(), 'yyyy-MM-dd'))), -7),
+    'yyyy-MM-dd',
+  );
+  const ts = ensureTimesheet('emp-002', lastWeek);
+  const days = getWeekDaysLocal(lastWeek);
+  const seed: Array<Omit<TimeEntry, 'id' | 'timesheetId' | 'employeeId'>> = [
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-2',
+      date: days[0],
+      hours: 8,
+      billable: true,
+      note: 'API work',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-2',
+      date: days[1],
+      hours: 8.5,
+      billable: true,
+      note: '',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-3',
+      taskId: 'tsk-7',
+      date: days[2],
+      hours: 9,
+      billable: true,
+      note: 'Launch fixes',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-3',
+      taskId: 'tsk-7',
+      date: days[3],
+      hours: 9,
+      billable: true,
+      note: '',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-2',
+      taskId: 'tsk-4',
+      date: days[4],
+      hours: 8,
+      billable: false,
+      note: 'On-call',
+      source: 'MANUAL',
+    },
+  ];
+  const newEntries = seed.map((e) => ({
+    ...e,
+    id: `te-${++entryCounter}`,
+    timesheetId: ts.id,
+    employeeId: 'emp-002',
+  }));
+  entries = [...entries, ...newEntries];
+  const fresh = recompute(ts);
+  timesheets = timesheets.map((t) =>
+    t.id === fresh.id
+      ? { ...fresh, status: 'SUBMITTED', submittedAt: '2026-06-01T17:30:00.000Z' }
+      : t,
+  );
+})();
+
+/** Local copy of the 7-day expansion (the rollups util isn't imported here). */
+function getWeekDaysLocal(weekStart: string): string[] {
+  const monday = parseISO(weekStart);
+  return Array.from({ length: 7 }, (_, i) => format(addDays(monday, i), 'yyyy-MM-dd'));
+}
+
 const EDITABLE_STATUSES: Timesheet['status'][] = ['DRAFT', 'REJECTED'];
 
 export const timesheetHandlers = [
@@ -324,6 +402,133 @@ export const timesheetHandlers = [
     entries = entries.filter((e) => e.id !== id);
     if (ts) recompute(ts);
     return HttpResponse.json({ success: true, data: { id } });
+  }),
+
+  /* Submit the week for approval (G.2) — DRAFT/REJECTED → SUBMITTED */
+  http.post(`${BASE}/:id/submit`, ({ params }) => {
+    const { id } = params as { id: string };
+    const ts = timesheets.find((t) => t.id === id);
+    if (!ts) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
+        { status: 404 },
+      );
+    }
+    if (!EDITABLE_STATUSES.includes(ts.status)) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'ALREADY_SUBMITTED', message: 'This week has already been submitted.' },
+        },
+        { status: 422 },
+      );
+    }
+    const fresh = recompute(ts);
+    if (fresh.totalHours <= 0) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'EMPTY_TIMESHEET', message: 'Log some hours before submitting.' },
+        },
+        { status: 422 },
+      );
+    }
+    const updated: Timesheet = {
+      ...fresh,
+      status: 'SUBMITTED',
+      submittedAt: nowIso(),
+      decidedBy: null,
+      decidedAt: null,
+      comment: null,
+    };
+    timesheets = timesheets.map((t) => (t.id === id ? updated : t));
+    return HttpResponse.json({ success: true, data: updated });
+  }),
+
+  /* Approval queue (G.3) — managers see their team, HR sees all (mock: all) */
+  http.get(`${BASE}/approvals`, ({ request }) => {
+    const status = (new URL(request.url).searchParams.get('status') ||
+      'SUBMITTED') as Timesheet['status'];
+    const data = timesheets
+      .filter((t) => t.status === status)
+      .map((t) => recompute(t))
+      .sort((a, b) => (b.weekStart < a.weekStart ? -1 : 1));
+    return HttpResponse.json({ success: true, data });
+  }),
+
+  /* Approve a submitted week (G.3) — SUBMITTED → APPROVED */
+  http.post(`${BASE}/:id/approve`, async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json().catch(() => ({}))) as { comment?: string };
+    const ts = timesheets.find((t) => t.id === id);
+    if (!ts) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
+        { status: 404 },
+      );
+    }
+    if (ts.status !== 'SUBMITTED') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'NOT_SUBMITTED', message: 'Only submitted weeks can be approved.' },
+        },
+        { status: 422 },
+      );
+    }
+    const updated: Timesheet = {
+      ...recompute(ts),
+      status: 'APPROVED',
+      decidedBy: DECIDER_NAME,
+      decidedAt: nowIso(),
+      comment: body.comment?.trim() || null,
+    };
+    timesheets = timesheets.map((t) => (t.id === id ? updated : t));
+    return HttpResponse.json({ success: true, data: updated });
+  }),
+
+  /* Reject a submitted week (G.3) — SUBMITTED → REJECTED (re-editable) */
+  http.post(`${BASE}/:id/reject`, async ({ params, request }) => {
+    const { id } = params as { id: string };
+    const body = (await request.json().catch(() => ({}))) as { comment?: string };
+    const ts = timesheets.find((t) => t.id === id);
+    if (!ts) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
+        { status: 404 },
+      );
+    }
+    if (ts.status !== 'SUBMITTED') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'NOT_SUBMITTED', message: 'Only submitted weeks can be rejected.' },
+        },
+        { status: 422 },
+      );
+    }
+    if (!body.comment?.trim()) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION',
+            message: 'A reason is required to reject.',
+            details: [{ field: 'comment', message: 'Provide a reason for the rejection.' }],
+          },
+        },
+        { status: 422 },
+      );
+    }
+    const updated: Timesheet = {
+      ...recompute(ts),
+      status: 'REJECTED',
+      decidedBy: DECIDER_NAME,
+      decidedAt: nowIso(),
+      comment: body.comment.trim(),
+    };
+    timesheets = timesheets.map((t) => (t.id === id ? updated : t));
+    return HttpResponse.json({ success: true, data: updated });
   }),
 
   /* Projects */
