@@ -4937,7 +4937,7 @@ All three must be clean.
 - [x] Step 113 — Accounting: GL journal + cost centers + export
 - [x] Step 114 — Statutory returns / registers into Reports
 - [x] Step 115 — Onboarding & migration (opening YTD + parallel run)
-- [ ] Step 116 — Compliance assurance reporting (pay-equity, residency, audit pack)
+- [x] Step 116 — Compliance assurance reporting (pay-equity, residency, audit pack)
 - [ ] Step 117 — Self-service consolidation + final verification gate
 
 ---
