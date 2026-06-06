@@ -171,7 +171,9 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select employee…" />
+                  <SelectValue placeholder="Select employee…">
+                    {(v) => employees.find((e) => e.employeeId === v)?.name ?? 'Select employee…'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— Unassigned —</SelectItem>

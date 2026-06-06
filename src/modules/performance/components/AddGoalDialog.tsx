@@ -80,7 +80,9 @@ export function AddGoalDialog({ open, onOpenChange }: AddGoalDialogProps) {
               onValueChange={(v) => form.setValue('employeeId', v ?? '', { shouldValidate: true })}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select employee…" />
+                <SelectValue placeholder="Select employee…">
+                  {(v) => employees.find((e) => e.id === v)?.name ?? 'Select employee…'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {employees.map((e) => (

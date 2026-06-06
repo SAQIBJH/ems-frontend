@@ -122,7 +122,16 @@ export function PostJobDialog({ open, onOpenChange }: PostJobDialogProps) {
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder="Select type">
+                          {(v) =>
+                            ({
+                              FULL_TIME: 'Full-time',
+                              PART_TIME: 'Part-time',
+                              CONTRACT: 'Contract',
+                              INTERNSHIP: 'Internship',
+                            })[v as string] ?? 'Select type'
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

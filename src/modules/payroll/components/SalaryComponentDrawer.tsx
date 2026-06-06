@@ -380,7 +380,12 @@ export function SalaryComponentDrawer({
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger id="comp-type" className="w-full cursor-pointer">
-                        <SelectValue />
+                        <SelectValue>
+                          {(v) =>
+                            COMPONENT_TYPE_CONFIG[v as keyof typeof COMPONENT_TYPE_CONFIG]?.label ??
+                            v
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {COMPONENT_TYPES.map((t) => (
@@ -606,7 +611,12 @@ export function SalaryComponentDrawer({
                           onValueChange={(v) => field.onChange(v || null)}
                         >
                           <SelectTrigger id="comp-basis" className="w-full cursor-pointer">
-                            <SelectValue placeholder="Select component" />
+                            <SelectValue placeholder="Select component">
+                              {(v) =>
+                                earningComponents.find((c) => c.code === v)?.name ??
+                                'Select component'
+                              }
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {earningComponents.map((c) => (
@@ -714,7 +724,9 @@ export function SalaryComponentDrawer({
                     render={({ field }) => (
                       <Select value={field.value ?? 'DEPARTMENT'} onValueChange={field.onChange}>
                         <SelectTrigger id="comp-cost-center" className="w-full cursor-pointer">
-                          <SelectValue />
+                          <SelectValue>
+                            {(v) => (v === 'NONE' ? 'No allocation' : 'Allocate by department')}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="DEPARTMENT">Allocate by department</SelectItem>

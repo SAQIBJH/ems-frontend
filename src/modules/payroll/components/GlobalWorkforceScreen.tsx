@@ -84,7 +84,7 @@ function CostSummarySection() {
           <span className="text-xs text-fg-muted">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as CostGroupBy)}>
             <SelectTrigger className="h-8 w-[150px]">
-              <SelectValue />
+              <SelectValue>{(v) => GROUP_BY_LABELS[v as CostGroupBy] ?? v}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(['classification', 'entity', 'currency'] as CostGroupBy[]).map((g) => (
@@ -217,7 +217,9 @@ function WorkersSection({ canManage }: { canManage: boolean }) {
                           onValueChange={(v) => handleClassify(w.id, v as WorkerClassification)}
                         >
                           <SelectTrigger className="h-8 w-[140px]">
-                            <SelectValue />
+                            <SelectValue>
+                              {(v) => CLASSIFICATION_LABELS[v as WorkerClassification] ?? v}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {(['EMPLOYEE', 'CONTRACTOR', 'EOR'] as WorkerClassification[]).map(
@@ -316,7 +318,9 @@ function NewInvoiceDialog({
             <Label>Contractor</Label>
             <Select value={workerId} onValueChange={(v) => setWorkerId(v ?? '')}>
               <SelectTrigger>
-                <SelectValue placeholder="Select contractor…" />
+                <SelectValue placeholder="Select contractor…">
+                  {(v) => workers.find((w) => w.id === v)?.name ?? 'Select contractor…'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {workers.map((w) => (

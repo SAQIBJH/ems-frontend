@@ -99,7 +99,12 @@ export function ParallelReconcilePanel() {
               <Label>Payroll run</Label>
               <Select value={activeRunId ?? ''} onValueChange={(v) => v && setRunId(v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a run" />
+                  <SelectValue placeholder="Select a run">
+                    {(v) => {
+                      const r = eligibleRuns.find((x) => x.id === v);
+                      return r ? `${r.periodLabel} · ${r.status}` : 'Select a run';
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {eligibleRuns.map((r) => (

@@ -80,7 +80,9 @@ function NewClaimDialog({
             <Label>Category</Label>
             <Select value={category} onValueChange={(v) => setCategory(v ?? '')}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a category" />
+                <SelectValue placeholder="Select a category">
+                  {(v) => categories.find((c) => c.code === v)?.label ?? 'Select a category'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (

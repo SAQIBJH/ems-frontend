@@ -167,7 +167,7 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
               disabled={isPending}
             >
               <SelectTrigger className="w-full cursor-pointer">
-                <SelectValue />
+                <SelectValue>{(v) => RUN_TYPES.find((t) => t.value === v)?.label ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {RUN_TYPES.map((t) => (
@@ -185,7 +185,7 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
             <div className="grid grid-cols-2 gap-3">
               <Select value={month} onValueChange={(v) => v && setMonth(v)} disabled={isPending}>
                 <SelectTrigger className="w-full cursor-pointer">
-                  <SelectValue />
+                  <SelectValue>{(v) => MONTHS.find((m) => m.value === v)?.label ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {MONTHS.map((m) => (
@@ -241,7 +241,11 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
                   disabled={isPending}
                 >
                   <SelectTrigger className="w-full cursor-pointer">
-                    <SelectValue placeholder="Select an employee" />
+                    <SelectValue placeholder="Select an employee">
+                      {(v) =>
+                        roster.find((m) => m.employeeId === v)?.employeeName ?? 'Select an employee'
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {roster.map((m) => (

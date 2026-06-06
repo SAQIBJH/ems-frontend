@@ -192,7 +192,9 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
                       onValueChange={(v) => handleCountryChange(v ?? '')}
                     >
                       <SelectTrigger id="le-country" className="w-full cursor-pointer">
-                        <SelectValue placeholder="Select country" />
+                        <SelectValue placeholder="Select country">
+                          {(v) => countries.find((c) => c.code === v)?.name ?? 'Select country'}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {countries.map((c) => (
@@ -237,7 +239,7 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
                       onValueChange={(v) => field.onChange(Number(v))}
                     >
                       <SelectTrigger id="le-fy" className="w-full cursor-pointer">
-                        <SelectValue />
+                        <SelectValue>{(v) => MONTHS[Number(v) - 1] ?? v}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {MONTHS.map((m, i) => (

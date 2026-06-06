@@ -236,7 +236,12 @@ export function AssetDetailSheet({ asset, open, onOpenChange }: Props) {
                           onValueChange={(v) => setSelectedEmployeeId(v ?? '')}
                         >
                           <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select employee…" />
+                            <SelectValue placeholder="Select employee…">
+                              {(v) =>
+                                employees.find((e) => e.employeeId === v)?.name ??
+                                'Select employee…'
+                              }
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {employees.map((e) => (
