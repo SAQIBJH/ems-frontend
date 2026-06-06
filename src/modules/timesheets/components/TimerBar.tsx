@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useIsClient } from '@/hooks/useIsClient';
 import type { ApiError } from '@/types/api';
 
 import { useMyProjects, useTasks } from '../hooks/useProjects';
@@ -40,7 +41,10 @@ function fmtElapsed(ms: number): string {
 
 export function TimerBar({ employeeId }: TimerBarProps) {
   const { running, startedAt, draft, setDraft, start, reset } = useTimerStore();
-  const [nowTick, setNowTick] = useState(0);
+  const isClient = useIsClient();
+  // Lazily seed from the current time so a timer restored on refresh shows the
+  // correct elapsed immediately; the interval keeps it ticking from there.
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const week = getWeekStart(today);
@@ -69,6 +73,12 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   }, [draft.projectId, tasks]);
 
   const elapsedMs = running && startedAt ? nowTick - startedAt : 0;
+
+  // Gate on client hydration: the persisted timer state is only available on the
+  // client, so render a stable placeholder until then (matches the server output).
+  if (!isClient) {
+    return <div className="h-[52px] rounded-xl border border-subtle bg-surface" aria-hidden />;
+  }
 
   function handleStart() {
     if (!draft.projectId || !draft.taskId) {
