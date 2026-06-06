@@ -118,6 +118,45 @@ export function useReprocessPayslip() {
   });
 }
 
+export function useCancelPayrollRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      payrollRunsApi.cancel(id, reason),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, id] });
+      qc.invalidateQueries({ queryKey: RUNS_KEY });
+    },
+  });
+}
+
+export function useHoldPayslip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      runId,
+      payslipId,
+      reason,
+    }: {
+      runId: string;
+      payslipId: string;
+      reason?: string;
+    }) => payrollRunsApi.holdPayslip(runId, payslipId, reason),
+    onSuccess: (_data, { runId }) =>
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'payslips'] }),
+  });
+}
+
+export function useReleasePayslip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, payslipId }: { runId: string; payslipId: string }) =>
+      payrollRunsApi.releasePayslip(runId, payslipId),
+    onSuccess: (_data, { runId }) =>
+      qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'payslips'] }),
+  });
+}
+
 export function useMarkPaidPayrollRun() {
   const qc = useQueryClient();
   return useMutation({

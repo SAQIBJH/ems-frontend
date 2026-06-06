@@ -6,7 +6,7 @@ import type {
 } from '@/modules/payroll/types/payroll.types';
 import { computeRun } from '../data/payroll-engine';
 import { buildBankFile, isBankFileFormat, type BankFileRowInput } from '../data/bank-file-formats';
-import { getRunMeta } from './payroll-runs';
+import { getRunMeta, isPayslipHeld } from './payroll-runs';
 import { getRunInputs } from './payroll-inputs';
 import { getClaimsForRun } from './payroll-claims';
 import { emitPayrollEvent } from './payroll-events';
@@ -27,17 +27,22 @@ function buildLines(runId: string, period: string): PaymentBatchLine[] {
     getRunInputs(runId),
     getClaimsForRun(runId),
   );
-  return computed.items.map((item) => ({
-    payslipId: item.id,
-    employeeId: item.employeeId,
-    employeeCode: item.employeeCode,
-    employeeName: item.employeeName,
-    amount: item.netPay,
-    currency: item.currency,
-    status: 'PENDING' as PayoutStatus,
-    failureReason: null,
-    payoutRef: null,
-  }));
+  return (
+    computed.items
+      // Held payslips are withheld from disbursement until released.
+      .filter((item) => !isPayslipHeld(item.id))
+      .map((item) => ({
+        payslipId: item.id,
+        employeeId: item.employeeId,
+        employeeCode: item.employeeCode,
+        employeeName: item.employeeName,
+        amount: item.netPay,
+        currency: item.currency,
+        status: 'PENDING' as PayoutStatus,
+        failureReason: null,
+        payoutRef: null,
+      }))
+  );
 }
 
 /**

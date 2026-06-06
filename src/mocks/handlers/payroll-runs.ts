@@ -67,6 +67,17 @@ function appendAudit(runId: string, action: string, actor: string, detail?: stri
   runAudit[runId] = [...(runAudit[runId] ?? []), entry];
 }
 
+/**
+ * Held payslips, keyed by payslip id. A HELD payslip is excluded from disbursement
+ * (bank file / payment batch) so the employee is not paid until released (§7.5).
+ */
+const heldPayslips = new Map<string, { runId: string; reason: string; at: string }>();
+
+/** Whether a payslip is on hold — read by the disbursement builder to skip it. */
+export function isPayslipHeld(payslipId: string): boolean {
+  return heldPayslips.has(payslipId);
+}
+
 // Canonical computed totals (the roster is fixed, so every run shares them until
 // per-period inputs land in Step 101). Derived from the engine — never hardcoded.
 const BASE = computeRun('base', '2026-05');
@@ -711,6 +722,26 @@ export const payrollRunHandlers = [
   http.post('/api/payroll/runs/:id/cancel', async ({ params, request }) => {
     const { id } = params as { id: string };
     const body = (await request.json().catch(() => ({}))) as { reason?: string; actor?: string };
+    const target = runs.find((r) => r.id === id);
+    if (!target) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Run not found' } },
+        { status: 404 },
+      );
+    }
+    // A run can only be voided before payment.
+    if (target.status === 'APPROVED' || target.status === 'PAID' || target.status === 'CANCELLED') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'RUN_NOT_CANCELLABLE',
+            message: 'Only a draft or in-review run can be cancelled',
+          },
+        },
+        { status: 422 },
+      );
+    }
     runs = runs.map((r) => (r.id === id ? { ...r, status: 'CANCELLED' } : r));
     appendAudit(id, 'CANCEL', body.actor ?? 'system', body.reason);
     const run = runs.find((r) => r.id === id);
@@ -733,14 +764,18 @@ export const payrollRunHandlers = [
       getRunInputs(run.id),
       getClaimsForRun(run.id),
     );
+    // Overlay the hold store so held payslips read as HELD.
+    const items = computed.items.map((it) =>
+      heldPayslips.has(it.id) ? { ...it, status: 'HELD' as const } : it,
+    );
     return HttpResponse.json({
       success: true,
       data: {
-        items: computed.items,
+        items,
         pagination: {
           page: 1,
-          limit: computed.items.length || 1,
-          total: computed.items.length,
+          limit: items.length || 1,
+          total: items.length,
           totalPages: 1,
         },
       },
@@ -770,7 +805,72 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    return HttpResponse.json({ success: true, data: detail });
+    const withHold = heldPayslips.has(payslipId) ? { ...detail, status: 'HELD' as const } : detail;
+    return HttpResponse.json({ success: true, data: withHold });
+  }),
+
+  // Hold a single payslip — withhold this employee's pay while paying the rest.
+  http.post('/api/payroll/runs/:runId/payslips/:payslipId/hold', async ({ params, request }) => {
+    const { runId, payslipId } = params as { runId: string; payslipId: string };
+    const body = (await request.json().catch(() => ({}))) as { reason?: string; actor?: string };
+    const run = runs.find((r) => r.id === runId);
+    if (!run) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Run not found' } },
+        { status: 404 },
+      );
+    }
+    if (run.status !== 'REVIEW' && run.status !== 'APPROVED') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'RUN_NOT_HOLDABLE',
+            message: 'Payslips can be held only in review or approved runs',
+          },
+        },
+        { status: 422 },
+      );
+    }
+    const computed = computeRun(
+      run.id,
+      run.period,
+      payslipStatusFor(run),
+      getRunInputs(run.id),
+      getClaimsForRun(run.id),
+    );
+    const detail = computed.details[payslipId];
+    if (!detail) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Payslip not found' } },
+        { status: 404 },
+      );
+    }
+    const reason = body.reason?.trim() || 'Held by HR for review';
+    heldPayslips.set(payslipId, { runId, reason, at: new Date().toISOString() });
+    appendAudit(
+      runId,
+      'HOLD',
+      body.actor ?? 'system',
+      `${detail.employee.firstName} ${detail.employee.lastName}: ${reason}`,
+    );
+    return HttpResponse.json({ success: true, data: { ...detail, status: 'HELD' as const } });
+  }),
+
+  // Release a held payslip back into the run.
+  http.post('/api/payroll/runs/:runId/payslips/:payslipId/release', async ({ params, request }) => {
+    const { runId, payslipId } = params as { runId: string; payslipId: string };
+    const body = (await request.json().catch(() => ({}))) as { actor?: string };
+    const run = runs.find((r) => r.id === runId);
+    if (!run) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Run not found' } },
+        { status: 404 },
+      );
+    }
+    heldPayslips.delete(payslipId);
+    appendAudit(runId, 'RELEASE', body.actor ?? 'system', `Payslip ${payslipId} released`);
+    return HttpResponse.json({ success: true, data: { payslipId, status: 'PENDING' as const } });
   }),
 
   http.patch('/api/payroll/runs/:runId/payslips/:payslipId', async ({ params, request }) => {

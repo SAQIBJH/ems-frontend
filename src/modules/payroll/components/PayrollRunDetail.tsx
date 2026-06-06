@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
@@ -47,6 +48,9 @@ import {
   useCalculatePayrollRun,
   useDryRunPayrollRun,
   useReprocessPayslip,
+  useCancelPayrollRun,
+  useHoldPayslip,
+  useReleasePayslip,
   useRunVariance,
   useRunAudit,
   useRunEvents,
@@ -164,6 +168,61 @@ function MarkPaidDialog({
           <Button onClick={handleConfirm} disabled={!paidAt || markPaid.isPending}>
             {markPaid.isPending && <Loader2Icon className="size-3.5 animate-spin" aria-hidden />}
             Confirm Payment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelRunDialog({
+  open,
+  onOpenChange,
+  periodLabel,
+  pending,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  periodLabel: string;
+  pending: boolean;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cancel payroll run</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-1">
+          <p className="text-sm text-fg-muted">
+            This voids the <span className="font-medium text-fg">{periodLabel}</span> run. It can
+            only be cancelled before approval/payment, and cannot be undone.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="cancel-reason">Reason</Label>
+            <Textarea
+              id="cancel-reason"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why is this run being cancelled?"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Keep run
+          </Button>
+          <Button
+            className="bg-danger text-white hover:bg-danger/90"
+            onClick={() => onConfirm(reason.trim() || 'Cancelled by HR')}
+            disabled={pending}
+          >
+            {pending && <Loader2Icon className="size-3.5 animate-spin" aria-hidden />}
+            Cancel run
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -534,6 +593,7 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
   const [adjustPayslip, setAdjustPayslip] = useState<{ id: string; name: string } | null>(null);
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const {
     data: run,
@@ -555,6 +615,42 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
   const dryRunMutation = useDryRunPayrollRun();
   const reprocessMutation = useReprocessPayslip();
   const publishMutation = usePublishPayrollRun();
+  const holdMutation = useHoldPayslip();
+  const releaseMutation = useReleasePayslip();
+  const cancelMutation = useCancelPayrollRun();
+
+  async function handleCancel(reason: string) {
+    if (!run) return;
+    try {
+      await cancelMutation.mutateAsync({ id: run.id, reason });
+      toast.success('Payroll run cancelled.');
+      setCancelOpen(false);
+    } catch (err) {
+      const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
+      toast.error(apiErr?.message ?? 'Failed to cancel run');
+    }
+  }
+
+  async function handleHold(payslipId: string, name: string) {
+    if (!run) return;
+    try {
+      await holdMutation.mutateAsync({ runId: run.id, payslipId });
+      toast.success(`${name}'s payment held — excluded from disbursement.`);
+    } catch (err) {
+      const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
+      toast.error(apiErr?.message ?? 'Failed to hold payslip');
+    }
+  }
+
+  async function handleRelease(payslipId: string, name: string) {
+    if (!run) return;
+    try {
+      await releaseMutation.mutateAsync({ runId: run.id, payslipId });
+      toast.success(`${name}'s payment released back into the run.`);
+    } catch {
+      toast.error('Failed to release payslip');
+    }
+  }
 
   async function handlePublish() {
     if (!run) return;
@@ -641,7 +737,14 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
       header: 'Name',
       cell: ({ row }) => (
         <div>
-          <div className="font-medium text-fg">{row.original.employeeName}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-fg">{row.original.employeeName}</span>
+            {row.original.status === 'HELD' && (
+              <span className="inline-flex items-center rounded bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium text-danger">
+                HELD
+              </span>
+            )}
+          </div>
           <div className="text-xs text-fg-muted">{row.original.departmentName}</div>
         </div>
       ),
@@ -737,6 +840,19 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
                     <DropdownMenuItem onClick={() => handleReprocess(slip.id, slip.employeeName)}>
                       Recalculate payslip
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {slip.status === 'HELD' ? (
+                      <DropdownMenuItem onClick={() => handleRelease(slip.id, slip.employeeName)}>
+                        Release hold
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        className="text-danger focus:text-danger"
+                        onClick={() => handleHold(slip.id, slip.employeeName)}
+                      >
+                        Hold payment
+                      </DropdownMenuItem>
+                    )}
                   </>
                 )}
               </DropdownMenuContent>
@@ -832,8 +948,29 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
                 Mark as Paid
               </Button>
             )}
+
+            {run &&
+              (run.status === 'DRAFT' || run.status === 'CALCULATING' || run.status === 'REVIEW') &&
+              perms.canInitiate && (
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="text-danger hover:text-danger"
+                  onClick={() => setCancelOpen(true)}
+                >
+                  Cancel Run
+                </Button>
+              )}
           </div>
         }
+      />
+
+      <CancelRunDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        periodLabel={run?.periodLabel ?? ''}
+        pending={cancelMutation.isPending}
+        onConfirm={handleCancel}
       />
 
       <div className="space-y-6 p-6">

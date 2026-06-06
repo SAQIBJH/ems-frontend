@@ -1366,9 +1366,36 @@ amount from config alone.
   the payslip detail.
 - `GET /payroll/runs/:id/audit` → `PayrollRunAuditEntry[]`
   (`{ id, runId, action, actor, at, detail? }`). Every transition / override / approval
-  (`CALCULATE`, `APPROVE_L<n>`, `MARK_PAID`, `ADJUST`, `REPROCESS`, `CANCEL`) appends an entry.
+  (`CALCULATE`, `APPROVE_L<n>`, `MARK_PAID`, `ADJUST`, `REPROCESS`, `HOLD`, `RELEASE`,
+  `CANCEL`) appends an entry.
+
+#### Hold / release a single payslip (Step 118)
+
+A maker-checker control to **withhold one employee's payment** while paying the rest
+of the run — e.g. a pending investigation or a disputed amount.
+
+- `POST /payroll/runs/:runId/payslips/:payslipId/hold` — body `{ reason?, actor? }`.
+  Marks the payslip `HELD`. Allowed only while the run is `REVIEW` or `APPROVED`
+  (not after `PAID`). Returns the updated payslip detail (`status: "HELD"`). Audit: `HOLD`.
+- `POST /payroll/runs/:runId/payslips/:payslipId/release` — clears the hold
+  (back to `PENDING`). Audit: `RELEASE`. `404 NOT_FOUND` for an unknown run/payslip;
+  `422 RUN_NOT_HOLDABLE` if the run is `DRAFT`/`CALCULATING`/`PAID`/`CANCELLED`.
+- A `HELD` payslip is **excluded from disbursement** — it is dropped from the payment
+  batch and the bank file, so the held employee is not paid until released.
+- `GET /payroll/runs/:runId/payslips` and the single-payslip read reflect `HELD`
+  by overlaying the hold store on the computed status.
+
+#### Cancel / void a run (Step 118)
+
+- `POST /payroll/runs/:id/cancel` — body `{ reason?, actor? }`. Sets the run to
+  `CANCELLED` (terminal). Allowed only before payment — run status
+  `DRAFT`/`CALCULATING`/`REVIEW`. Returns the updated `PayrollRun`. Audit: `CANCEL`.
+  (Endpoint already shipped in Step 96; Step 118 wires the UI action + guard.)
+
 - **Granular permissions** (UI gating): `payroll:initiate | adjust | approve | disburse`
   — segregation of duties. Resolved client-side, falling back to HR_ADMIN / SUPER_ADMIN.
+  Initiate → create/calculate/dry-run/**cancel**; adjust → adjustment/recalculate/**hold/release**;
+  approve → approvals/**publish**; disburse → mark-paid/bank file.
 
 ---
 

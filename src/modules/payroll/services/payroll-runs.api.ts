@@ -115,6 +115,25 @@ export const payrollRunsApi = {
     return data.data;
   },
 
+  holdPayslip: async (runId: string, payslipId: string, reason?: string): Promise<Payslip> => {
+    const { data } = await apiClient.post<{ data: Payslip }>(
+      `/payroll/runs/${runId}/payslips/${payslipId}/hold`,
+      { reason },
+    );
+    return data.data;
+  },
+
+  releasePayslip: async (
+    runId: string,
+    payslipId: string,
+  ): Promise<{ payslipId: string; status: string }> => {
+    const { data } = await apiClient.post<{ data: { payslipId: string; status: string } }>(
+      `/payroll/runs/${runId}/payslips/${payslipId}/release`,
+      {},
+    );
+    return data.data;
+  },
+
   listPayslips: async (
     runId: string,
     params?: { page?: number; limit?: number; departmentId?: string; search?: string },
