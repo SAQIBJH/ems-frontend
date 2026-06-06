@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { SearchIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
@@ -18,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useEmployees } from '@/modules/employees';
+import { useDebounce } from '@/hooks/useDebounce';
 import type { ApiError } from '@/types/api';
 
 import { useCreateProject, useUpdateProject } from '../hooks/useProjects';
@@ -50,7 +53,12 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
   const billable = useWatch({ control: form.control, name: 'billable' });
   const memberIds = useWatch({ control: form.control, name: 'memberIds' }) ?? [];
 
-  const { data: employeesPage, isLoading: employeesLoading } = useEmployees({ limit: 100 });
+  const [memberSearch, setMemberSearch] = useState('');
+  const debouncedSearch = useDebounce(memberSearch, 300);
+  const { data: employeesPage, isLoading: employeesLoading } = useEmployees({
+    limit: 100,
+    search: debouncedSearch.trim() || undefined,
+  });
   const employees = employeesPage?.data ?? [];
 
   function toggleMember(id: string, checked: boolean) {
@@ -185,11 +193,28 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
                 ? 'Open to everyone. Select employees to restrict who can log time.'
                 : `${memberIds.length} member${memberIds.length === 1 ? '' : 's'} can log time on this project.`}
             </p>
+            <div className="relative">
+              <SearchIcon
+                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-muted"
+                aria-hidden
+              />
+              <Input
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="Search employees…"
+                className="h-8 pl-8 text-sm"
+                aria-label="Search employees"
+              />
+            </div>
             <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-lg border border-subtle bg-surface p-1">
               {employeesLoading ? (
                 <p className="px-2 py-3 text-xs text-fg-muted">Loading employees…</p>
               ) : employees.length === 0 ? (
-                <p className="px-2 py-3 text-xs text-fg-muted">No employees found.</p>
+                <p className="px-2 py-3 text-xs text-fg-muted">
+                  {debouncedSearch.trim()
+                    ? `No employees match “${debouncedSearch.trim()}”.`
+                    : 'No employees found.'}
+                </p>
               ) : (
                 employees.map((emp) => {
                   const checked = memberIds.includes(emp.id);
