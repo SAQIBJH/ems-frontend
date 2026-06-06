@@ -531,9 +531,19 @@ export const timesheetHandlers = [
     return HttpResponse.json({ success: true, data: updated });
   }),
 
-  /* Projects */
-  http.get(`${BASE}/projects`, () => {
-    return HttpResponse.json({ success: true, data: projects });
+  /* Projects — optionally scoped to a member (Step T3.1) */
+  http.get(`${BASE}/projects`, ({ request }) => {
+    const memberParam = new URL(request.url).searchParams.get('memberId');
+    if (!memberParam) {
+      // Unscoped (admin / management) view — every project.
+      return HttpResponse.json({ success: true, data: projects });
+    }
+    const memberId = memberParam === 'self' ? DEFAULT_EMPLOYEE_ID : memberParam;
+    // Open projects (empty memberIds) plus those the employee is a member of.
+    const scoped = projects.filter(
+      (p) => p.memberIds.length === 0 || p.memberIds.includes(memberId),
+    );
+    return HttpResponse.json({ success: true, data: scoped });
   }),
 
   http.post(`${BASE}/projects`, async ({ request }) => {

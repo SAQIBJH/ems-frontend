@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { ApiError } from '@/types/api';
 
-import { useProjects, useTasks } from '../hooks/useProjects';
+import { useMyProjects, useTasks } from '../hooks/useProjects';
 import { useUpsertTimeEntry } from '../hooks/useTimesheets';
 import { timeEntrySchema, type TimeEntryFormValues } from '../validations/timeEntry.schema';
 import type { TimeEntry } from '../types/timesheet.types';
@@ -55,7 +55,7 @@ export function TimeEntryDialog({
   existing,
   prefill,
 }: TimeEntryDialogProps) {
-  const { data: projects = [] } = useProjects();
+  const { data: projects = [] } = useMyProjects(employeeId);
   const upsert = useUpsertTimeEntry(week, employeeId);
 
   const form = useForm<TimeEntryFormValues>({

@@ -22,6 +22,7 @@ export type { TimeEntryInput, TimeEntryPatch } from './services/timesheets.api';
 // Hooks
 export {
   useProjects,
+  useMyProjects,
   useCreateProject,
   useUpdateProject,
   useDeleteProject,

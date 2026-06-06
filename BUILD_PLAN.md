@@ -5576,6 +5576,7 @@ critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
 - [x] Step T1 — Module foundation: projects & tasks + nav + permissions
 - [x] Step T2 — Weekly grid + time entries (manual)
 - [x] Step T3 — Submit & approval workflow
+- [x] Step T3.1 — Project membership & assignment (inserted)
 - [ ] Step T4 — Start/stop timer (Zustand)
 - [ ] Step T5 — Utilization report (Reports module)
 - [ ] Step T6 — Payroll integration (overtime → `otHours`; opt-in LOP)
@@ -5651,6 +5652,34 @@ critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
 **Commit:** `feat(timesheets): submit and approval workflow`
 
 **STOP.** Write "Step T3 complete. Waiting for you to say next."
+
+---
+
+### Step T3.1 — Project membership & assignment (inserted)
+
+**Context:** Domain G.1 (membership scoping); follow-up to T1/T2 raised in review — restrict
+who can log time against a project. Inserted between T3 and T4; does not renumber T4–T8.
+
+**Build:**
+
+1. Document **G.1** membership scoping: `GET /timesheets/projects?memberId=<id|self>`
+   returns open projects (`memberIds: []`) ∪ member-of; `memberIds` settable on
+   POST/PATCH (`[]` = everyone). Update the MSW handler to honour `?memberId=`
+   (seeds stay open so existing entries still resolve).
+2. `projectsApi.listProjects(memberId?)`; `useMyProjects(employeeId)` hook (+ key);
+   `useProjects()` stays the full admin list. Project mutations already prefix-invalidate
+   the scoped key.
+3. `ProjectDrawer` — members checkbox list from `useEmployees`; empty = everyone;
+   `memberIds` added to the project schema + submit payload.
+4. `TimeEntryDialog` + `WeeklyGrid` consume `useMyProjects(employeeId)` so the picker
+   only offers projects the signed-in employee may log against. `ProjectsPanel` (admin)
+   keeps the full list.
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` (no calc logic added — no test file)
+
+**Commit:** `feat(timesheets): project membership and assignment`
+
+**STOP.** Write "Step T3.1 complete. Waiting for you to say next."
 
 ---
 

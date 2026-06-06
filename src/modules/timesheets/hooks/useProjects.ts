@@ -4,16 +4,30 @@ import type { ProjectInput, TaskInput } from '../types/timesheet.types';
 
 export const TIMESHEET_KEYS = {
   projects: ['timesheets', 'projects'] as const,
+  myProjects: (memberId?: string) =>
+    ['timesheets', 'projects', 'member', memberId ?? 'self'] as const,
   tasks: (projectId: string) => ['timesheets', 'tasks', projectId] as const,
   week: (week: string, employeeId?: string) =>
     ['timesheets', 'week', week, employeeId ?? 'self'] as const,
   approvals: (status: string) => ['timesheets', 'approvals', status] as const,
 };
 
+/** The full project list (admin / management view — includes archived). */
 export function useProjects() {
   return useQuery({
     queryKey: TIMESHEET_KEYS.projects,
     queryFn: () => projectsApi.listProjects(),
+  });
+}
+
+/**
+ * Projects the given employee may log time against (Step T3.1) — open projects plus
+ * those they're a member of. Used by the Log-time picker and the weekly grid.
+ */
+export function useMyProjects(employeeId?: string) {
+  return useQuery({
+    queryKey: TIMESHEET_KEYS.myProjects(employeeId),
+    queryFn: () => projectsApi.listProjects(employeeId ?? 'self'),
   });
 }
 

@@ -13,7 +13,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatsCard } from '@/components/data-display/StatsCard';
 import { cn } from '@/lib/utils';
 
-import { useProjects, TIMESHEET_KEYS } from '../hooks/useProjects';
+import { useMyProjects, TIMESHEET_KEYS } from '../hooks/useProjects';
 import { projectsApi } from '../services/projects.api';
 import { useWeekTimesheet, useDeleteTimeEntry } from '../hooks/useTimesheets';
 import {
@@ -48,7 +48,7 @@ function todayStr(): string {
 export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
   const [week, setWeek] = useState(() => getWeekStart(todayStr()));
   const { data: timesheet, isLoading, isError, refetch } = useWeekTimesheet(week, employeeId);
-  const { data: projects = [] } = useProjects();
+  const { data: projects = [] } = useMyProjects(employeeId);
   const deleteEntry = useDeleteTimeEntry(week, employeeId);
 
   const [dialog, setDialog] = useState<{

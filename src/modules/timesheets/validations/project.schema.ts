@@ -12,6 +12,8 @@ export const projectSchema = z.object({
   clientName: z.string().max(80),
   billable: z.boolean(),
   defaultRate: z.string().regex(/^\d*(\.\d{1,2})?$/, 'Enter a valid rate'),
+  /** Employees allowed to log against this project; empty = everyone (Step T3.1). */
+  memberIds: z.array(z.string()),
 });
 
 export type ProjectFormValues = z.infer<typeof projectSchema>;

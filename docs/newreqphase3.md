@@ -1913,14 +1913,26 @@ Final verification gate for the phase:
 { "id": "tsk-1", "projectId": "prj-1", "name": "Frontend", "billable": true, "active": true }
 ```
 
-- `GET /timesheets/projects` → `Project[]`
-- `POST /timesheets/projects` → `Project` (201)
-- `PATCH /timesheets/projects/:id` → `Project`
+- `GET /timesheets/projects[?memberId=<employeeId|self>]` → `Project[]`. **Membership
+  scoping (Step T3.1):** without `memberId` the full list returns (admin / management
+  view). With `memberId` (an employee id, or the literal `self` = the caller), the
+  response is scoped to projects the employee may log against: those with an empty
+  `memberIds` (open to everyone) **plus** those whose `memberIds` includes the resolved
+  id. The Log-time picker calls it with the signed-in employee's id.
+- `POST /timesheets/projects` → `Project` (201). Body may include `memberIds: string[]`
+  (employees allowed to log against it; **`[]` = everyone**, the default).
+- `PATCH /timesheets/projects/:id` → `Project`. `memberIds` is patchable (re-assign
+  members; `[]` re-opens the project to everyone).
 - `DELETE /timesheets/projects/:id` → archives (`status: ARCHIVED`) if it has entries,
   hard-deletes otherwise. `404` if absent.
 - `GET /timesheets/projects/:id/tasks` → `Task[]`
 - `POST /timesheets/projects/:id/tasks` → `Task` (201)
 - `PATCH /timesheets/tasks/:id` → `Task`
+
+> **`memberIds` semantics:** an empty array means the project is open to all employees
+> (the default). A non-empty array restricts the Log-time picker to listed members only
+> (enforced server-side via `?memberId=`). Existing time entries always remain visible
+> to their author regardless of later membership changes.
 
 ### G.2 — Employee weekly timesheet + entries (Step T2)
 
@@ -1968,8 +1980,8 @@ Final verification gate for the phase:
 
 - `GET /timesheets/summary?range=30d|90d&employeeId=` →
   `{ totalHours, billableHours, nonBillableHours, overtimeHours, utilizationPct,
-   byProject: { projectId, projectName, hours, billableHours }[],
-   byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
+ byProject: { projectId, projectName, hours, billableHours }[],
+ byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
 - Surfaces as a **Reports → (new) Timesheets** category panel, report type
   `timesheets/utilization` (additive to `reports.types.ts` — `ReportShell` +
   `ChartEngine`, same pattern as the payroll registers).

@@ -2,8 +2,13 @@ import { apiClient } from '@/lib/api-client';
 import type { Project, ProjectInput, Task, TaskInput } from '../types/timesheet.types';
 
 export const projectsApi = {
-  listProjects: async (): Promise<Project[]> => {
-    const { data } = await apiClient.get<{ data: Project[] }>('/timesheets/projects');
+  /**
+   * List projects. Omit `memberId` for the full (admin) list; pass an employee id
+   * (or `self`) to scope to projects that employee may log against (Step T3.1).
+   */
+  listProjects: async (memberId?: string): Promise<Project[]> => {
+    const qs = memberId ? `?memberId=${encodeURIComponent(memberId)}` : '';
+    const { data } = await apiClient.get<{ data: Project[] }>(`/timesheets/projects${qs}`);
     return data.data;
   },
 

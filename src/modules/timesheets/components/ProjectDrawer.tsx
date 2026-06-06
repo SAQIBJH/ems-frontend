@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useEmployees } from '@/modules/employees';
 import type { ApiError } from '@/types/api';
 
 import { useCreateProject, useUpdateProject } from '../hooks/useProjects';
@@ -41,10 +43,22 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
       clientName: existing?.clientName ?? '',
       billable: existing?.billable ?? true,
       defaultRate: existing?.defaultRate ? String(existing.defaultRate) : '0',
+      memberIds: existing?.memberIds ?? [],
     },
   });
 
   const billable = useWatch({ control: form.control, name: 'billable' });
+  const memberIds = useWatch({ control: form.control, name: 'memberIds' }) ?? [];
+
+  const { data: employeesPage, isLoading: employeesLoading } = useEmployees({ limit: 100 });
+  const employees = employeesPage?.data ?? [];
+
+  function toggleMember(id: string, checked: boolean) {
+    const current = form.getValues('memberIds');
+    form.setValue('memberIds', checked ? [...current, id] : current.filter((m) => m !== id), {
+      shouldDirty: true,
+    });
+  }
 
   function handleClose() {
     form.reset();
@@ -58,6 +72,7 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
       clientName: values.clientName,
       billable: values.billable,
       defaultRate: values.billable ? Number(values.defaultRate || '0') : 0,
+      memberIds: values.memberIds,
     };
     const onError = (err: unknown) => {
       const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
@@ -161,6 +176,45 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
               )}
             </div>
           )}
+
+          {/* Members — who can log time. Empty = everyone (Step T3.1). */}
+          <div className="space-y-1.5">
+            <Label>Members</Label>
+            <p className="text-xs text-fg-muted">
+              {memberIds.length === 0
+                ? 'Open to everyone. Select employees to restrict who can log time.'
+                : `${memberIds.length} member${memberIds.length === 1 ? '' : 's'} can log time on this project.`}
+            </p>
+            <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-lg border border-subtle bg-surface p-1">
+              {employeesLoading ? (
+                <p className="px-2 py-3 text-xs text-fg-muted">Loading employees…</p>
+              ) : employees.length === 0 ? (
+                <p className="px-2 py-3 text-xs text-fg-muted">No employees found.</p>
+              ) : (
+                employees.map((emp) => {
+                  const checked = memberIds.includes(emp.id);
+                  return (
+                    <label
+                      key={emp.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-surface-raised"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => toggleMember(emp.id, v === true)}
+                        aria-label={`${emp.firstName} ${emp.lastName}`}
+                      />
+                      <span className="text-sm text-fg">
+                        {emp.firstName} {emp.lastName}
+                      </span>
+                      <span className="ml-auto font-mono text-xs text-fg-muted">
+                        {emp.employeeCode}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
