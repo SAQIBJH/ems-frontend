@@ -2,14 +2,20 @@
 
 import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { FolderKanbanIcon, PencilIcon, PlusIcon, ArchiveIcon } from 'lucide-react';
+import {
+  FolderKanbanIcon,
+  PencilIcon,
+  PlusIcon,
+  ArchiveIcon,
+  ArchiveRestoreIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { DynamicTable } from '@/shared/engines/DynamicTable';
 import { cn } from '@/lib/utils';
 
-import { useProjects, useDeleteProject } from '../hooks/useProjects';
+import { useProjects, useDeleteProject, useUpdateProject } from '../hooks/useProjects';
 import { PROJECT_STATUS_CONFIG, BILLABLE_CONFIG } from '../constants';
 import { ProjectDrawer } from './ProjectDrawer';
 import type { Project } from '../types/timesheet.types';
@@ -17,6 +23,7 @@ import type { Project } from '../types/timesheet.types';
 export function ProjectsPanel({ canManage }: { canManage: boolean }) {
   const { data: projects = [], isLoading, isError, refetch } = useProjects();
   const deleteProject = useDeleteProject();
+  const updateProject = useUpdateProject();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
 
@@ -33,6 +40,15 @@ export function ProjectsPanel({ canManage }: { canManage: boolean }) {
       onSuccess: () => toast.success(`Project ${project.code} archived`),
       onError: () => toast.error('Failed to archive project'),
     });
+  }
+  function handleUnarchive(project: Project) {
+    updateProject.mutate(
+      { id: project.id, input: { status: 'ACTIVE' } },
+      {
+        onSuccess: () => toast.success(`Project ${project.code} restored`),
+        onError: () => toast.error('Failed to restore project'),
+      },
+    );
   }
 
   const columns: ColumnDef<Project>[] = [
@@ -100,7 +116,7 @@ export function ProjectsPanel({ canManage }: { canManage: boolean }) {
               <PencilIcon className="size-3.5" aria-hidden />
               Edit
             </Button>
-            {row.original.status === 'ACTIVE' && (
+            {row.original.status === 'ACTIVE' ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -110,6 +126,17 @@ export function ProjectsPanel({ canManage }: { canManage: boolean }) {
               >
                 <ArchiveIcon className="size-3.5" aria-hidden />
                 Archive
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-fg-muted"
+                onClick={() => handleUnarchive(row.original)}
+                disabled={updateProject.isPending}
+              >
+                <ArchiveRestoreIcon className="size-3.5" aria-hidden />
+                Unarchive
               </Button>
             )}
           </div>
