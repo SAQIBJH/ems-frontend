@@ -5573,7 +5573,7 @@ critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
 
 #### Timesheets — Progress tracker
 
-- [ ] Step T1 — Module foundation: projects & tasks + nav + permissions
+- [x] Step T1 — Module foundation: projects & tasks + nav + permissions
 - [ ] Step T2 — Weekly grid + time entries (manual)
 - [ ] Step T3 — Submit & approval workflow
 - [ ] Step T4 — Start/stop timer (Zustand)
