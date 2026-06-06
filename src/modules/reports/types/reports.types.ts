@@ -284,7 +284,8 @@ export type ReportType =
   | 'payroll/statutory-register'
   | 'payroll/bank-advice'
   | 'payroll/variance-register'
-  | 'payroll/pay-equity';
+  | 'payroll/pay-equity'
+  | 'timesheets/utilization';
 
 export interface ReportExportRequest {
   reportType: ReportType;

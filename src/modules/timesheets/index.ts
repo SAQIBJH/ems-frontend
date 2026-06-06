@@ -9,6 +9,10 @@ export type {
   TimeEntry,
   TimesheetStatus,
   Timesheet,
+  TimesheetSummaryRange,
+  TimesheetSummaryByProject,
+  TimesheetSummaryByEmployee,
+  TimesheetSummary,
   UnloggedHoursPolicy,
   TimesheetSettings,
   TimesheetSettingsInput,
@@ -40,6 +44,7 @@ export {
   useTimesheetApprovals,
   useApproveTimesheet,
   useRejectTimesheet,
+  useTimesheetSummary,
 } from './hooks/useTimesheets';
 export {
   useTimesheetPermissions,

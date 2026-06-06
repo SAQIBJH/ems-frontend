@@ -45,6 +45,10 @@ export const REPORT_NAV: ReportNavGroup[] = [
       { label: 'Pay Equity', value: 'payroll/pay-equity' },
     ],
   },
+  {
+    heading: 'TIMESHEETS',
+    items: [{ label: 'Utilization', value: 'timesheets/utilization' }],
+  },
 ];
 
 export const DEFAULT_REPORT: ReportType = 'workforce/headcount';

@@ -84,6 +84,37 @@ export interface Timesheet {
   entries: TimeEntry[];
 }
 
+/* ── Utilization summary (Step T5) ────────────────────────────────────────────── */
+
+/** A reporting window for the utilization summary. */
+export type TimesheetSummaryRange = '30d' | '90d';
+
+export interface TimesheetSummaryByProject {
+  projectId: string;
+  projectName: string;
+  hours: number;
+  billableHours: number;
+}
+
+export interface TimesheetSummaryByEmployee {
+  employeeId: string;
+  employeeName: string;
+  hours: number;
+  /** Billable share of the employee's logged hours, 0–100. */
+  utilizationPct: number;
+}
+
+export interface TimesheetSummary {
+  totalHours: number;
+  billableHours: number;
+  nonBillableHours: number;
+  overtimeHours: number;
+  /** Billable share of total logged hours, 0–100. */
+  utilizationPct: number;
+  byProject: TimesheetSummaryByProject[];
+  byEmployee: TimesheetSummaryByEmployee[];
+}
+
 /* ── Settings (Step T7) ───────────────────────────────────────────────────────── */
 
 /** Shortfall handling: IGNORE = never; FLAG = surface in review; DEDUCT = reduce pay. */

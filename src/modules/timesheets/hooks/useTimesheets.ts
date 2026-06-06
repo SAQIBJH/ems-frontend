@@ -5,7 +5,7 @@ import {
   type TimeEntryInput,
   type TimeEntryPatch,
 } from '../services/timesheets.api';
-import type { TimeEntry, Timesheet } from '../types/timesheet.types';
+import type { TimeEntry, Timesheet, TimesheetSummaryRange } from '../types/timesheet.types';
 import { TIMESHEET_KEYS } from './useProjects';
 
 /** The week's timesheet (synthesized DRAFT when none exists yet). */
@@ -91,5 +91,13 @@ export function useRejectTimesheet() {
       void qc.invalidateQueries({ queryKey: ['timesheets', 'approvals'] });
       void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(ts.weekStart, ts.employeeId) });
     },
+  });
+}
+
+/** Utilization summary over a range (defaults to all employees). */
+export function useTimesheetSummary(range: TimesheetSummaryRange = '30d', employeeId?: string) {
+  return useQuery({
+    queryKey: TIMESHEET_KEYS.summary(range, employeeId),
+    queryFn: () => timesheetsApi.getSummary(range, employeeId),
   });
 }

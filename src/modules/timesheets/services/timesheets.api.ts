@@ -1,6 +1,12 @@
 import { apiClient } from '@/lib/api-client';
 
-import type { TimeEntry, TimeEntrySource, Timesheet } from '../types/timesheet.types';
+import type {
+  TimeEntry,
+  TimeEntrySource,
+  Timesheet,
+  TimesheetSummary,
+  TimesheetSummaryRange,
+} from '../types/timesheet.types';
 
 /** Body for creating a time entry (self — employeeId is derived server-side). */
 export interface TimeEntryInput {
@@ -69,6 +75,19 @@ export const timesheetsApi = {
     const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/reject`, {
       comment,
     });
+    return data.data;
+  },
+
+  /** Utilization summary over a range (defaults to all employees). */
+  getSummary: async (
+    range: TimesheetSummaryRange = '30d',
+    employeeId?: string,
+  ): Promise<TimesheetSummary> => {
+    const params = new URLSearchParams({ range });
+    if (employeeId) params.set('employeeId', employeeId);
+    const { data } = await apiClient.get<{ data: TimesheetSummary }>(
+      `/timesheets/summary?${params.toString()}`,
+    );
     return data.data;
   },
 };

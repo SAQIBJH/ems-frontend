@@ -28,6 +28,8 @@ const panelMap: Record<ReportType, React.LazyExoticComponent<React.ComponentType
   'payroll/variance-register': lazy(() => import('./VarianceRegisterReport')),
   // Step 116 — compliance
   'payroll/pay-equity': lazy(() => import('./PayEquityReport')),
+  // Step T5 — timesheets
+  'timesheets/utilization': lazy(() => import('./TimesheetUtilizationReport')),
 };
 
 function PanelSkeleton() {

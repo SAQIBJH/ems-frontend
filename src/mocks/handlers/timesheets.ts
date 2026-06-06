@@ -405,6 +405,82 @@ export const timesheetHandlers = [
     return HttpResponse.json({ success: true, data: { id } });
   }),
 
+  /* Utilization summary (G.4) — totals, billable split, overtime, by project/employee */
+  http.get(`${BASE}/summary`, ({ request }) => {
+    const url = new URL(request.url);
+    const range = url.searchParams.get('range') === '90d' ? '90d' : '30d';
+    const employeeId = url.searchParams.get('employeeId') || undefined;
+    const cutoff = format(
+      addDays(parseISO(format(new Date(), 'yyyy-MM-dd')), range === '90d' ? -90 : -30),
+      'yyyy-MM-dd',
+    );
+
+    const scopedEntries = entries.filter(
+      (e) => e.date >= cutoff && (!employeeId || e.employeeId === employeeId),
+    );
+
+    const totalHours = round2(scopedEntries.reduce((acc, e) => acc + e.hours, 0));
+    const billableHours = round2(
+      scopedEntries.filter((e) => e.billable).reduce((acc, e) => acc + e.hours, 0),
+    );
+    const nonBillableHours = round2(totalHours - billableHours);
+    const utilizationPct = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
+
+    // Overtime from weeks whose Monday falls in range (and match the employee filter).
+    const overtimeHours = round2(
+      timesheets
+        .filter((t) => t.weekStart >= cutoff && (!employeeId || t.employeeId === employeeId))
+        .reduce((acc, t) => acc + recompute(t).overtimeHours, 0),
+    );
+
+    // By project
+    const byProjectMap = new Map<string, { hours: number; billableHours: number }>();
+    for (const e of scopedEntries) {
+      const agg = byProjectMap.get(e.projectId) ?? { hours: 0, billableHours: 0 };
+      agg.hours = round2(agg.hours + e.hours);
+      if (e.billable) agg.billableHours = round2(agg.billableHours + e.hours);
+      byProjectMap.set(e.projectId, agg);
+    }
+    const byProject = [...byProjectMap.entries()]
+      .map(([projectId, agg]) => ({
+        projectId,
+        projectName: projects.find((p) => p.id === projectId)?.name ?? 'Project',
+        hours: agg.hours,
+        billableHours: agg.billableHours,
+      }))
+      .sort((a, b) => b.hours - a.hours);
+
+    // By employee
+    const byEmployeeMap = new Map<string, { hours: number; billable: number }>();
+    for (const e of scopedEntries) {
+      const agg = byEmployeeMap.get(e.employeeId) ?? { hours: 0, billable: 0 };
+      agg.hours = round2(agg.hours + e.hours);
+      if (e.billable) agg.billable = round2(agg.billable + e.hours);
+      byEmployeeMap.set(e.employeeId, agg);
+    }
+    const byEmployee = [...byEmployeeMap.entries()]
+      .map(([id, agg]) => ({
+        employeeId: id,
+        employeeName: employeeName(id),
+        hours: agg.hours,
+        utilizationPct: agg.hours > 0 ? Math.round((agg.billable / agg.hours) * 100) : 0,
+      }))
+      .sort((a, b) => b.hours - a.hours);
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        totalHours,
+        billableHours,
+        nonBillableHours,
+        overtimeHours,
+        utilizationPct,
+        byProject,
+        byEmployee,
+      },
+    });
+  }),
+
   /* Submit the week for approval (G.2) — DRAFT/REJECTED → SUBMITTED */
   http.post(`${BASE}/:id/submit`, ({ params }) => {
     const { id } = params as { id: string };
