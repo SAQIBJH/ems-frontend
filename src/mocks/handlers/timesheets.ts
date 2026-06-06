@@ -497,6 +497,21 @@ export const timesheetHandlers = [
     return HttpResponse.json({ success: true, data: { id } });
   }),
 
+  /* Tenant settings (G.5) */
+  http.get(`${BASE}/settings`, () => {
+    return HttpResponse.json({ success: true, data: timesheetSettings });
+  }),
+
+  http.patch(`${BASE}/settings`, async ({ request }) => {
+    const body = (await request.json()) as Partial<TimesheetSettings>;
+    timesheetSettings = {
+      ...timesheetSettings,
+      ...body,
+      updatedAt: nowIso(),
+    };
+    return HttpResponse.json({ success: true, data: timesheetSettings });
+  }),
+
   /* Utilization summary (G.4) — totals, billable split, overtime, by project/employee */
   http.get(`${BASE}/summary`, ({ request }) => {
     const url = new URL(request.url);

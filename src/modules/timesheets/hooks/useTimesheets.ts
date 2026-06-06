@@ -5,7 +5,12 @@ import {
   type TimeEntryInput,
   type TimeEntryPatch,
 } from '../services/timesheets.api';
-import type { TimeEntry, Timesheet, TimesheetSummaryRange } from '../types/timesheet.types';
+import type {
+  TimeEntry,
+  Timesheet,
+  TimesheetSettingsInput,
+  TimesheetSummaryRange,
+} from '../types/timesheet.types';
 import { TIMESHEET_KEYS } from './useProjects';
 
 /** The week's timesheet (synthesized DRAFT when none exists yet). */
@@ -99,5 +104,21 @@ export function useTimesheetSummary(range: TimesheetSummaryRange = '30d', employ
   return useQuery({
     queryKey: TIMESHEET_KEYS.summary(range, employeeId),
     queryFn: () => timesheetsApi.getSummary(range, employeeId),
+  });
+}
+
+/** Tenant timesheet settings (standard hours, overtime, rounding, policies). */
+export function useTimesheetSettings() {
+  return useQuery({
+    queryKey: TIMESHEET_KEYS.settings,
+    queryFn: () => timesheetsApi.getSettings(),
+  });
+}
+
+export function useUpdateTimesheetSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: TimesheetSettingsInput) => timesheetsApi.updateSettings(patch),
+    onSuccess: (data) => qc.setQueryData(TIMESHEET_KEYS.settings, data),
   });
 }

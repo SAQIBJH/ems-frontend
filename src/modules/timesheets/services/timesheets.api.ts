@@ -4,6 +4,8 @@ import type {
   TimeEntry,
   TimeEntrySource,
   Timesheet,
+  TimesheetSettings,
+  TimesheetSettingsInput,
   TimesheetSummary,
   TimesheetSummaryRange,
 } from '../types/timesheet.types';
@@ -87,6 +89,20 @@ export const timesheetsApi = {
     if (employeeId) params.set('employeeId', employeeId);
     const { data } = await apiClient.get<{ data: TimesheetSummary }>(
       `/timesheets/summary?${params.toString()}`,
+    );
+    return data.data;
+  },
+
+  /** Tenant timesheet settings. */
+  getSettings: async (): Promise<TimesheetSettings> => {
+    const { data } = await apiClient.get<{ data: TimesheetSettings }>('/timesheets/settings');
+    return data.data;
+  },
+
+  updateSettings: async (patch: TimesheetSettingsInput): Promise<TimesheetSettings> => {
+    const { data } = await apiClient.patch<{ data: TimesheetSettings }>(
+      '/timesheets/settings',
+      patch,
     );
     return data.data;
   },

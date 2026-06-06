@@ -12,6 +12,7 @@ export const TIMESHEET_KEYS = {
   approvals: (status: string) => ['timesheets', 'approvals', status] as const,
   summary: (range: string, employeeId?: string) =>
     ['timesheets', 'summary', range, employeeId ?? 'all'] as const,
+  settings: ['timesheets', 'settings'] as const,
 };
 
 /** The full project list (admin / management view — includes archived). */

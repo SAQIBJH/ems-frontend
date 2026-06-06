@@ -12,6 +12,7 @@ import { TodayAttendanceCard } from './TodayAttendanceCard';
 import { LeaveBalanceMiniCard } from './LeaveBalanceMiniCard';
 import { UpcomingHolidaysCard } from './UpcomingHolidaysCard';
 import { MyDocumentsCard } from './MyDocumentsCard';
+import { MyTimesheetCard } from './MyTimesheetCard';
 import type { TeamPerson } from '../types/dashboard.types';
 
 function TeamPersonRow({ person, isManager }: { person: TeamPerson; isManager?: boolean }) {
@@ -119,11 +120,12 @@ export function EmployeeDashboard() {
         </Button>
       </div>
 
-      {/* Row 1: 3-column cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Row 1: summary cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TodayAttendanceCard />
         <LeaveBalanceMiniCard />
         <UpcomingHolidaysCard />
+        <MyTimesheetCard />
       </div>
 
       {/* Row 2: 2-column panels */}

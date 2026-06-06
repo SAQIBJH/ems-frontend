@@ -24,6 +24,7 @@ import {
   CalendarClockIcon,
   ScaleIcon,
   DatabaseIcon,
+  TimerIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers';
@@ -95,6 +96,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Attendance Rules',
         slug: 'attendance-rules',
         icon: ClipboardListIcon,
+        roles: ['HR_ADMIN', 'SUPER_ADMIN'],
+      },
+      {
+        label: 'Timesheets',
+        slug: 'timesheets',
+        icon: TimerIcon,
         roles: ['HR_ADMIN', 'SUPER_ADMIN'],
       },
     ],
