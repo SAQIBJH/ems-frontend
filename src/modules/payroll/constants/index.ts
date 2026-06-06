@@ -9,6 +9,8 @@ import type {
   PayrollEventCatalogEntry,
   TaxFormOption,
   JournalExportOption,
+  StatutoryReturnOption,
+  PayrollRegisterType,
 } from '../types/payroll.types';
 
 export const COMPONENT_TYPE_CONFIG: Record<
@@ -122,6 +124,41 @@ export const TAX_FORM_OPTIONS: TaxFormOption[] = [
   { type: 'FORM16', label: 'Form 16', description: 'India — TDS certificate' },
   { type: 'W2', label: 'Form W-2', description: 'United States — wage & tax statement' },
   { type: 'P60', label: 'P60', description: 'United Kingdom — end-of-year certificate' },
+];
+
+/** Selectable statutory returns (labels mirror the server-side return registry, §12). */
+export const STATUTORY_RETURN_OPTIONS: StatutoryReturnOption[] = [
+  { type: 'ECR', label: 'PF ECR', description: 'India — EPFO electronic challan-cum-return' },
+  { type: '24Q', label: 'TDS 24Q', description: 'India — quarterly salary TDS return' },
+  { type: 'RTI', label: 'RTI FPS', description: 'United Kingdom — RTI Full Payment Submission' },
+];
+
+/** Payroll registers surfaced in the Reports module payroll category (§12). */
+export const PAYROLL_REGISTERS: {
+  type: PayrollRegisterType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    type: 'SALARY',
+    label: 'Salary register',
+    description: 'Gross, deductions, employer cost & net by employee.',
+  },
+  {
+    type: 'STATUTORY',
+    label: 'Statutory register',
+    description: 'Statutory contributions & taxes by employee.',
+  },
+  {
+    type: 'BANK_ADVICE',
+    label: 'Bank advice',
+    description: 'Net payable per payee for bank disbursement.',
+  },
+  {
+    type: 'VARIANCE',
+    label: 'Variance register',
+    description: 'Net pay variance vs the prior run, with flags.',
+  },
 ];
 
 /** The subscribable webhook/notification event catalogue (§20). */

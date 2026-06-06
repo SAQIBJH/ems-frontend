@@ -72,6 +72,7 @@ import { AdjustmentDialog } from './AdjustmentDialog';
 import { RunInputsPanel } from './RunInputsPanel';
 import { DisbursementPanel } from './DisbursementPanel';
 import { JournalPanel } from './JournalPanel';
+import { StatutoryFilingPanel } from './StatutoryFilingPanel';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -941,6 +942,13 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
           run.status !== 'DRAFT' &&
           run.status !== 'CALCULATING' &&
           run.status !== 'CANCELLED' && <JournalPanel runId={run.id} />}
+
+        {/* Statutory filing returns — pack-driven exporters, once calculated */}
+        {run &&
+          run.type !== 'FNF' &&
+          run.status !== 'DRAFT' &&
+          run.status !== 'CALCULATING' &&
+          run.status !== 'CANCELLED' && <StatutoryFilingPanel runId={run.id} />}
 
         {/* FnF runs settle a single employee — show the settlement, not payslips */}
         {run?.type === 'FNF' ? (

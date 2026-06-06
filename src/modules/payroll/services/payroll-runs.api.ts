@@ -21,6 +21,9 @@ import type {
   PayrollEventCatalogEntry,
   JournalDocument,
   JournalExportFormat,
+  StatutoryReturnType,
+  PayrollRegister,
+  PayrollRegisterType,
 } from '../types/payroll.types';
 
 export const payrollRunsApi = {
@@ -266,6 +269,32 @@ export const payrollRunsApi = {
   exportJournal: async (runId: string, format: JournalExportFormat): Promise<Blob> => {
     const response = await apiClient.get(`/payroll/runs/${runId}/journal/export`, {
       params: { format },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+
+  /* ── Statutory filing & registers (§12) ─────────────────────────────────── */
+
+  exportStatutoryReturn: async (runId: string, type: StatutoryReturnType): Promise<Blob> => {
+    const response = await apiClient.get(`/payroll/runs/${runId}/statutory-return`, {
+      params: { type },
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+
+  getRegister: async (runId: string, type: PayrollRegisterType): Promise<PayrollRegister> => {
+    const { data } = await apiClient.get<{ data: PayrollRegister }>(
+      `/payroll/runs/${runId}/register`,
+      { params: { type } },
+    );
+    return data.data;
+  },
+
+  exportRegister: async (runId: string, type: PayrollRegisterType): Promise<Blob> => {
+    const response = await apiClient.get(`/payroll/runs/${runId}/register/export`, {
+      params: { type },
       responseType: 'blob',
     });
     return response.data as Blob;

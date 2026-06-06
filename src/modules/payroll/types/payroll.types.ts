@@ -892,6 +892,53 @@ export interface JournalExportOption {
   description: string;
 }
 
+/* ── Statutory filing & registers (§12) ────────────────────────────────────── */
+
+/** Statutory return formats — each resolves to a template in the return registry. */
+export type StatutoryReturnType = 'ECR' | '24Q' | 'RTI';
+
+export interface StatutoryReturnOption {
+  type: StatutoryReturnType;
+  label: string;
+  description: string;
+}
+
+/** The four payroll registers surfaced in the Reports module payroll category. */
+export type PayrollRegisterType = 'SALARY' | 'STATUTORY' | 'BANK_ADVICE' | 'VARIANCE';
+
+/** How a register column's raw value is formatted by the consuming UI. */
+export type RegisterColumnKind = 'text' | 'money' | 'number' | 'percent';
+
+/** A self-describing register column — config, so the UI renders generically. */
+export interface RegisterColumn {
+  key: string;
+  label: string;
+  align: 'left' | 'right';
+  kind: RegisterColumnKind;
+}
+
+export interface RegisterSummaryItem {
+  label: string;
+  /** Pre-formatted display value (server formats; UI shows verbatim). */
+  value: string;
+}
+
+/**
+ * A run-scoped register: self-describing columns + raw rows + a summary strip.
+ * Money cells are major-unit numbers (engine domain); the UI formats by `kind`.
+ */
+export interface PayrollRegister {
+  register: PayrollRegisterType;
+  runId: string;
+  period: string;
+  periodLabel: string;
+  currency: string;
+  columns: RegisterColumn[];
+  rows: Record<string, string | number | null>[];
+  summary: RegisterSummaryItem[];
+  generatedAt: string;
+}
+
 /* ── Disbursement & payments (§9) ──────────────────────────────────────────── */
 
 /** Per-payslip payout status, reconciled back from the bank/gateway. */

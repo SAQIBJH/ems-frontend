@@ -279,7 +279,11 @@ export type ReportType =
   | 'leave/utilization'
   | 'leave/pending'
   | 'payroll/summary'
-  | 'payroll/ctc-analysis';
+  | 'payroll/ctc-analysis'
+  | 'payroll/salary-register'
+  | 'payroll/statutory-register'
+  | 'payroll/bank-advice'
+  | 'payroll/variance-register';
 
 export interface ReportExportRequest {
   reportType: ReportType;

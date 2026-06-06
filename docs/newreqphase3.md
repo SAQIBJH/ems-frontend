@@ -1553,9 +1553,76 @@ config. **Roles:** HR_ADMIN / SUPER_ADMIN. Amounts are run-domain major units.
 
 ### F.12 — Statutory filing & registers (Step 114)
 
-- `GET /payroll/runs/:id/statutory-return?type=ECR|24Q|RTI` → exporter driven by the pack.
-- Payroll **registers** (salary, statutory, bank-advice, variance) surface in the
-  Reports module payroll category (reuse existing report shapes).
+> Role: HR_ADMIN / SUPER_ADMIN. MSW handler file:
+> `src/mocks/handlers/payroll-registers.ts`. Statutory-return exporter data:
+> `src/mocks/data/statutory-returns.ts` (template registry, country-agnostic).
+> All amounts in register rows are **major units** (the engine works in major INR);
+> the consuming UI formats by each column's `kind`.
+
+#### GET /payroll/runs/:id/statutory-return?type=ECR|24Q|RTI
+
+Exporter **driven by the pinned statutory pack + a return template registry** — no
+per-country code branch. Each return type is a template of delimited columns whose
+keys resolve against a generic per-employee context (`employeeCode`, `employeeName`,
+`gross`, `taxable`, `taxDeducted`, `net`, `contribution.<COMPONENT_CODE>`) built from
+the run's recomputed payslips. Adding a country's return = registering a template.
+
+- `ECR` — India EPFO electronic challan-cum-return (UAN, wages, EPF/EPS splits).
+- `24Q` — India quarterly salary TDS return (PAN, amount paid, TDS).
+- `RTI` — UK RTI Full Payment Submission (NINO, taxable pay, tax, NIC).
+
+Returns a downloadable **text file** (not JSON):
+
+```
+Content-Type: text/plain
+Content-Disposition: attachment; filename="statutory-return-<period>-<type>.txt"
+```
+
+Errors: `422 UNKNOWN_RETURN_TYPE` (type not in registry), `404 NOT_FOUND` (run absent).
+
+#### GET /payroll/runs/:id/register?type=SALARY|STATUTORY|BANK_ADVICE|VARIANCE
+
+Returns a **self-describing** register (columns are config, not hardcoded in the UI):
+
+```json
+{
+  "success": true,
+  "data": {
+    "register": "SALARY",
+    "runId": "run-...",
+    "period": "2026-04",
+    "periodLabel": "April 2026",
+    "currency": "INR",
+    "columns": [
+      { "key": "employeeCode", "label": "Code", "align": "left", "kind": "text" },
+      { "key": "gross", "label": "Gross", "align": "right", "kind": "money" }
+    ],
+    "rows": [{ "employeeCode": "E0001", "gross": 200000 }],
+    "summary": [{ "label": "Total gross", "value": "₹20,00,000" }],
+    "generatedAt": "2026-04-28T10:00:00.000Z"
+  }
+}
+```
+
+- `SALARY` — per-employee gross / deductions / employer cost / net (from payslips).
+- `STATUTORY` — one money column per `pack.statutoryComponents` code present in the
+  run (PF, PF_ER, ESI_EE, ESI_ER, PROF_TAX, TDS, …) — columns derived from the pack.
+- `BANK_ADVICE` — per-payee net amount + currency + payment reference.
+- `VARIANCE` — per-employee net Δ% vs the prior regular run + outlier flags
+  (reuses the run's variance computation).
+
+`column.kind` ∈ `text | money | number | percent`. `404 NOT_FOUND` if run absent;
+`422 UNKNOWN_REGISTER_TYPE` for an unknown type.
+
+#### GET /payroll/runs/:id/register/export?type=…
+
+CSV serialization of the same register (header from `columns[].label`, raw cell
+values). `Content-Disposition: attachment; filename="register-<period>-<type>.csv"`.
+
+These four registers surface in the **Reports** module payroll category
+(`payroll/salary-register`, `payroll/statutory-register`, `payroll/bank-advice`,
+`payroll/variance-register`) — each a `ReportShell` + `DynamicTable` panel with a
+run selector, reusing the existing report chrome.
 
 ---
 

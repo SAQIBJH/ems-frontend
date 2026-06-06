@@ -5,6 +5,7 @@ import type {
   PayrollRunInput,
   PayrollRunsParams,
   PayslipOneTime,
+  PayrollRegisterType,
 } from '../types/payroll.types';
 
 export const RUNS_KEY = ['payroll', 'runs'] as const;
@@ -203,6 +204,14 @@ export function useRunJournal(runId: string | null, enabled = true) {
   return useQuery({
     queryKey: [...RUNS_KEY, runId, 'journal'],
     queryFn: () => payrollRunsApi.getJournal(runId!),
+    enabled: !!runId && enabled,
+  });
+}
+
+export function useRunRegister(runId: string | null, type: PayrollRegisterType, enabled = true) {
+  return useQuery({
+    queryKey: [...RUNS_KEY, runId, 'register', type],
+    queryFn: () => payrollRunsApi.getRegister(runId!, type),
     enabled: !!runId && enabled,
   });
 }

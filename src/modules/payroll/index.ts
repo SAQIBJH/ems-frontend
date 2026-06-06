@@ -105,6 +105,13 @@ export type {
   JournalDocument,
   JournalExportFormat,
   JournalExportOption,
+  StatutoryReturnType,
+  StatutoryReturnOption,
+  PayrollRegisterType,
+  RegisterColumnKind,
+  RegisterColumn,
+  RegisterSummaryItem,
+  PayrollRegister,
 } from './types/payroll.types';
 
 // Localization types
@@ -193,6 +200,7 @@ export {
   useRunEvents,
   useEventCatalogue,
   useRunJournal,
+  useRunRegister,
 } from './hooks/usePayrollRuns';
 export { usePayslipTemplate, useUpdatePayslipTemplate } from './hooks/usePayslipTemplate';
 export { useTaxForm } from './hooks/useTaxForm';
@@ -267,6 +275,8 @@ export {
   PAYROLL_EVENT_CONFIG,
   TAX_FORM_OPTIONS,
   JOURNAL_EXPORT_FORMATS,
+  STATUTORY_RETURN_OPTIONS,
+  PAYROLL_REGISTERS,
 } from './constants';
 
 // Validations
@@ -293,6 +303,7 @@ export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';
 export { DisbursementPanel } from './components/DisbursementPanel';
 export { JournalPanel } from './components/JournalPanel';
+export { StatutoryFilingPanel } from './components/StatutoryFilingPanel';
 export { PayslipTemplatePanel } from './components/PayslipTemplatePanel';
 export { TaxFormDrawer } from './components/TaxFormDrawer';
 export { TaxFormsCard } from './components/TaxFormsCard';

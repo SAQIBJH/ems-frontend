@@ -257,6 +257,12 @@ function buildVariance(run: PayrollRun): RunVariance {
   };
 }
 
+/** Run's variance report by id (null if the run is unknown). Reused by registers (§12). */
+export function getRunVariance(runId: string): RunVariance | null {
+  const run = runs.find((r) => r.id === runId);
+  return run ? buildVariance(run) : null;
+}
+
 export const payrollRunHandlers = [
   http.get('/api/payroll/runs', ({ request }) => {
     const url = new URL(request.url);

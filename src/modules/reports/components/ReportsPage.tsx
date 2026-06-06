@@ -21,6 +21,11 @@ const panelMap: Record<ReportType, React.LazyExoticComponent<React.ComponentType
   // Step 65 — payroll panels
   'payroll/summary': lazy(() => import('./PayrollSummaryReport')),
   'payroll/ctc-analysis': lazy(() => import('./CtcAnalysisReport')),
+  // Step 114 — payroll registers
+  'payroll/salary-register': lazy(() => import('./SalaryRegisterReport')),
+  'payroll/statutory-register': lazy(() => import('./StatutoryRegisterReport')),
+  'payroll/bank-advice': lazy(() => import('./BankAdviceRegisterReport')),
+  'payroll/variance-register': lazy(() => import('./VarianceRegisterReport')),
 };
 
 function PanelSkeleton() {

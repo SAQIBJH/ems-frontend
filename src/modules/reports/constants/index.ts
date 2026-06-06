@@ -38,6 +38,10 @@ export const REPORT_NAV: ReportNavGroup[] = [
     items: [
       { label: 'Payroll Summary', value: 'payroll/summary' },
       { label: 'CTC Analysis', value: 'payroll/ctc-analysis' },
+      { label: 'Salary Register', value: 'payroll/salary-register' },
+      { label: 'Statutory Register', value: 'payroll/statutory-register' },
+      { label: 'Bank Advice', value: 'payroll/bank-advice' },
+      { label: 'Variance Register', value: 'payroll/variance-register' },
     ],
   },
 ];
