@@ -1024,3 +1024,127 @@ export interface PayslipRunPage {
     totalPages: number;
   };
 }
+
+/* ── Onboarding, migration & parallel run (§19) ────────────────────────────── */
+
+export type PayFrequency = 'MONTHLY' | 'SEMI_MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
+export type PayDateRule = 'LAST_WORKING_DAY' | 'FIXED_DAY' | 'NEXT_MONTH_FIXED_DAY';
+
+/** A published pay schedule per legal entity — cutoffs, processing & pay dates. */
+export interface PayCalendar {
+  id: string;
+  name: string;
+  legalEntityId: string | null;
+  frequency: PayFrequency;
+  /** Day-of-month the cycle's period starts (1–28). */
+  periodAnchor: number;
+  payDateRule: PayDateRule;
+  /** Day-of-month for FIXED_DAY rules; null otherwise. */
+  payDay: number | null;
+  /** Attendance/input cutoff day-of-month. */
+  cutoffDay: number;
+  holidayCalendarId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PayCalendarInput {
+  name: string;
+  legalEntityId: string | null;
+  frequency: PayFrequency;
+  periodAnchor: number;
+  payDateRule: PayDateRule;
+  payDay: number | null;
+  cutoffDay: number;
+  holidayCalendarId: string | null;
+}
+
+/** Imported opening YTD ledger for an employee — seeds mid-year go-live tax. */
+export interface OpeningBalance {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  fiscalYear: string;
+  grossEarnings: number;
+  taxableIncome: number;
+  taxDeducted: number;
+  totalDeductions: number;
+  netPay: number;
+  /** Opening statutory contribution totals by component code. */
+  contributions: Record<string, number>;
+  importedAt: string;
+}
+
+export interface OpeningBalanceInput {
+  fiscalYear: string;
+  grossEarnings: number;
+  taxableIncome: number;
+  taxDeducted: number;
+  totalDeductions: number;
+  netPay: number;
+  contributions?: Record<string, number>;
+}
+
+/** One prior payslip imported for continuity (tax forms, history). */
+export interface HistoricalPayslipImportRow {
+  employeeCode: string;
+  /** YYYY-MM. */
+  period: string;
+  grossEarnings: number;
+  totalDeductions: number;
+  netPay: number;
+}
+
+export interface HistoricalPayslipImportResult {
+  imported: number;
+  failed: number;
+  errors: { row: number; message: string }[];
+}
+
+/** Per-employee parallel-run reconciliation status. */
+export type ReconcileStatus = 'MATCH' | 'MISMATCH' | 'MISSING';
+
+export interface ReconcileItem {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  /** Run-domain major units. */
+  computedNet: number;
+  /** Legacy figure; null when no legacy row was supplied. */
+  legacyNet: number | null;
+  diff: number;
+  status: ReconcileStatus;
+}
+
+export interface ParallelReconcileResult {
+  runId: string;
+  period: string;
+  currency: string;
+  /** Acceptable absolute diff for a MATCH (major units). */
+  tolerance: number;
+  matched: number;
+  mismatched: number;
+  missing: number;
+  items: ReconcileItem[];
+  generatedAt: string;
+}
+
+export interface ParallelReconcileInput {
+  tolerance?: number;
+  legacy: { employeeCode: string; netPay: number }[];
+}
+
+/** Tenant migration state — sandbox flag, go-live period & derived progress counts. */
+export interface MigrationStatus {
+  sandboxMode: boolean;
+  goLivePeriod: string | null;
+  openingBalancesCount: number;
+  historicalPayslipsCount: number;
+  lastReconciledRunId: string | null;
+  updatedAt: string;
+}
+
+export interface MigrationStatusInput {
+  sandboxMode?: boolean;
+  goLivePeriod?: string | null;
+}

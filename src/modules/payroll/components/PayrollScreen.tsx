@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GlobeIcon, WalletIcon } from 'lucide-react';
+import { GlobeIcon, WalletIcon, ArrowRightLeftIcon } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/shared/layouts/PageHeader';
@@ -40,6 +40,13 @@ export function PayrollScreen() {
         actions={
           isHrOrAdmin ? (
             <div className="flex items-center gap-2">
+              <Link
+                href="/payroll/migration"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <ArrowRightLeftIcon className="size-3.5" aria-hidden />
+                Migration
+              </Link>
               <Link
                 href="/payroll/global"
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}

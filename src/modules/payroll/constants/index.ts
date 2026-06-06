@@ -11,6 +11,9 @@ import type {
   JournalExportOption,
   StatutoryReturnOption,
   PayrollRegisterType,
+  PayFrequency,
+  PayDateRule,
+  ReconcileStatus,
 } from '../types/payroll.types';
 
 export const COMPONENT_TYPE_CONFIG: Record<
@@ -220,3 +223,30 @@ export const PAYROLL_EVENT_CONFIG: Record<PayrollEventCatalogEntry['category'], 
     payment: { color: 'text-warning bg-warning/10' },
     employee: { color: 'text-brand bg-brand/10' },
   };
+
+/* ── Onboarding & migration (§19) ──────────────────────────────────────────── */
+
+export const PAY_FREQUENCY_CONFIG: Record<PayFrequency, { label: string }> = {
+  MONTHLY: { label: 'Monthly' },
+  SEMI_MONTHLY: { label: 'Semi-monthly' },
+  BIWEEKLY: { label: 'Bi-weekly' },
+  WEEKLY: { label: 'Weekly' },
+};
+
+export const PAY_DATE_RULE_CONFIG: Record<PayDateRule, { label: string; description: string }> = {
+  LAST_WORKING_DAY: {
+    label: 'Last working day',
+    description: 'Pay on the last working day of the period.',
+  },
+  FIXED_DAY: { label: 'Fixed day', description: 'Pay on a fixed day-of-month in the period.' },
+  NEXT_MONTH_FIXED_DAY: {
+    label: 'Next-month fixed day',
+    description: 'Pay on a fixed day in the month after the period.',
+  },
+};
+
+export const RECONCILE_STATUS_CONFIG: Record<ReconcileStatus, { label: string; color: string }> = {
+  MATCH: { label: 'Match', color: 'text-success bg-success/10' },
+  MISMATCH: { label: 'Mismatch', color: 'text-danger bg-danger/10' },
+  MISSING: { label: 'Missing', color: 'text-warning bg-warning/10' },
+};

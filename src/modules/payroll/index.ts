@@ -112,6 +112,20 @@ export type {
   RegisterColumn,
   RegisterSummaryItem,
   PayrollRegister,
+  PayFrequency,
+  PayDateRule,
+  PayCalendar,
+  PayCalendarInput,
+  OpeningBalance,
+  OpeningBalanceInput,
+  HistoricalPayslipImportRow,
+  HistoricalPayslipImportResult,
+  ReconcileStatus,
+  ReconcileItem,
+  ParallelReconcileResult,
+  ParallelReconcileInput,
+  MigrationStatus,
+  MigrationStatusInput,
 } from './types/payroll.types';
 
 // Localization types
@@ -158,6 +172,7 @@ export { employeeSalaryApi } from './services/employee-salary.api';
 export { payrollRunsApi } from './services/payroll-runs.api';
 export { payslipTemplatesApi } from './services/payslip-templates.api';
 export { taxFormsApi } from './services/tax-forms.api';
+export { payrollMigrationApi } from './services/migration.api';
 
 // Hooks
 export {
@@ -244,6 +259,18 @@ export {
   useCreateStatutoryPack,
   useUpdateStatutoryPack,
 } from './hooks/useLocalization';
+export {
+  usePayCalendars,
+  useCreatePayCalendar,
+  useUpdatePayCalendar,
+  useOpeningBalances,
+  useSaveOpeningBalance,
+  useHistoricalPayslips,
+  useImportHistoricalPayslips,
+  useParallelReconcile,
+  useMigrationStatus,
+  useUpdateMigrationStatus,
+} from './hooks/useMigration';
 
 // Utils
 export {
@@ -277,6 +304,9 @@ export {
   JOURNAL_EXPORT_FORMATS,
   STATUTORY_RETURN_OPTIONS,
   PAYROLL_REGISTERS,
+  PAY_FREQUENCY_CONFIG,
+  PAY_DATE_RULE_CONFIG,
+  RECONCILE_STATUS_CONFIG,
 } from './constants';
 
 // Validations
@@ -298,6 +328,7 @@ export { LegalEntityDrawer } from './components/LegalEntityDrawer';
 export { StatutoryPacksPanel } from './components/StatutoryPacksPanel';
 export { PayrollScreen } from './components/PayrollScreen';
 export { GlobalWorkforceScreen } from './components/GlobalWorkforceScreen';
+export { MigrationScreen } from './components/MigrationScreen';
 export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';

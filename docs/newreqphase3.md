@@ -1628,10 +1628,118 @@ run selector, reusing the existing report chrome.
 
 ### F.13 — Onboarding & migration (Step 115)
 
-- `POST /payroll/employees/:id/opening-balances` — opening YTD for mid-year go-live.
-- `POST /payroll/migration/historical-payslips` — bulk import prior payslips.
-- `POST /payroll/runs/:id/parallel-reconcile` — diff computed vs. legacy figures → reconciliation report.
-- `GET/POST/PATCH /payroll/pay-calendars` — `{ frequency, periodAnchor, payDateRule, cutoffDay, holidayCalendarId }`.
+> Role: HR_ADMIN / SUPER_ADMIN. MSW handler file:
+> `src/mocks/handlers/payroll-migration.ts`. Money fields are **major units**
+> (run-domain), dates `YYYY-MM-DD` / periods `YYYY-MM`.
+
+#### GET/POST/PATCH /payroll/pay-calendars
+
+A published pay schedule per legal entity — cutoffs, processing & pay dates.
+
+```jsonc
+// PayCalendar
+{
+  "id": "cal-1",
+  "name": "India Monthly",
+  "legalEntityId": "le-in",
+  "frequency": "MONTHLY", // MONTHLY | SEMI_MONTHLY | BIWEEKLY | WEEKLY
+  "periodAnchor": 1, // day-of-month the cycle's period starts (1–28)
+  "payDateRule": "LAST_WORKING_DAY", // LAST_WORKING_DAY | FIXED_DAY | NEXT_MONTH_FIXED_DAY
+  "payDay": null, // day-of-month for FIXED_DAY rules, else null
+  "cutoffDay": 25, // attendance/input cutoff day-of-month
+  "holidayCalendarId": null,
+  "createdAt": "…",
+  "updatedAt": "…",
+}
+```
+
+POST/PATCH body is the same minus server fields (`PayCalendarInput`). List →
+`{ success, data: PayCalendar[] }`. `404 NOT_FOUND` on PATCH of an unknown id.
+
+#### GET /payroll/opening-balances · POST /payroll/employees/:id/opening-balances
+
+Opening YTD per employee, so the **first** run computes correct cumulative tax &
+ceilings (§5.5). POST body (`OpeningBalanceInput`):
+
+```json
+{
+  "fiscalYear": "2026-27",
+  "grossEarnings": 1200000,
+  "taxableIncome": 1080000,
+  "taxDeducted": 90000,
+  "totalDeductions": 180000,
+  "netPay": 1020000,
+  "contributions": { "PF": 86400 }
+}
+```
+
+Stored as `OpeningBalance` (adds `employeeCode`, `employeeName`, `importedAt`). POST is
+idempotent per `(employeeId, fiscalYear)` — re-posting replaces. List →
+`{ success, data: OpeningBalance[] }`. `404` if the employee is not on the roster.
+
+#### GET / POST /payroll/migration/historical-payslips
+
+Bulk-import prior payslips for continuity & tax forms. POST body:
+`{ rows: HistoricalPayslipImportRow[] }` where each row is
+`{ employeeCode, period (YYYY-MM), grossEarnings, totalDeductions, netPay }`. Returns
+`HistoricalPayslipImportResult`: `{ imported, failed, errors: { row, message }[] }`
+(an unknown `employeeCode` is a per-row error, not a 4xx). GET →
+`{ success, data: { count, rows: HistoricalPayslipImportRow[] } }`.
+
+#### POST /payroll/runs/:id/parallel-reconcile
+
+Diff the run's **computed** net pay against **legacy** figures, employee-by-employee.
+Body (`ParallelReconcileInput`):
+`{ tolerance?: number, legacy: { employeeCode, netPay }[] }`. Returns
+`ParallelReconcileResult`:
+
+```jsonc
+{
+  "runId": "run-1",
+  "period": "2026-04",
+  "currency": "INR",
+  "tolerance": 0,
+  "matched": 9,
+  "mismatched": 1,
+  "missing": 0,
+  "items": [
+    {
+      "employeeId": "emp-001",
+      "employeeCode": "E0001",
+      "employeeName": "Aman Kumar",
+      "computedNet": 178520,
+      "legacyNet": 178520,
+      "diff": 0,
+      "status": "MATCH",
+    },
+    // status: MATCH (|diff| ≤ tolerance) | MISMATCH | MISSING (no legacy row)
+  ],
+  "generatedAt": "…",
+}
+```
+
+`404 NOT_FOUND` if the run is absent.
+
+#### GET/PATCH /payroll/migration/status
+
+Tenant migration state incl. the **sandbox/test** flag and go-live period.
+
+```json
+{
+  "sandboxMode": true,
+  "goLivePeriod": null,
+  "openingBalancesCount": 0,
+  "historicalPayslipsCount": 0,
+  "lastReconciledRunId": null,
+  "updatedAt": "…"
+}
+```
+
+PATCH body (`MigrationStatusInput`): `{ sandboxMode?, goLivePeriod? }`. The three
+counts/`lastReconciledRunId` are server-derived (read-only).
+
+UI: a light migration **wizard** at `/payroll/migration` (HR_ADMIN / SUPER_ADMIN) —
+tabs for Pay Calendar, Opening Balances, Historical Payslips, Parallel Run, Go-Live.
 
 ---
 
