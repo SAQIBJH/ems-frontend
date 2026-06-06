@@ -4936,7 +4936,7 @@ All three must be clean.
 - [x] Step 112 — Tax forms (Form 16 / W-2 / P60)
 - [x] Step 113 — Accounting: GL journal + cost centers + export
 - [x] Step 114 — Statutory returns / registers into Reports
-- [ ] Step 115 — Onboarding & migration (opening YTD + parallel run)
+- [x] Step 115 — Onboarding & migration (opening YTD + parallel run)
 - [ ] Step 116 — Compliance assurance reporting (pay-equity, residency, audit pack)
 - [ ] Step 117 — Self-service consolidation + final verification gate
 
