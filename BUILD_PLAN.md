@@ -4932,7 +4932,7 @@ All three must be clean.
 **P3 — Disbursement, documents, accounting, filing**
 
 - [x] Step 110 — Disbursement: bank files + payout status + reconciliation
-- [ ] Step 111 — Payslip templates + publish / notifications / webhook events
+- [x] Step 111 — Payslip templates + publish / notifications / webhook events
 - [ ] Step 112 — Tax forms (Form 16 / W-2 / P60)
 - [ ] Step 113 — Accounting: GL journal + cost centers + export
 - [ ] Step 114 — Statutory returns / registers into Reports
