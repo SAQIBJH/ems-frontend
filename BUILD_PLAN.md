@@ -5581,7 +5581,7 @@ critical gap). Files: `mocks/handlers/payroll-runs.ts`, `payroll-employee.ts`,
 - [x] Step T5 — Utilization report (Reports module)
 - [x] Step T6 — Payroll integration (overtime → `otHours`; opt-in LOP)
 - [x] Step T7 — Settings panel + dashboard widget
-- [ ] Step T8 — Final verification gate
+- [x] Step T8 — Final verification gate
 
 ---
 
