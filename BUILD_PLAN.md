@@ -4933,7 +4933,7 @@ All three must be clean.
 
 - [x] Step 110 — Disbursement: bank files + payout status + reconciliation
 - [x] Step 111 — Payslip templates + publish / notifications / webhook events
-- [ ] Step 112 — Tax forms (Form 16 / W-2 / P60)
+- [x] Step 112 — Tax forms (Form 16 / W-2 / P60)
 - [ ] Step 113 — Accounting: GL journal + cost centers + export
 - [ ] Step 114 — Statutory returns / registers into Reports
 - [ ] Step 115 — Onboarding & migration (opening YTD + parallel run)
