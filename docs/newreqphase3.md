@@ -1953,9 +1953,10 @@ Final verification gate for the phase:
 - `GET /timesheets?week=YYYY-MM-DD&employeeId=` → `Timesheet` for that week (self if
   `employeeId` omitted). Returns a synthesized `DRAFT` (empty `entries`) when none
   exists yet, so the grid always has a week to edit.
-- `POST /timesheets/entries` — body `{ weekStart, projectId, taskId, date, hours, billable?, note? }`
+- `POST /timesheets/entries` — body `{ weekStart, projectId, taskId, date, hours, billable?, note?, source? }`
   → `TimeEntry` (201). Creates/attaches to the week's timesheet; `422` if the week is
-  not `DRAFT`/`REJECTED` (can't edit a submitted/approved week).
+  not `DRAFT`/`REJECTED` (can't edit a submitted/approved week). `source ∈ MANUAL | TIMER`
+  (default `MANUAL`); the timer's **Stop** (Step T4) posts here with `source: "TIMER"`.
 - `PATCH /timesheets/entries/:id` → `TimeEntry`.
 - `DELETE /timesheets/entries/:id` → `{ id }`.
 - `POST /timesheets/:id/submit` → `Timesheet` (`DRAFT`/`REJECTED` → `SUBMITTED`).
@@ -1980,8 +1981,8 @@ Final verification gate for the phase:
 
 - `GET /timesheets/summary?range=30d|90d&employeeId=` →
   `{ totalHours, billableHours, nonBillableHours, overtimeHours, utilizationPct,
- byProject: { projectId, projectName, hours, billableHours }[],
- byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
+byProject: { projectId, projectName, hours, billableHours }[],
+byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
 - Surfaces as a **Reports → (new) Timesheets** category panel, report type
   `timesheets/utilization` (additive to `reports.types.ts` — `ReportShell` +
   `ChartEngine`, same pattern as the payroll registers).

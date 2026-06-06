@@ -317,6 +317,7 @@ export const timesheetHandlers = [
       hours: number;
       billable?: boolean;
       note?: string;
+      source?: TimeEntry['source'];
       employeeId?: string;
     };
     const employeeId = body.employeeId || DEFAULT_EMPLOYEE_ID;
@@ -343,7 +344,7 @@ export const timesheetHandlers = [
       hours: body.hours,
       billable: body.billable ?? task?.billable ?? project?.billable ?? false,
       note: body.note ?? '',
-      source: 'MANUAL',
+      source: body.source === 'TIMER' ? 'TIMER' : 'MANUAL',
     };
     entries = [...entries, created];
     recompute(ts);

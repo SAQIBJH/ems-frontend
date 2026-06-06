@@ -81,3 +81,8 @@ export { TimeEntryDialog } from './components/TimeEntryDialog';
 export { TimesheetStatusBadge } from './components/TimesheetStatusBadge';
 export { TimesheetSubmitBar } from './components/TimesheetSubmitBar';
 export { ApprovalsTab } from './components/ApprovalsTab';
+export { TimerBar } from './components/TimerBar';
+
+// Store (client-only timer state)
+export { useTimerStore } from './store/timer.slice';
+export type { TimerDraft } from './store/timer.slice';

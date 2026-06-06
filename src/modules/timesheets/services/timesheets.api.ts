@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 
-import type { TimeEntry, Timesheet } from '../types/timesheet.types';
+import type { TimeEntry, TimeEntrySource, Timesheet } from '../types/timesheet.types';
 
 /** Body for creating a time entry (self — employeeId is derived server-side). */
 export interface TimeEntryInput {
@@ -13,6 +13,8 @@ export interface TimeEntryInput {
   hours: number;
   billable?: boolean;
   note?: string;
+  /** MANUAL (default) or TIMER when posted by the stop action of the timer. */
+  source?: TimeEntrySource;
 }
 
 /** Patchable fields on an existing entry (the week it belongs to never changes). */
