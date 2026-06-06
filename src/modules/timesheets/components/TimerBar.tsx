@@ -143,7 +143,9 @@ export function TimerBar({ employeeId }: TimerBarProps) {
         disabled={running}
       >
         <SelectTrigger className="h-8 w-[180px]" aria-label="Project">
-          <SelectValue placeholder="Project" />
+          <SelectValue placeholder="Project">
+            {(v) => activeProjects.find((p) => p.id === v)?.name ?? 'Project'}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {activeProjects.map((p) => (
@@ -161,9 +163,9 @@ export function TimerBar({ employeeId }: TimerBarProps) {
         disabled={running || !draft.projectId || tasksLoading}
       >
         <SelectTrigger className="h-8 w-[150px]" aria-label="Task">
-          <SelectValue
-            placeholder={!draft.projectId ? 'Task' : tasksLoading ? 'Loading…' : 'Task'}
-          />
+          <SelectValue placeholder={!draft.projectId ? 'Task' : tasksLoading ? 'Loading…' : 'Task'}>
+            {(v) => activeTasks.find((t) => t.id === v)?.name ?? 'Task'}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {activeTasks.map((t) => (

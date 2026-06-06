@@ -149,7 +149,9 @@ function SettingsForm({ data }: { data: TimesheetSettings }) {
             }
           >
             <SelectTrigger className="max-w-[200px]">
-              <SelectValue />
+              <SelectValue>
+                {(v) => ROUNDING_OPTIONS.find((o) => o.value === String(v))?.label ?? v}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {ROUNDING_OPTIONS.map((o) => (
@@ -174,7 +176,9 @@ function SettingsForm({ data }: { data: TimesheetSettings }) {
             }
           >
             <SelectTrigger className="max-w-[280px]">
-              <SelectValue />
+              <SelectValue>
+                {(v) => POLICY_OPTIONS.find((o) => o.value === v)?.label ?? v}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {POLICY_OPTIONS.map((o) => (

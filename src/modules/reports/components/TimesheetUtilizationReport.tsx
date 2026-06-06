@@ -79,7 +79,7 @@ export default function TimesheetUtilizationReport() {
   const filterBar = (
     <Select value={range} onValueChange={(v) => setRange((v as TimesheetSummaryRange) ?? '30d')}>
       <SelectTrigger className="h-8 w-40 text-sm">
-        <SelectValue />
+        <SelectValue>{(v) => RANGE_LABEL[v as TimesheetSummaryRange] ?? v}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="30d">{RANGE_LABEL['30d']}</SelectItem>

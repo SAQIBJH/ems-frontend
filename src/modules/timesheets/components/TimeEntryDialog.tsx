@@ -149,7 +149,9 @@ export function TimeEntryDialog({
               onValueChange={(v) => form.setValue('projectId', v ?? '', { shouldValidate: true })}
             >
               <SelectTrigger id="te-project">
-                <SelectValue placeholder="Select a project" />
+                <SelectValue placeholder="Select a project">
+                  {(v) => activeProjects.find((p) => p.id === v)?.name ?? 'Select a project'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {activeProjects.map((p) => (
@@ -182,7 +184,9 @@ export function TimeEntryDialog({
                         ? 'Loading tasks…'
                         : 'Select a task'
                   }
-                />
+                >
+                  {(v) => activeTasks.find((t) => t.id === v)?.name ?? 'Select a task'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {activeTasks.map((t) => (
@@ -206,7 +210,9 @@ export function TimeEntryDialog({
                 onValueChange={(v) => form.setValue('date', v ?? '', { shouldValidate: true })}
               >
                 <SelectTrigger id="te-date">
-                  <SelectValue placeholder="Select a day" />
+                  <SelectValue placeholder="Select a day">
+                    {(v) => (v ? format(parseISO(v as string), 'EEE, MMM d') : 'Select a day')}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {weekDays.map((d) => (

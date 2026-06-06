@@ -641,6 +641,30 @@ Every component MUST handle four states: **loading, empty, error, success**.
 
 A component that handles only the success path is **not done**.
 
+### Dropdowns (Select) — non-negotiable
+
+Always use the shadcn `Select` (`components/ui/select.tsx`); **never** a native `<select>`.
+Two rules every `Select` MUST satisfy:
+
+1. **Cursor + breathing room.** The trigger is `cursor-pointer` and the menu opens
+   below the trigger, sized to fit its options (handled in the shared primitive — do
+   not regress it). Don't constrain a trigger so narrowly that option text clips.
+2. **Render the option _name_, not its value.** Our `Select` is **Base UI**, not Radix —
+   `SelectValue` shows the raw `value` by default. Whenever the `value` is an id/code/enum
+   that differs from the visible label, give `SelectValue` a render function that maps
+   value → label (fall back to the raw value):
+
+   ```tsx
+   <SelectTrigger>
+     <SelectValue placeholder="Select a project">
+       {(v) => projects.find((p) => p.id === v)?.name ?? 'Select a project'}
+     </SelectValue>
+   </SelectTrigger>
+   ```
+
+   If `value === label` (e.g. a year or a status string), a plain
+   `<SelectValue placeholder="…" />` is fine.
+
 ---
 
 ## 14. What NOT to do
