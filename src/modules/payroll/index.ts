@@ -44,6 +44,14 @@ export type {
   GarnishmentAmount,
   Garnishment,
   GarnishmentInput,
+  WorkerClassification,
+  Worker,
+  ContractorInvoiceStatus,
+  ContractorInvoice,
+  ContractorInvoiceInput,
+  CostGroupBy,
+  CostSummaryGroup,
+  CostSummary,
   PayslipRunItem,
   PayrollRunWarning,
   PayrollRunDeptSummary,
@@ -108,6 +116,7 @@ export type { FormatMoneyOptions } from './utils/money.utils';
 export { localizationApi } from './services/localization.api';
 export { loansApi } from './services/loans.api';
 export { garnishmentsApi } from './services/garnishments.api';
+export { workersApi } from './services/workers.api';
 export { claimsApi } from './services/claims.api';
 export { payrollComponentsApi } from './services/payroll-components.api';
 export { payGroupsApi } from './services/pay-groups.api';
@@ -170,6 +179,14 @@ export {
   useCreateGarnishment,
   useDeleteGarnishment,
 } from './hooks/useGarnishments';
+export {
+  useWorkers,
+  useUpdateWorkerClassification,
+  useContractorInvoices,
+  useCreateContractorInvoice,
+  useDecideContractorInvoice,
+  useCostSummary,
+} from './hooks/useWorkers';
 export { useClaims, useClaimCategories, useSubmitClaim, useDecideClaim } from './hooks/useClaims';
 export {
   useCountries,
@@ -220,6 +237,7 @@ export { LegalEntitiesPanel } from './components/LegalEntitiesPanel';
 export { LegalEntityDrawer } from './components/LegalEntityDrawer';
 export { StatutoryPacksPanel } from './components/StatutoryPacksPanel';
 export { PayrollScreen } from './components/PayrollScreen';
+export { GlobalWorkforceScreen } from './components/GlobalWorkforceScreen';
 export { PayrollRunsTab } from './components/PayrollRunsTab';
 export { InitiateRunDialog } from './components/InitiateRunDialog';
 export { PayrollRunDetail } from './components/PayrollRunDetail';

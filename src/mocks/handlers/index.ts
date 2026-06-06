@@ -14,6 +14,7 @@ import { payrollInputHandlers } from './payroll-inputs';
 import { payrollTaxDeclarationHandlers } from './payroll-tax-declaration';
 import { payrollLoanHandlers } from './payroll-loans';
 import { payrollGarnishmentHandlers } from './payroll-garnishments';
+import { payrollWorkerHandlers } from './payroll-workers';
 import { payrollClaimHandlers } from './payroll-claims';
 import { reportsHandlers } from './reports';
 import { analyticsHandlers } from './analytics';
@@ -88,6 +89,7 @@ export const handlers = [
   ...payrollTaxDeclarationHandlers,
   ...payrollLoanHandlers,
   ...payrollGarnishmentHandlers,
+  ...payrollWorkerHandlers,
   ...payrollClaimHandlers,
   ...reportsHandlers,
   ...analyticsHandlers,

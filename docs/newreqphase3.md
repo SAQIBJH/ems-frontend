@@ -1425,10 +1425,25 @@ mandated deductions (not voluntary). **Roles:** HR_ADMIN / SUPER_ADMIN.
 
 ### F.8 — Global employment models (Step 109)
 
-- Worker record gains `classification: EMPLOYEE | CONTRACTOR | EOR`.
-- `GET/POST/PATCH /payroll/contractor-invoices` — `{ id, workerId, period, amount,
-currency, withholdingPct, status, payoutRef }`.
-- `GET /payroll/cost-summary?groupBy=entity|currency|classification` — FX-consolidated cost.
+One tenant pays salaried **employees** (own entity), invoice-based **contractors** (no
+statutory withholding; optional WHT-at-source), and **EOR** workers (paid via a partner
+entity abroad). **Roles:** HR_ADMIN / SUPER_ADMIN. Money is minor units.
+
+- **Workers.** `GET /payroll/workers[?classification=EMPLOYEE|CONTRACTOR|EOR]` →
+  `Worker[]` = `{ id, name, classification, country, currency, legalEntityId, legalEntityName, monthlyCost, riskFlag, active }`.
+  `PATCH /payroll/workers/:id { classification }` re-classifies (drives which pipeline
+  applies). `riskFlag` carries a **misclassification** warning (e.g. a contractor working
+  like staff).
+- **Contractor invoices.** `GET /payroll/contractor-invoices[?workerId=&status=]` →
+  `ContractorInvoice[]` = `{ id, workerId, workerName, period, amount, currency, withholdingPct, netPayable, status: SUBMITTED|APPROVED|PAID, payoutRef, submittedAt, decidedAt }`.
+  `POST { workerId, period, amount, currency?, withholdingPct? }` (server computes
+  `netPayable = amount − round(amount·withholdingPct/100)`; `422 INVALID_WORKER` unless
+  the worker is a CONTRACTOR). `PATCH :id { status, payoutRef? }` approves / pays
+  (multi-currency payout; `PAID` records a payout reference).
+- **Cost aggregation.** `GET /payroll/cost-summary?groupBy=entity|currency|classification`
+  → `{ groupBy, baseCurrency, totalBaseCost, totalWorkers, groups: { key, workerCount, baseAmount }[], fxRates }`.
+  Each worker's `monthlyCost` is consolidated into the base currency via a date-effective
+  **FX table** (§3.3) — global total people cost across entities, currencies, and types.
 
 ---
 

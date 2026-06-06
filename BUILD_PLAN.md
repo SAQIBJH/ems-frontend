@@ -4927,7 +4927,7 @@ All three must be clean.
 - [x] Step 106 — Country pay practices + multi-jurisdiction tax
 - [x] Step 107 — Garnishments / court orders
 - [x] Step 108 — Approvals/maker-checker/variance + `payroll:*` perms + idempotency/dry-run
-- [ ] Step 109 — Global employment models (EOR + contractors)
+- [x] Step 109 — Global employment models (EOR + contractors)
 
 **P3 — Disbursement, documents, accounting, filing**
 

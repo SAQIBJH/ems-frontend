@@ -650,6 +650,75 @@ export interface GarnishmentInput {
   effectiveTo?: string | null;
 }
 
+/* ── Global employment models (§18) ────────────────────────────────────────── */
+
+export type WorkerClassification = 'EMPLOYEE' | 'CONTRACTOR' | 'EOR';
+
+export interface Worker {
+  id: string;
+  name: string;
+  classification: WorkerClassification;
+  /** ISO 3166-1 alpha-2. */
+  country: string;
+  /** ISO 4217 — the worker's pay/contract currency. */
+  currency: string;
+  legalEntityId: string;
+  legalEntityName: string;
+  /** Monthly people cost in the worker's own currency, minor units. */
+  monthlyCost: number;
+  /** Misclassification / compliance risk flag (e.g. contractor working like staff). */
+  riskFlag: string | null;
+  active: boolean;
+}
+
+export type ContractorInvoiceStatus = 'SUBMITTED' | 'APPROVED' | 'PAID';
+
+export interface ContractorInvoice {
+  id: string;
+  workerId: string;
+  workerName: string;
+  /** YYYY-MM. */
+  period: string;
+  /** Gross invoice amount, minor units. */
+  amount: number;
+  currency: string;
+  /** Optional withholding-tax-at-source, percent. */
+  withholdingPct: number;
+  /** amount − withholding, minor units. */
+  netPayable: number;
+  status: ContractorInvoiceStatus;
+  payoutRef: string | null;
+  submittedAt: string;
+  decidedAt: string | null;
+}
+
+export interface ContractorInvoiceInput {
+  workerId: string;
+  period: string;
+  amount: number;
+  currency?: string;
+  withholdingPct?: number;
+}
+
+export type CostGroupBy = 'entity' | 'currency' | 'classification';
+
+export interface CostSummaryGroup {
+  key: string;
+  workerCount: number;
+  /** Consolidated cost in the base currency, minor units. */
+  baseAmount: number;
+}
+
+export interface CostSummary {
+  groupBy: CostGroupBy;
+  baseCurrency: string;
+  totalBaseCost: number;
+  totalWorkers: number;
+  groups: CostSummaryGroup[];
+  /** Currency → rate applied to consolidate into the base currency. */
+  fxRates: Record<string, number>;
+}
+
 export interface PayrollRunsPage {
   items: PayrollRun[];
   pagination: {

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { WalletIcon } from 'lucide-react';
+import { GlobeIcon, WalletIcon } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { useAuth } from '@/providers';
 
@@ -38,10 +39,19 @@ export function PayrollScreen() {
         breadcrumbs={[{ label: 'Payroll' }]}
         actions={
           isHrOrAdmin ? (
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <WalletIcon className="size-3.5" aria-hidden />
-              Run Payroll
-            </Button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/payroll/global"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <GlobeIcon className="size-3.5" aria-hidden />
+                Global Workforce
+              </Link>
+              <Button size="sm" onClick={() => setDialogOpen(true)}>
+                <WalletIcon className="size-3.5" aria-hidden />
+                Run Payroll
+              </Button>
+            </div>
           ) : undefined
         }
       />
