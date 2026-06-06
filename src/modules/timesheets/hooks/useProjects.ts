@@ -5,6 +5,8 @@ import type { ProjectInput, TaskInput } from '../types/timesheet.types';
 export const TIMESHEET_KEYS = {
   projects: ['timesheets', 'projects'] as const,
   tasks: (projectId: string) => ['timesheets', 'tasks', projectId] as const,
+  week: (week: string, employeeId?: string) =>
+    ['timesheets', 'week', week, employeeId ?? 'self'] as const,
 };
 
 export function useProjects() {

@@ -6,12 +6,15 @@ import { ClockIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { useAuth } from '@/providers';
 
 import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
 import { ProjectsPanel } from './ProjectsPanel';
+import { WeeklyGrid } from './WeeklyGrid';
 
 export function TimesheetScreen() {
   const perms = useTimesheetPermissions();
+  const { user } = useAuth();
   const [tab, setTab] = useQueryState('tab', parseAsString.withDefault('my'));
 
   const tabs = [
@@ -41,11 +44,7 @@ export function TimesheetScreen() {
           </TabsList>
 
           <TabsContent value="my">
-            <EmptyState
-              title="Weekly timesheet coming next"
-              description="The weekly time-entry grid arrives in the next step."
-              illustration={<ClockIcon className="size-8 text-fg-muted" />}
-            />
+            <WeeklyGrid employeeId={user?.employeeId ?? undefined} />
           </TabsContent>
 
           <TabsContent value="approvals">

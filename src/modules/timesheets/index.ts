@@ -16,6 +16,8 @@ export type {
 
 // Services
 export { projectsApi } from './services/projects.api';
+export { timesheetsApi } from './services/timesheets.api';
+export type { TimeEntryInput, TimeEntryPatch } from './services/timesheets.api';
 
 // Hooks
 export {
@@ -29,6 +31,12 @@ export {
   TIMESHEET_KEYS,
 } from './hooks/useProjects';
 export {
+  useWeekTimesheet,
+  useTimeEntries,
+  useUpsertTimeEntry,
+  useDeleteTimeEntry,
+} from './hooks/useTimesheets';
+export {
   useTimesheetPermissions,
   TIMESHEET_PERMISSIONS,
   type TimesheetPermissions,
@@ -37,11 +45,29 @@ export {
 // Constants
 export { PROJECT_STATUS_CONFIG, TIMESHEET_STATUS_CONFIG, BILLABLE_CONFIG } from './constants';
 
+// Utils
+export {
+  getWeekStart,
+  getWeekDays,
+  getWeekEnd,
+  shiftWeek,
+  sumHours,
+  sumBillableHours,
+  overtimeHours,
+  rollupByDay,
+  rollupRows,
+} from './utils/rollups';
+export type { GridRow } from './utils/rollups';
+
 // Validations
 export { projectSchema } from './validations/project.schema';
 export type { ProjectFormValues } from './validations/project.schema';
+export { timeEntrySchema } from './validations/timeEntry.schema';
+export type { TimeEntryFormValues } from './validations/timeEntry.schema';
 
 // Components
 export { TimesheetScreen } from './components/TimesheetScreen';
 export { ProjectsPanel } from './components/ProjectsPanel';
 export { ProjectDrawer } from './components/ProjectDrawer';
+export { WeeklyGrid } from './components/WeeklyGrid';
+export { TimeEntryDialog } from './components/TimeEntryDialog';

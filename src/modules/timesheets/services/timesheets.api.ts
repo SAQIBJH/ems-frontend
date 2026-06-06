@@ -1,0 +1,44 @@
+import { apiClient } from '@/lib/api-client';
+
+import type { TimeEntry, Timesheet } from '../types/timesheet.types';
+
+/** Body for creating a time entry (self — employeeId is derived server-side). */
+export interface TimeEntryInput {
+  /** Monday of the target week (YYYY-MM-DD). */
+  weekStart: string;
+  projectId: string;
+  taskId: string;
+  /** Day the time is logged against (YYYY-MM-DD). */
+  date: string;
+  hours: number;
+  billable?: boolean;
+  note?: string;
+}
+
+/** Patchable fields on an existing entry (the week it belongs to never changes). */
+export type TimeEntryPatch = Partial<Omit<TimeEntryInput, 'weekStart'>>;
+
+export const timesheetsApi = {
+  /** Fetch (or synthesize an empty DRAFT for) the week's timesheet. */
+  getWeek: async (week: string, employeeId?: string): Promise<Timesheet> => {
+    const params = new URLSearchParams({ week });
+    if (employeeId) params.set('employeeId', employeeId);
+    const { data } = await apiClient.get<{ data: Timesheet }>(`/timesheets?${params.toString()}`);
+    return data.data;
+  },
+
+  createEntry: async (input: TimeEntryInput): Promise<TimeEntry> => {
+    const { data } = await apiClient.post<{ data: TimeEntry }>('/timesheets/entries', input);
+    return data.data;
+  },
+
+  updateEntry: async (id: string, patch: TimeEntryPatch): Promise<TimeEntry> => {
+    const { data } = await apiClient.patch<{ data: TimeEntry }>(`/timesheets/entries/${id}`, patch);
+    return data.data;
+  },
+
+  deleteEntry: async (id: string): Promise<{ id: string }> => {
+    const { data } = await apiClient.delete<{ data: { id: string } }>(`/timesheets/entries/${id}`);
+    return data.data;
+  },
+};
