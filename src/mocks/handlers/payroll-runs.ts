@@ -55,7 +55,7 @@ function buildApprovalChain(totalNet: number): RunApprovalLevel[] {
 const runAudit: Record<string, PayrollRunAuditEntry[]> = {};
 let auditCounter = 0;
 
-function appendAudit(runId: string, action: string, actor: string, detail?: string): void {
+export function appendAudit(runId: string, action: string, actor: string, detail?: string): void {
   const entry: PayrollRunAuditEntry = {
     id: `audit-${++auditCounter}`,
     runId,

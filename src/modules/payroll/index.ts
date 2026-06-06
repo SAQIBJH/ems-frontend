@@ -75,6 +75,8 @@ export type {
   PayrollInputOneTime,
   PayrollInputsPage,
   PayrollInputImportResult,
+  TimesheetInputItem,
+  TimesheetInputResult,
   PayrollRunsPage,
   PayrollRunsParams,
   PayslipsPage,
@@ -217,6 +219,7 @@ export {
   useRunInputs,
   useUpdateRunInput,
   useImportRunInputs,
+  useImportInputsFromTimesheets,
   useRunFnf,
   usePayrollRoster,
   useRunPaymentBatch,
@@ -300,6 +303,11 @@ export {
   clearSlabTables,
 } from './utils/formula.utils';
 export type { ComponentTotals, PeriodTaxArgs, ContributionResult } from './utils/formula.utils';
+export { applyTimesheetInputs } from './utils/timesheetInputs.utils';
+export type {
+  ApprovedTimesheetForImport,
+  TimesheetImportConfig,
+} from './utils/timesheetInputs.utils';
 
 // Constants
 export {

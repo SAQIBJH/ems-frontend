@@ -499,6 +499,21 @@ export interface PayrollInputImportResult {
   errors: string[];
 }
 
+/** Per-employee outcome of importing OT/LOP from approved timesheets (Step T6). */
+export interface TimesheetInputItem {
+  employeeId: string;
+  employeeName: string;
+  /** Overtime hours written to the run input (set from the timesheet total). */
+  otHours: number;
+  /** LOP days added from the standard-hours shortfall (only when policy = DEDUCT). */
+  lopDaysAdded: number;
+}
+
+export interface TimesheetInputResult {
+  updated: number;
+  items: TimesheetInputItem[];
+}
+
 /* ── Tax declarations / exemptions / proofs (§5.2) ────────────────────────── */
 
 export type ProofStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';

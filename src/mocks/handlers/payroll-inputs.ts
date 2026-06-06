@@ -1,7 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import type { PayrollInput, PayrollInputImportResult } from '@/modules/payroll/types/payroll.types';
+import { applyTimesheetInputs } from '@/modules/payroll/utils/timesheetInputs.utils';
 import { getRosterInputSeed } from '../data/payroll-engine';
-import { getRunMeta } from './payroll-runs';
+import { getRunMeta, appendAudit } from './payroll-runs';
+import { getTimesheets, getTimesheetSettings } from './timesheets';
 
 // Per-run input store: runId → (employeeId → PayrollInput). Lazily seeded from the
 // roster defaults, whose LOP comes from attendance. The run engine reads these so
@@ -115,6 +117,62 @@ export const payrollInputHandlers = [
     const { runId } = params as { runId: string };
     const body = (await request.json()) as { csv?: string };
     const result = parseInputsCsv(body.csv ?? '', getRunInputs(runId));
+    return HttpResponse.json({ success: true, data: result });
+  }),
+
+  // Import OT/LOP from APPROVED timesheets in the run's period (Step T6 / Domain F.5).
+  http.post('/api/payroll/runs/:runId/inputs/from-timesheets', ({ params }) => {
+    const { runId } = params as { runId: string };
+    const meta = getRunMeta(runId);
+    if (!meta) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Run not found' } },
+        { status: 404 },
+      );
+    }
+    const editable = meta.status === 'DRAFT' || meta.status === 'REVIEW';
+    if (!editable) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'RUN_NOT_EDITABLE',
+            message: 'Timesheets can only be imported while the run is in draft or review.',
+          },
+        },
+        { status: 422 },
+      );
+    }
+
+    const settings = getTimesheetSettings();
+    const timesheets = getTimesheets().map((t) => ({
+      employeeId: t.employeeId,
+      employeeName: t.employeeName,
+      weekStart: t.weekStart,
+      status: t.status,
+      totalHours: t.totalHours,
+      overtimeHours: t.overtimeHours,
+      standardHours: t.standardHours,
+    }));
+
+    const result = applyTimesheetInputs(
+      timesheets,
+      getRunInputs(runId),
+      {
+        unloggedHoursPolicy: settings.unloggedHoursPolicy,
+        standardWeeklyHours: settings.standardWeeklyHours,
+      },
+      meta.period,
+      editable,
+    );
+
+    appendAudit(
+      runId,
+      'INPUTS_FROM_TIMESHEETS',
+      'system',
+      `Imported overtime/LOP from timesheets for ${result.updated} employee(s)`,
+    );
+
     return HttpResponse.json({ success: true, data: result });
   }),
 ];

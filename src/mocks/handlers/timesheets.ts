@@ -7,6 +7,7 @@ import type {
   TaskInput,
   TimeEntry,
   Timesheet,
+  TimesheetSettings,
 } from '@/modules/timesheets/types/timesheet.types';
 
 const BASE = '/api/timesheets';
@@ -25,6 +26,21 @@ function employeeName(id: string): string {
 
 /** Standard week used to derive overtime. Replaced by tenant settings in Step T7. */
 const DEFAULT_STANDARD_HOURS = 40;
+
+/**
+ * Tenant timesheet settings. The GET/PATCH endpoints land in Step T7; for now the
+ * store holds defaults and is read by the payroll import (Step T6) for
+ * `unloggedHoursPolicy` and `standardWeeklyHours`.
+ */
+let timesheetSettings: TimesheetSettings = {
+  standardWeeklyHours: DEFAULT_STANDARD_HOURS,
+  overtimeThresholdHours: DEFAULT_STANDARD_HOURS,
+  roundingMinutes: 15,
+  approvalRequired: true,
+  unloggedHoursPolicy: 'FLAG',
+  billableDefault: true,
+  updatedAt: '2026-04-01T00:00:00.000Z',
+};
 
 /* ── Seed data ──────────────────────────────────────────────────────────────── */
 
@@ -284,6 +300,82 @@ function getWeekDaysLocal(weekStart: string): string[] {
   const monday = parseISO(weekStart);
   return Array.from({ length: 7 }, (_, i) => format(addDays(monday, i), 'yyyy-MM-dd'));
 }
+
+/**
+ * Seed an APPROVED week for emp-001 in May 2026 (the DRAFT run's period) with overtime,
+ * so the payroll "Import from timesheets" action (Step T6) has data to map.
+ */
+(function seedApprovedMay() {
+  const mayWeek = mondayOf('2026-05-20'); // a Monday in May 2026
+  const ts = ensureTimesheet(DEFAULT_EMPLOYEE_ID, mayWeek);
+  const days = getWeekDaysLocal(mayWeek);
+  const seed: Array<Omit<TimeEntry, 'id' | 'timesheetId' | 'employeeId'>> = [
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-1',
+      date: days[0],
+      hours: 9,
+      billable: true,
+      note: '',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-1',
+      date: days[1],
+      hours: 9.5,
+      billable: true,
+      note: '',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-1',
+      date: days[2],
+      hours: 9,
+      billable: true,
+      note: '',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-1',
+      date: days[3],
+      hours: 9,
+      billable: true,
+      note: '',
+      source: 'MANUAL',
+    },
+    {
+      projectId: 'prj-1',
+      taskId: 'tsk-1',
+      date: days[4],
+      hours: 9.5,
+      billable: true,
+      note: 'Crunch week',
+      source: 'MANUAL',
+    },
+  ];
+  const newEntries = seed.map((e) => ({
+    ...e,
+    id: `te-${++entryCounter}`,
+    timesheetId: ts.id,
+    employeeId: DEFAULT_EMPLOYEE_ID,
+  }));
+  entries = [...entries, ...newEntries];
+  const fresh = recompute(ts); // total 46 → overtime 6
+  timesheets = timesheets.map((t) =>
+    t.id === fresh.id
+      ? {
+          ...fresh,
+          status: 'APPROVED',
+          submittedAt: '2026-05-25T17:00:00.000Z',
+          decidedBy: DECIDER_NAME,
+          decidedAt: '2026-05-26T09:00:00.000Z',
+        }
+      : t,
+  );
+})();
 
 const EDITABLE_STATUSES: Timesheet['status'][] = ['DRAFT', 'REJECTED'];
 
@@ -755,4 +847,11 @@ export function getTimesheets(): Timesheet[] {
 }
 export function getTimeEntries(): TimeEntry[] {
   return entries;
+}
+/** Current tenant timesheet settings (read by the payroll import; managed in Step T7). */
+export function getTimesheetSettings(): TimesheetSettings {
+  return timesheetSettings;
+}
+export function setTimesheetSettings(next: TimesheetSettings): void {
+  timesheetSettings = next;
 }

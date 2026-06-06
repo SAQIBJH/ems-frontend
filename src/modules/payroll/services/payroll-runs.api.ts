@@ -10,6 +10,7 @@ import type {
   PayrollInput,
   PayrollInputsPage,
   PayrollInputImportResult,
+  TimesheetInputResult,
   FnfSettlement,
   RosterMember,
   RunVariance,
@@ -198,6 +199,14 @@ export const payrollRunsApi = {
     const { data } = await apiClient.post<{ data: PayrollInputImportResult }>(
       `/payroll/runs/${runId}/inputs/import`,
       { csv },
+    );
+    return data.data;
+  },
+
+  /** Pre-fill OT/LOP from approved timesheets in the run's period (Step T6). */
+  importInputsFromTimesheets: async (runId: string): Promise<TimesheetInputResult> => {
+    const { data } = await apiClient.post<{ data: TimesheetInputResult }>(
+      `/payroll/runs/${runId}/inputs/from-timesheets`,
     );
     return data.data;
   },

@@ -298,6 +298,14 @@ export function useImportRunInputs() {
   });
 }
 
+export function useImportInputsFromTimesheets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => payrollRunsApi.importInputsFromTimesheets(runId),
+    onSuccess: (_data, runId) => qc.invalidateQueries({ queryKey: [...RUNS_KEY, runId, 'inputs'] }),
+  });
+}
+
 export function useAdjustPayslip() {
   const qc = useQueryClient();
   return useMutation({

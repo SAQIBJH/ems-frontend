@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2Icon, UploadIcon } from 'lucide-react';
+import { Loader2Icon, TimerIcon, UploadIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 
-import { useRunInputs, useUpdateRunInput, useImportRunInputs } from '../hooks/usePayrollRuns';
+import {
+  useRunInputs,
+  useUpdateRunInput,
+  useImportRunInputs,
+  useImportInputsFromTimesheets,
+} from '../hooks/usePayrollRuns';
 import { usePayrollComponents } from '../hooks/usePayrollComponents';
+import { usePayrollPermissions } from '../hooks/usePayrollPermissions';
 import { formatMoney, fromMinor, toMinor } from '../utils/money.utils';
 import type { PayrollInput } from '../types/payroll.types';
 
@@ -200,8 +206,23 @@ export function RunInputsPanel({ runId }: { runId: string }) {
   const { data, isLoading, isError, refetch } = useRunInputs(runId);
   const update = useUpdateRunInput();
   const { data: allComponents = [] } = usePayrollComponents();
+  const { canInitiate } = usePayrollPermissions();
+  const importFromTimesheets = useImportInputsFromTimesheets();
   const [importOpen, setImportOpen] = useState(false);
   const [variableFor, setVariableFor] = useState<PayrollInput | null>(null);
+
+  function handleImportTimesheets() {
+    importFromTimesheets.mutate(runId, {
+      onSuccess: (result) => {
+        if (result.updated === 0) {
+          toast.info('No approved timesheets found for this period.');
+        } else {
+          toast.success(`Imported overtime/LOP for ${result.updated} employee(s) from timesheets.`);
+        }
+      },
+      onError: () => toast.error('Failed to import from timesheets'),
+    });
+  }
 
   const inputs = data?.inputs ?? [];
   const editable = data?.editable ?? false;
@@ -239,10 +260,27 @@ export function RunInputsPanel({ runId }: { runId: string }) {
           </p>
         </div>
         {editable && (
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-            <UploadIcon className="size-3.5" aria-hidden />
-            Import CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            {canInitiate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImportTimesheets}
+                disabled={importFromTimesheets.isPending}
+              >
+                {importFromTimesheets.isPending ? (
+                  <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <TimerIcon className="size-3.5" aria-hidden />
+                )}
+                Import from timesheets
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <UploadIcon className="size-3.5" aria-hidden />
+              Import CSV
+            </Button>
+          </div>
         )}
       </div>
 
