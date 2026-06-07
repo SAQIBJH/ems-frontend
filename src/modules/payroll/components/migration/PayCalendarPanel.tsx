@@ -129,7 +129,7 @@ function CalendarDialog({
               <SelectContent>
                 {FREQUENCIES.map((f) => (
                   <SelectItem key={f} value={f}>
-                    {PAY_FREQUENCY_CONFIG[f].label}
+                    {PAY_FREQUENCY_CONFIG[f]?.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -155,7 +155,7 @@ function CalendarDialog({
               <SelectContent>
                 {DATE_RULES.map((r) => (
                   <SelectItem key={r} value={r}>
-                    {PAY_DATE_RULE_CONFIG[r].label}
+                    {PAY_DATE_RULE_CONFIG[r]?.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -266,13 +266,13 @@ export function PayCalendarPanel({ canManage }: { canManage: boolean }) {
                   <tr key={c.id} className="border-b border-subtle last:border-0">
                     <td className="px-4 py-2.5 font-medium text-fg">{c.name}</td>
                     <td className="px-3 py-2.5 text-fg-muted">
-                      {PAY_FREQUENCY_CONFIG[c.frequency].label}
+                      {PAY_FREQUENCY_CONFIG[c?.frequency]?.label}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-fg-muted">Day {c.periodAnchor}</td>
                     <td className="px-3 py-2.5 tabular-nums text-fg-muted">Day {c.cutoffDay}</td>
                     <td className="px-3 py-2.5 text-fg-muted">
-                      {PAY_DATE_RULE_CONFIG[c.payDateRule].label}
-                      {c.payDay ? ` (day ${c.payDay})` : ''}
+                      {PAY_DATE_RULE_CONFIG[c?.payDateRule]?.label}
+                      {c?.payDay ? ` (day ${c.payDay})` : ''}
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       {canManage && (

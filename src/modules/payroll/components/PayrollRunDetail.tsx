@@ -880,7 +880,7 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
           <div className="flex items-center gap-2">
             {run && run.type !== 'REGULAR' && (
               <span className="inline-flex items-center rounded bg-surface-raised px-2 py-0.5 text-xs font-medium text-fg-muted">
-                {run.type.replace(/_/g, ' ')}
+                {run?.type?.replace(/_/g, ' ')}
               </span>
             )}
             {run && <StatusBadge status={run.status} />}
