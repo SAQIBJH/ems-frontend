@@ -114,7 +114,13 @@ export function PayrollRegisterReport({ register }: { register: PayrollRegisterT
         disabled={runsLoading || eligibleRuns.length === 0}
       >
         <SelectTrigger className="h-8 w-64 text-sm">
-          <SelectValue placeholder={runsLoading ? 'Loading runs…' : 'Select a run'} />
+          <SelectValue placeholder={runsLoading ? 'Loading runs…' : 'Select a run'}>
+            {(v: string) => {
+              const r = eligibleRuns.find((run) => run.id === v);
+              if (r) return `${r.periodLabel} · ${r.status}`;
+              return runsLoading ? 'Loading runs…' : 'Select a run';
+            }}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {eligibleRuns.map((r) => (

@@ -106,7 +106,7 @@ export default function PayEquityReport() {
       <label className="text-xs text-fg-muted">Group by</label>
       <Select value={groupBy} onValueChange={(v) => v && setGroupBy(v as PayEquityGroupBy)}>
         <SelectTrigger className="h-8 w-40 text-sm">
-          <SelectValue />
+          <SelectValue>{(v: string) => GROUP_BY_LABELS[v as PayEquityGroupBy] ?? v}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {(Object.keys(GROUP_BY_LABELS) as PayEquityGroupBy[]).map((g) => (
