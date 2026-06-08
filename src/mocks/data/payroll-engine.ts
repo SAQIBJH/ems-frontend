@@ -29,6 +29,7 @@ import type { WorkLocation } from '@/modules/payroll/types/payroll.types';
 import { formatMoney, fromMinor, toMinor } from '@/modules/payroll/utils/money.utils';
 import {
   applyGarnishments,
+  computeBonusTax,
   computeComponentBreakdown,
   computeContribution,
   computeGratuity,
@@ -318,7 +319,8 @@ function computeEmployeeMonth(
     if (comp?.payInPeriods && !comp.payInPeriods.includes(month)) continue;
     // VARIABLE components are input-driven: take their amount from the run input.
     let raw: number;
-    if (line.type === 'VARIABLE') raw = input?.variablePay?.[line.code] ?? 0;
+    // variablePay is stored in minor units by the inputs UI; the engine works in major.
+    if (line.type === 'VARIABLE') raw = fromMinor(input?.variablePay?.[line.code] ?? 0, CURRENCY);
     else raw = comp?.prorate ? line.monthlyAmount * factor : line.monthlyAmount;
     const amount = Math.round(raw);
     const pl: PayslipLine = { code: line.code, name: line.name, amount, taxable: line.taxable };
@@ -360,7 +362,7 @@ function computeEmployeeMonth(
     earnings.push({
       code,
       name: comp?.name ?? code,
-      amount: Math.round(value),
+      amount: Math.round(fromMinor(value, CURRENCY)),
       taxable: comp?.taxable ?? true,
     });
   }
@@ -491,11 +493,12 @@ function computeEmployeeMonth(
   }
 
   // Loan / advance EMI recovery — a scheduled deduction for this period.
+  // Loan amounts are stored in minor units; the engine works in major.
   for (const line of loanEmiForPeriod(emp.employeeId, period)) {
     deductions.push({
       code: `EMI_${line.loanId}`,
       name: line.type === 'ADVANCE' ? 'Advance recovery' : 'Loan EMI',
-      amount: line.emi,
+      amount: fromMinor(line.emi, CURRENCY),
       taxable: false,
     });
   }
@@ -508,7 +511,8 @@ function computeEmployeeMonth(
       .map((o) => ({ description: o.label, amount: o.amount })),
     ...(claims ?? []).map((c) => ({
       description: `${c.category} reimbursement`,
-      amount: c.amount,
+      // Claim amounts are stored in minor units; the engine works in major.
+      amount: fromMinor(c.amount, CURRENCY),
     })),
   ];
   const oneTimeDeductions: PayslipOneTime[] = (input?.oneTime ?? [])
@@ -732,9 +736,16 @@ export function computeRun(
   status: PayslipStatus = 'PENDING',
   inputs?: Record<string, PayrollInput>,
   claimsByEmployee?: Record<string, ReimbursementClaim[]>,
+  /** OFF_CYCLE: restrict the run to this employee subset (empty/absent = full roster). */
+  employeeIds?: string[],
 ): ComputedRun {
   const label = periodLabel(period);
   const generatedAt = `${period}-28T10:00:00.000Z`;
+  // Off-cycle runs pay a selected subset; everything else pays the full roster.
+  const roster =
+    employeeIds && employeeIds.length > 0
+      ? FULL_ROSTER.filter((e) => employeeIds.includes(e.employeeId))
+      : FULL_ROSTER;
 
   const items: PayslipRunItem[] = [];
   const details: Record<string, Payslip> = {};
@@ -747,7 +758,7 @@ export function computeRun(
   let totalNet = 0;
   let employeeCount = 0;
 
-  for (const emp of FULL_ROSTER) {
+  for (const emp of roster) {
     const month = computeEmployeeMonth(
       emp,
       period,
@@ -862,5 +873,221 @@ export function computeRun(
     },
     byDepartment: [...deptMap.values()].sort((a, b) => b.totalNet - a.totalNet),
     warnings,
+  };
+}
+
+/* ── Extra-pay runs (bonus / arrears) ──────────────────────────────────────── */
+
+/**
+ * Compute a bonus/arrears run: pays **only** the amounts HR entered per employee for the
+ * given component codes (run inputs `variablePay`), with **incremental** income tax on
+ * that extra — never the regular salary structure. Employees with no entered amount
+ * produce no payslip. Config-driven: the regime comes from the pinned pack, never a
+ * hardcoded rate. Bonus → BONUS/INCENTIVE/COMMISSION; Arrears → ARREARS.
+ */
+export function computeExtraPayRun(
+  runId: string,
+  period: string,
+  status: PayslipStatus,
+  inputs: Record<string, PayrollInput> | undefined,
+  componentCodes: string[],
+): ComputedRun {
+  const label = periodLabel(period);
+  const generatedAt = `${period}-28T10:00:00.000Z`;
+  const codeSet = new Set(componentCodes);
+
+  const items: PayslipRunItem[] = [];
+  const details: Record<string, Payslip> = {};
+  const deptMap = new Map<string, PayrollRunDeptSummary>();
+  let totalGross = 0;
+  let totalDeductions = 0;
+  let totalNet = 0;
+  let employeeCount = 0;
+
+  for (const emp of ROSTER) {
+    const input = inputs?.[emp.employeeId];
+    if (!input) continue;
+
+    // Earnings = only the entered amounts for this run's components.
+    const earnings: PayslipLine[] = [];
+    for (const [code, value] of Object.entries(input.variablePay ?? {})) {
+      if (!codeSet.has(code) || value <= 0) continue;
+      const comp = getComponentByCode(code);
+      earnings.push({
+        code,
+        name: comp?.name ?? code,
+        amount: Math.round(fromMinor(value, CURRENCY)),
+        taxable: comp?.taxable ?? true,
+      });
+    }
+    const extra = earnings.reduce((s, e) => s + e.amount, 0);
+    if (extra <= 0) continue;
+
+    // Marginal rate: project the employee's annual structural taxable income.
+    const components = resolveGroupComponents(emp.payGroupId);
+    const breakdown = components ? computeComponentBreakdown(components, emp.annualCtc) : [];
+    const annualTaxable = breakdown
+      .filter((l) => (l.type === 'EARNING' || l.type === 'VARIABLE') && l.taxable)
+      .reduce((s, l) => s + l.monthlyAmount * 12, 0);
+
+    const pack = resolveActivePack(emp.country, period);
+    const { fyLabel } = fiscalInfo(emp.country, period);
+    const declaration = getTaxDeclaration(emp.employeeId, fyLabel);
+    const regime =
+      (declaration && pack?.taxRegimes.find((r) => r.code === declaration.regime)) ??
+      pack?.taxRegimes[0] ??
+      null;
+    const taxableExtra = earnings.filter((e) => e.taxable).reduce((s, e) => s + e.amount, 0);
+    const tax = regime ? Math.round(computeBonusTax(annualTaxable, taxableExtra, regime)) : 0;
+
+    const deductions: PayslipLine[] =
+      tax > 0 ? [{ code: 'TDS', name: 'Income Tax (TDS)', amount: tax, taxable: false }] : [];
+    const netPay = extra - tax;
+    const slipId = `slip-${runId}-${emp.employeeId}`;
+
+    items.push({
+      id: slipId,
+      employeeId: emp.employeeId,
+      employeeCode: emp.employeeCode,
+      employeeName: `${emp.firstName} ${emp.lastName}`,
+      departmentName: emp.departmentName,
+      designation: emp.designation,
+      currency: CURRENCY,
+      grossEarnings: extra,
+      totalDeductions: tax,
+      netPay,
+      workingDays: STD_WORKING_DAYS,
+      presentDays: STD_WORKING_DAYS,
+      lopDays: 0,
+      status,
+      hasAdjustments: false,
+    });
+
+    details[slipId] = {
+      id: slipId,
+      period,
+      periodLabel: label,
+      currency: CURRENCY,
+      employee: {
+        id: emp.employeeId,
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        employeeCode: emp.employeeCode,
+        designation: emp.designation,
+        departmentName: emp.departmentName,
+      },
+      company: COMPANY,
+      earnings,
+      deductions,
+      employerContributions: [],
+      oneTimeAdditions: [],
+      oneTimeDeductions: [],
+      grossEarnings: extra,
+      totalDeductions: tax,
+      employerCost: 0,
+      netPay,
+      workingDays: STD_WORKING_DAYS,
+      presentDays: STD_WORKING_DAYS,
+      leaveDays: 0,
+      lopDays: 0,
+      status,
+      paymentDate: status === 'PAID' ? `${period}-28` : null,
+      paymentReference: status === 'PAID' ? `NEFT/${period}/${emp.employeeCode}` : null,
+      payrollRunId: runId,
+      generatedAt,
+    };
+
+    totalGross += extra;
+    totalDeductions += tax;
+    totalNet += netPay;
+    employeeCount += 1;
+    const dept = deptMap.get(emp.departmentName) ?? {
+      departmentName: emp.departmentName,
+      employeeCount: 0,
+      totalNet: 0,
+    };
+    dept.employeeCount += 1;
+    dept.totalNet += netPay;
+    deptMap.set(emp.departmentName, dept);
+  }
+
+  return {
+    items,
+    details,
+    totals: {
+      employeeCount,
+      totalGross,
+      totalDeductions,
+      employerCost: 0,
+      totalNet,
+      currency: CURRENCY,
+    },
+    byDepartment: [...deptMap.values()].sort((a, b) => b.totalNet - a.totalNet),
+    warnings: [],
+  };
+}
+
+/** Component codes an extra-pay run pays, by run type. */
+export const BONUS_COMPONENT_CODES = ['BONUS', 'INCENTIVE', 'COMMISSION'];
+export const ARREARS_COMPONENT_CODES = ['ARREARS'];
+
+/* ── Reversal runs ─────────────────────────────────────────────────────────── */
+
+/**
+ * Reverse a prior run: take its computed result and **negate every line** (gross,
+ * deductions, employer cost, net) so the reversal exactly offsets the original. The
+ * original run is never mutated — this is an offsetting entry (immutability/audit).
+ */
+export function negateComputedRun(
+  reversalRunId: string,
+  original: ComputedRun,
+  status: PayslipStatus,
+): ComputedRun {
+  const items: PayslipRunItem[] = original.items.map((it) => ({
+    ...it,
+    id: `slip-${reversalRunId}-${it.employeeId}`,
+    grossEarnings: -it.grossEarnings,
+    totalDeductions: -it.totalDeductions,
+    netPay: -it.netPay,
+    status,
+  }));
+
+  const details: Record<string, Payslip> = {};
+  for (const d of Object.values(original.details)) {
+    const slipId = `slip-${reversalRunId}-${d.employee.id}`;
+    details[slipId] = {
+      ...d,
+      id: slipId,
+      payrollRunId: reversalRunId,
+      status,
+      earnings: d.earnings.map((l) => ({ ...l, amount: -l.amount })),
+      deductions: d.deductions.map((l) => ({ ...l, amount: -l.amount })),
+      employerContributions: (d.employerContributions ?? []).map((l) => ({
+        ...l,
+        amount: -l.amount,
+      })),
+      oneTimeAdditions: (d.oneTimeAdditions ?? []).map((o) => ({ ...o, amount: -o.amount })),
+      oneTimeDeductions: (d.oneTimeDeductions ?? []).map((o) => ({ ...o, amount: -o.amount })),
+      grossEarnings: -d.grossEarnings,
+      totalDeductions: -d.totalDeductions,
+      employerCost: -(d.employerCost ?? 0),
+      netPay: -d.netPay,
+      ytd: undefined,
+    };
+  }
+
+  return {
+    items,
+    details,
+    totals: {
+      employeeCount: original.totals.employeeCount,
+      totalGross: -original.totals.totalGross,
+      totalDeductions: -original.totals.totalDeductions,
+      employerCost: -original.totals.employerCost,
+      totalNet: -original.totals.totalNet,
+      currency: original.totals.currency,
+    },
+    byDepartment: original.byDepartment.map((dept) => ({ ...dept, totalNet: -dept.totalNet })),
+    warnings: [],
   };
 }

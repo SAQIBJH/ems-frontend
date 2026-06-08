@@ -1196,6 +1196,17 @@ bar as §25/§21 — not a new style.
   backend later ships a documented endpoint, the only change is flipping
   `NEXT_PUBLIC_USE_MOCKS` / removing the handler — no app-code change.
 
+### Run types (Step 118)
+
+`Bonus`, `Arrears`, `Off-cycle`, and `Reversal` are **real, config-driven** run types
+(not label-only) alongside `Regular` and `FnF`. Bonus/Arrears are extra-pay runs that
+pay **only** the HR-entered amount (`computeExtraPayRun`) with **incremental** regime tax
+(`computeBonusTax`); Off-cycle runs the standard compute for a **selected employee subset**
+(`employeeIds`); Reversal **negates** a prior `APPROVED`/`PAID` run (`reversalOfRunId`,
+original never mutated). All compute lives in the MSW engine; contract is
+`newreqphase3.md` Domain F. No `country ===` branches. (Off-cycle's deeper proration and
+auto-detected arrears from comp history remain future work.)
+
 ### Per-step workflow
 
 Identical to §25: **Build → Test Gate (`pnpm typecheck`, `pnpm lint`, plus the named

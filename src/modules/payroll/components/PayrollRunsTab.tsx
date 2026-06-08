@@ -111,7 +111,23 @@ export function PayrollRunsTab({ onRunPayroll }: { onRunPayroll: () => void }) {
     {
       accessorKey: 'periodLabel',
       header: 'Period',
-      cell: ({ row }) => <span className="font-medium text-fg">{row.original.periodLabel}</span>,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-fg">{row.original.periodLabel}</span>
+          {row.original.type && row.original.type !== 'REGULAR' && (
+            <span
+              className={cn(
+                'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+                row.original.type === 'REVERSAL'
+                  ? 'bg-danger/10 text-danger'
+                  : 'bg-surface-raised text-fg-muted',
+              )}
+            >
+              {row.original.type.replace(/_/g, ' ')}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: 'status',

@@ -76,6 +76,17 @@ export function computeRegimeTax(taxableAnnual: number, regime: TaxRegime): numb
   return tax;
 }
 
+/**
+ * Incremental income tax on an extra payment (bonus / arrears) layered on top of the
+ * annual taxable base: `tax(base + extra) − tax(base)`. Config-driven via the regime —
+ * the extra is taxed at the employee's marginal bands, never a flat rate. Never negative.
+ */
+export function computeBonusTax(annualTaxable: number, extra: number, regime: TaxRegime): number {
+  if (extra <= 0) return 0;
+  const base = Math.max(0, annualTaxable);
+  return Math.max(0, computeRegimeTax(base + extra, regime) - computeRegimeTax(base, regime));
+}
+
 export interface PeriodTaxArgs {
   /** Projected full-year taxable income, minor units. */
   annualTaxable: number;

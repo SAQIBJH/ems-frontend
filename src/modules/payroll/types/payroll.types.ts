@@ -439,6 +439,11 @@ export interface PayrollRun {
   employeeId?: string | null;
   /** FnF inputs, present on FNF runs. */
   fnfParams?: FnfParams | null;
+  /** Selected employee subset for OFF_CYCLE runs (empty/absent = full roster). */
+  employeeIds?: string[] | null;
+  /** Target run a REVERSAL offsets, plus its label for display. */
+  reversalOfRunId?: string | null;
+  reversalOfPeriodLabel?: string | null;
   createdAt: string;
 }
 
@@ -448,6 +453,10 @@ export interface PayrollRunInput {
   includeAllActiveEmployees: boolean;
   type?: PayrollRunType;
   fnf?: FnfParams;
+  /** OFF_CYCLE: the employee subset to pay (empty = full roster). */
+  employeeIds?: string[];
+  /** REVERSAL: the prior run this offsets. */
+  reversalOfRunId?: string;
 }
 
 export interface RosterMember {

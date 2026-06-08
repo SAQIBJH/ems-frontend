@@ -283,6 +283,7 @@ let components: SalaryComponent[] = [
       ['comp-011', 'INCENTIVE', 'Incentive', 7],
       ['comp-012', 'COMMISSION', 'Commission', 8],
       ['comp-013', 'BONUS', 'Bonus', 9],
+      ['comp-014', 'ARREARS', 'Arrears', 10],
     ] as const
   ).map(([id, code, name, displayOrder]) => ({
     id,

@@ -6,6 +6,7 @@ import {
   evaluateFormula,
   evaluateSlab,
   computeRegimeTax,
+  computeBonusTax,
   projectPeriodTax,
   computeContribution,
   computeGratuity,
@@ -229,6 +230,36 @@ describe('computeRegimeTax', () => {
     };
     // slab tax on 6,000,000 = 1,500,000; +10% surcharge = 1,650,000; +4% cess = 1,716,000
     expect(computeRegimeTax(6000000, withSurcharge)).toBe(1716000);
+  });
+});
+
+describe('computeBonusTax', () => {
+  const regime: TaxRegime = {
+    code: 'TEST_REGIME',
+    fiscalYear: '2026-27',
+    currency: 'INR',
+    standardDeduction: 0,
+    slabs: SLABS,
+  };
+
+  it('is zero for a non-positive extra', () => {
+    expect(computeBonusTax(1200000, 0, regime)).toBe(0);
+    expect(computeBonusTax(1200000, -5000, regime)).toBe(0);
+  });
+
+  it('taxes the extra at the marginal band over the base', () => {
+    // base 1,000,000 → slab tax 40,000; +200,000 bonus → 1,200,000 → 60,000.
+    // incremental = 60,000 − 40,000 = 20,000 (the bonus sits in the 10% band).
+    expect(computeBonusTax(1000000, 200000, regime)).toBe(20000);
+  });
+
+  it('equals full regime tax when the base is zero', () => {
+    expect(computeBonusTax(0, 600000, regime)).toBe(computeRegimeTax(600000, regime));
+  });
+
+  it('pushes the extra into higher bands when the base is already high', () => {
+    // base 2,000,000 → 300,000; +100,000 at the top 30% band = 30,000 incremental.
+    expect(computeBonusTax(2000000, 100000, regime)).toBe(30000);
   });
 });
 

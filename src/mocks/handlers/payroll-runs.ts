@@ -8,9 +8,18 @@ import type {
   RunVariance,
   RunVarianceItem,
   RunVarianceFlag,
+  PayslipStatus,
 } from '@/modules/payroll/types/payroll.types';
 import type { RunConfigSnapshotRef } from '@/modules/payroll/types/statutory.types';
-import { computeRun, computeFnf, type ComputedRun } from '../data/payroll-engine';
+import {
+  computeRun,
+  computeFnf,
+  computeExtraPayRun,
+  negateComputedRun,
+  BONUS_COMPONENT_CODES,
+  ARREARS_COMPONENT_CODES,
+  type ComputedRun,
+} from '../data/payroll-engine';
 import { resolveActivePack } from './payroll-statutory';
 import { getRunInputs } from './payroll-inputs';
 import { getClaimsForRun, attachApprovedClaimsToRun, markRunClaimsPaid } from './payroll-claims';
@@ -203,15 +212,56 @@ function payslipStatusFor(run: PayrollRun) {
   return run.status === 'PAID' ? ('PAID' as const) : ('PENDING' as const);
 }
 
-/** Recompute a run's payslips deterministically (idempotent — same inputs, same numbers). */
-function computeRunFor(run: PayrollRun): ComputedRun {
+/**
+ * Recompute a run's payslips deterministically, **branching by run type** (idempotent —
+ * same inputs, same numbers). Bonus/Arrears pay only the entered extra; Off-cycle pays a
+ * selected subset; Reversal negates its target run; everything else is a standard run.
+ */
+function computeForRun(run: PayrollRun, status: PayslipStatus): ComputedRun {
+  if (run.type === 'BONUS') {
+    return computeExtraPayRun(
+      run.id,
+      run.period,
+      status,
+      getRunInputs(run.id),
+      BONUS_COMPONENT_CODES,
+    );
+  }
+  if (run.type === 'ARREARS') {
+    return computeExtraPayRun(
+      run.id,
+      run.period,
+      status,
+      getRunInputs(run.id),
+      ARREARS_COMPONENT_CODES,
+    );
+  }
+  if (run.type === 'REVERSAL' && run.reversalOfRunId) {
+    const target = runs.find((r) => r.id === run.reversalOfRunId);
+    if (!target) return computeRun(run.id, run.period, status); // empty roster fallback
+    const original = computeRun(
+      target.id,
+      target.period,
+      'PENDING',
+      getRunInputs(target.id),
+      getClaimsForRun(target.id),
+      target.employeeIds ?? undefined,
+    );
+    return negateComputedRun(run.id, original, status);
+  }
   return computeRun(
     run.id,
     run.period,
-    payslipStatusFor(run),
+    status,
     getRunInputs(run.id),
     getClaimsForRun(run.id),
+    run.type === 'OFF_CYCLE' ? (run.employeeIds ?? undefined) : undefined,
   );
+}
+
+/** Recompute a run's payslips at its display status (idempotent). */
+function computeRunFor(run: PayrollRun): ComputedRun {
+  return computeForRun(run, payslipStatusFor(run));
 }
 
 /** The most recent prior REGULAR run, for period-over-period variance. */
@@ -321,13 +371,7 @@ export const payrollRunHandlers = [
     const computed =
       run.type === 'FNF' || run.status === 'DRAFT' || run.status === 'CANCELLED'
         ? { byDepartment: [], warnings: [] }
-        : computeRun(
-            run.id,
-            run.period,
-            payslipStatusFor(run),
-            getRunInputs(run.id),
-            getClaimsForRun(run.id),
-          );
+        : computeForRun(run, payslipStatusFor(run));
     return HttpResponse.json({
       success: true,
       data: {
@@ -362,6 +406,8 @@ export const payrollRunHandlers = [
       includeAllActiveEmployees: boolean;
       type?: PayrollRunType;
       fnf?: FnfParams;
+      employeeIds?: string[];
+      reversalOfRunId?: string;
     };
     const type: PayrollRunType = body.type ?? 'REGULAR';
     const VALID_TYPES: PayrollRunType[] = [
@@ -378,7 +424,7 @@ export const payrollRunHandlers = [
         { status: 422 },
       );
     }
-    // Only one REGULAR run per period; off-cycle/bonus/FnF can coexist.
+    // Only one REGULAR run per period; off-cycle/bonus/arrears/FnF/reversal can coexist.
     if (
       type === 'REGULAR' &&
       runs.some((r) => r.period === body.period && r.type === 'REGULAR' && r.status !== 'CANCELLED')
@@ -389,6 +435,25 @@ export const payrollRunHandlers = [
           error: { code: 'RUN_EXISTS', message: 'A run for this period already exists' },
         },
         { status: 409 },
+      );
+    }
+    // A reversal must target an existing approved/paid run to offset.
+    const reversalTarget =
+      type === 'REVERSAL' ? runs.find((r) => r.id === body.reversalOfRunId) : undefined;
+    if (
+      type === 'REVERSAL' &&
+      (!reversalTarget ||
+        (reversalTarget.status !== 'APPROVED' && reversalTarget.status !== 'PAID'))
+    ) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'REVERSAL_TARGET_REQUIRED',
+            message: 'A reversal must target an approved or paid run',
+          },
+        },
+        { status: 422 },
       );
     }
     const now = new Date().toISOString();
@@ -414,6 +479,9 @@ export const payrollRunHandlers = [
       paidAt: null,
       employeeId: type === 'FNF' ? (body.fnf?.employeeId ?? null) : null,
       fnfParams: type === 'FNF' ? (body.fnf ?? null) : null,
+      employeeIds: type === 'OFF_CYCLE' ? (body.employeeIds ?? []) : null,
+      reversalOfRunId: type === 'REVERSAL' ? (body.reversalOfRunId ?? null) : null,
+      reversalOfPeriodLabel: reversalTarget?.periodLabel ?? null,
       createdAt: now,
     };
     runs = [...runs, created];
@@ -483,13 +551,7 @@ export const payrollRunHandlers = [
         );
         return;
       }
-      const computed = computeRun(
-        r0.id,
-        r0.period,
-        'PENDING',
-        getRunInputs(id),
-        getClaimsForRun(id),
-      );
+      const computed = computeForRun(r0, 'PENDING');
       runs = runs.map((r) =>
         r.id === id
           ? {
@@ -757,13 +819,7 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    const computed = computeRun(
-      run.id,
-      run.period,
-      payslipStatusFor(run),
-      getRunInputs(run.id),
-      getClaimsForRun(run.id),
-    );
+    const computed = computeForRun(run, payslipStatusFor(run));
     // Overlay the hold store so held payslips read as HELD.
     const items = computed.items.map((it) =>
       heldPayslips.has(it.id) ? { ...it, status: 'HELD' as const } : it,
@@ -791,13 +847,7 @@ export const payrollRunHandlers = [
         { status: 404 },
       );
     }
-    const computed = computeRun(
-      run.id,
-      run.period,
-      payslipStatusFor(run),
-      getRunInputs(run.id),
-      getClaimsForRun(run.id),
-    );
+    const computed = computeForRun(run, payslipStatusFor(run));
     const detail = computed.details[payslipId];
     if (!detail) {
       return HttpResponse.json(
@@ -832,13 +882,7 @@ export const payrollRunHandlers = [
         { status: 422 },
       );
     }
-    const computed = computeRun(
-      run.id,
-      run.period,
-      payslipStatusFor(run),
-      getRunInputs(run.id),
-      getClaimsForRun(run.id),
-    );
+    const computed = computeForRun(run, payslipStatusFor(run));
     const detail = computed.details[payslipId];
     if (!detail) {
       return HttpResponse.json(
@@ -877,15 +921,7 @@ export const payrollRunHandlers = [
     const { runId, payslipId } = params as { runId: string; payslipId: string };
     const body = (await request.json()) as Record<string, unknown>;
     const run = runs.find((r) => r.id === runId);
-    const computed = run
-      ? computeRun(
-          run.id,
-          run.period,
-          payslipStatusFor(run),
-          getRunInputs(run.id),
-          getClaimsForRun(run.id),
-        )
-      : null;
+    const computed = run ? computeForRun(run, payslipStatusFor(run)) : null;
     const detail = computed?.details[payslipId];
     appendAudit(
       runId,
@@ -899,15 +935,7 @@ export const payrollRunHandlers = [
   http.get('/api/payroll/runs/:runId/export', ({ params }) => {
     const { runId } = params as { runId: string };
     const run = runs.find((r) => r.id === runId);
-    const computed = run
-      ? computeRun(
-          run.id,
-          run.period,
-          payslipStatusFor(run),
-          getRunInputs(run.id),
-          getClaimsForRun(run.id),
-        )
-      : BASE;
+    const computed = run ? computeForRun(run, payslipStatusFor(run)) : BASE;
     const header = 'employeeCode,employeeName,grossEarnings,totalDeductions,netPay';
     const rows = computed.items.map(
       (i) =>

@@ -1281,10 +1281,13 @@ payslip detail adds `employerContributions[]` and (Step 100) a `ytd` block.
 #### Run types (Step 105)
 
 `POST /payroll/runs` body gains `type: REGULAR | OFF_CYCLE | BONUS | ARREARS | FNF | REVERSAL`
-(default `REGULAR`) and, for FnF, `fnf: { employeeId, lastWorkingDay, yearsOfService, leaveBalanceDays, noticeShortfallDays }`.
-`409 RUN_EXISTS` applies only to a second **REGULAR** run for a period (off-cycle/bonus/FnF
-coexist); `422 INVALID_RUN_TYPE` on an unknown type. The run carries `type`, plus
-`employeeId` + `fnfParams` for FnF.
+(default `REGULAR`); for FnF, `fnf: { employeeId, lastWorkingDay, yearsOfService, leaveBalanceDays, noticeShortfallDays }`;
+for Off-cycle, `employeeIds: string[]` (the subset to pay); for Reversal,
+`reversalOfRunId: string` (the prior run to offset).
+`409 RUN_EXISTS` applies only to a second **REGULAR** run for a period (off-cycle/bonus/
+arrears/FnF/reversal coexist); `422 INVALID_RUN_TYPE` on an unknown type. The run carries
+`type`, plus `employeeId` + `fnfParams` for FnF, `employeeIds` for off-cycle, and
+`reversalOfRunId` + `reversalOfPeriodLabel` for reversal.
 
 - `GET /payroll/runs/:id/fnf` → `FnfSettlement` `{ employeeId, employeeName, lastWorkingDay,
 currency, earnings[], deductions[], grossPayable, totalRecovery, netSettlement }` (amounts
@@ -1294,8 +1297,42 @@ currency, earnings[], deductions[], grossPayable, totalRecovery, netSettlement }
   totals from the settlement.
 - `GET /payroll/roster` → `{ employeeId, employeeCode, employeeName }[]` (run-subject picker).
 
-> Arrears auto-detection from back-dated comp revisions is recorded via the `ARREARS` type;
-> full arrears computation lands with the broader run-recompute work (Step 108).
+#### Run-type compute — Bonus / Arrears / Off-cycle / Reversal (Step 118)
+
+Each special run type has its own compute path in the MSW engine (Regular & FnF
+already did). All remain config-driven — no `country ===` branch, amounts in the
+engine's major units, statutory/tax resolved from the pinned pack.
+
+**Bonus & Arrears (extra-pay runs).** Created `DRAFT` and **not auto-calculated** — HR
+enters the per-employee amount in **Run inputs** (`variablePay`), then calculates. The
+engine (`computeExtraPayRun`) pays **only** the entered amounts (Bonus → `BONUS` /
+`INCENTIVE` / `COMMISSION` components; Arrears → the `ARREARS` component), never the
+regular salary structure. Income tax is the **incremental** regime tax on the extra:
+`computeBonusTax(annualTaxable, extra, regime) = computeRegimeTax(annualTaxable + extra)
+− computeRegimeTax(annualTaxable)` — reusing the pinned pack's regime (no flat rate).
+Only employees with a non-zero amount produce a payslip. Statutory contributions apply
+only where the paid component carries a matching `statutoryTag` (typically none → the
+slip is `extra − incremental tax`).
+
+**Off-cycle.** `POST /payroll/runs` accepts `employeeIds: string[]` (subset of the
+roster). The engine (`computeOffCycleRun`) runs the **standard** monthly compute but
+**only for the listed employees** — an unscheduled run for specific people that coexists
+with the period's Regular run. Empty/absent `employeeIds` → full roster (same as
+Regular). Auto-calculates like Regular.
+
+**Reversal.** `POST /payroll/runs` accepts `reversalOfRunId: string` (a prior
+`APPROVED`/`PAID` run). The engine (`computeReversal`) recomputes the target run and
+**negates every payslip line** (gross, deductions, employer cost, net all negative) so
+the reversal offsets the original. The run stores `reversalOfRunId` +
+`reversalOfPeriodLabel` (display); the original run is **never mutated**
+(immutability/audit). Auto-calculates. `422 REVERSAL_TARGET_REQUIRED` when
+`reversalOfRunId` is missing or unknown.
+
+The run record gains `employeeIds?: string[] | null` (off-cycle) and `reversalOfRunId?:
+string | null` + `reversalOfPeriodLabel?: string | null` (reversal).
+
+> Arrears here is **manual back-pay** (HR-entered amounts). Auto-detection of arrears from
+> back-dated comp revisions remains future work (broader run-recompute, Step 108).
 
 #### Country pay practices & multi-jurisdiction tax (Step 106)
 

@@ -5790,3 +5790,46 @@ who can log time against a project. Inserted between T3 and T4; does not renumbe
 **Commit:** `chore(timesheets): final verification gate`
 
 **STOP.** Phase complete — Timesheets. 🎉
+
+---
+
+## PHASE: Payroll run-type follow-ups
+
+> Step 105 created the run-type **labels** but only `Regular` and `FnF` got real
+> compute. This phase makes the remaining special types genuinely work so the demo
+> has no fake buttons. See `CLAUDE.md §26` "Run types (Step 118)" and
+> `newreqphase3.md` Domain F "Run-type compute (Step 118)".
+
+- [x] Step 118 — Real bonus / arrears / off-cycle / reversal compute
+
+### Step 118 — Real bonus / arrears / off-cycle / reversal compute
+
+**Context:** `PAYROLL_SYSTEM_DESIGN.md §7.2`; `newreqphase3.md` Domain F; `CLAUDE.md §26`.
+
+**Build:**
+
+1. Docs: `newreqphase3.md` Domain F run-type compute; `CLAUDE.md §26` note (done first).
+2. Types (`payroll.types.ts`): `employeeIds` + `reversalOfRunId` + `reversalOfPeriodLabel`
+   on `PayrollRun` and the create input.
+3. Tested logic: `computeBonusTax(annualTaxable, extra, regime)` in `formula.utils.ts`
+   (incremental regime tax), with unit tests in `formula.utils.test.ts`.
+4. Seed: add an `ARREARS` variable component to `payroll-components.ts`.
+5. MSW engine (`payroll-engine.ts`): `computeExtraPayRun` (Bonus/Arrears — only the
+   entered amount + incremental tax), `computeOffCycleRun` (standard compute, employee
+   subset), `computeReversal` (negate a prior run).
+6. MSW handlers (`payroll-runs.ts`): `POST /runs` accepts `employeeIds` / `reversalOfRunId`;
+   `calculate` branches by type; payslip endpoints serve the new runs; Bonus/Arrears are
+   not auto-calculated (created `DRAFT`).
+7. UI (`InitiateRunDialog.tsx`): employee picker (off-cycle), target-run picker (reversal),
+   no-auto-calc + hint (bonus/arrears); minor `PayrollRunDetail.tsx` "Reversal of …" label.
+
+**Behavior:** config-driven only — no `country ===`. Off-cycle deeper proration and
+auto-detected arrears (from comp history) remain deferred.
+
+**API:** Domain F — run-type compute (Step 118).
+
+**Test Gate:** `pnpm typecheck` · `pnpm lint` · `pnpm test -- formula.utils`
+
+**Commit:** `feat(payroll): real bonus, arrears, off-cycle, and reversal run computation`
+
+**STOP.** Write "Step 118 complete. Waiting for you to say next."

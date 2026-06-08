@@ -22,6 +22,9 @@ export function usePayrollRun(id: string | null) {
     queryKey: [...RUNS_KEY, id],
     queryFn: () => payrollRunsApi.get(id!),
     enabled: !!id,
+    // Calculation is async (DRAFT → CALCULATING → REVIEW). Poll while calculating so
+    // the page picks up the transition; stop once it settles.
+    refetchInterval: (query) => (query.state.data?.status === 'CALCULATING' ? 1500 : false),
   });
 }
 

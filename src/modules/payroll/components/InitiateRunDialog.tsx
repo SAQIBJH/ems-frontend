@@ -29,6 +29,7 @@ import {
   useInitiatePayrollRun,
   useCalculatePayrollRun,
   usePayrollRoster,
+  usePayrollRuns,
   payrollRunsApi,
 } from '@/modules/payroll';
 import type { PayrollRunType } from '@/modules/payroll';
@@ -86,10 +87,28 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
   const [leaveBalanceDays, setLeaveBalanceDays] = useState('12');
   const [noticeShortfallDays, setNoticeShortfallDays] = useState('0');
 
+  // Off-cycle: the selected employee subset. Reversal: the run being offset.
+  const [offCycleIds, setOffCycleIds] = useState<string[]>([]);
+  const [reversalTargetId, setReversalTargetId] = useState('');
+
   const initiateMutation = useInitiatePayrollRun();
   const calculateMutation = useCalculatePayrollRun();
   const { data: roster = [] } = usePayrollRoster();
+  const { data: runsPage } = usePayrollRuns({ limit: 50 });
   const isFnf = runType === 'FNF';
+  const isOffCycle = runType === 'OFF_CYCLE';
+  const isReversal = runType === 'REVERSAL';
+  // Bonus & arrears are entered as amounts in Period Inputs after the run is created.
+  const isExtraPay = runType === 'BONUS' || runType === 'ARREARS';
+
+  // A reversal can only offset an approved or paid run.
+  const reversibleRuns = (runsPage?.items ?? []).filter(
+    (r) => r.status === 'APPROVED' || r.status === 'PAID',
+  );
+
+  function toggleOffCycle(id: string) {
+    setOffCycleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   // Poll the run until it leaves CALCULATING / DRAFT
   const { data: pollingRun } = useQuery({
@@ -139,7 +158,19 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
               noticeShortfallDays: Number(noticeShortfallDays),
             }
           : undefined,
+        employeeIds: isOffCycle ? offCycleIds : undefined,
+        reversalOfRunId: isReversal ? reversalTargetId : undefined,
       });
+      // Bonus/arrears need their amounts entered first — create as DRAFT and open the
+      // run so HR can fill Period Inputs, then calculate from the run page.
+      if (isExtraPay) {
+        toast.success(
+          `${runType === 'BONUS' ? 'Bonus' : 'Arrears'} run created — enter amounts in Period Inputs, then Calculate.`,
+        );
+        onOpenChange(false);
+        router.push(`/payroll/${run.id}`);
+        return;
+      }
       await calculateMutation.mutateAsync(run.id);
       setCalculatingId(run.id);
     } catch (err) {
@@ -148,7 +179,11 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
     }
   }
 
-  const canSubmit = !isPending && (!isFnf || !!fnfEmployee);
+  const canSubmit =
+    !isPending &&
+    (!isFnf || !!fnfEmployee) &&
+    (!isOffCycle || offCycleIds.length > 0) &&
+    (!isReversal || !!reversalTargetId);
 
   return (
     <Dialog open={open} onOpenChange={isPending ? undefined : onOpenChange}>
@@ -213,8 +248,8 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
             </p>
           </div>
 
-          {/* Include all active employees (roster runs only) */}
-          {!isFnf && (
+          {/* Include all active employees (regular roster runs only) */}
+          {runType === 'REGULAR' && (
             <div className="flex items-center gap-3">
               <input
                 id="include-all"
@@ -227,6 +262,78 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
               <Label htmlFor="include-all" className="cursor-pointer font-normal">
                 Include all active employees
               </Label>
+            </div>
+          )}
+
+          {/* Bonus / arrears — amounts are entered after creation */}
+          {isExtraPay && (
+            <div className="rounded-md border border-info/30 bg-info/5 px-3 py-2.5 text-xs text-info">
+              This run pays <span className="font-medium">only</span> the{' '}
+              {runType === 'BONUS' ? 'bonus' : 'arrears'} amounts you enter. It will open as a draft
+              — add per-employee amounts in <span className="font-medium">Period Inputs</span>, then
+              click Calculate.
+            </div>
+          )}
+
+          {/* Off-cycle — pick the employees to pay */}
+          {isOffCycle && (
+            <div className="space-y-1.5">
+              <Label>Employees to pay ({offCycleIds.length} selected)</Label>
+              <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border border-subtle p-2">
+                {roster.length === 0 ? (
+                  <p className="px-1 py-2 text-xs text-fg-muted">No employees on the roster.</p>
+                ) : (
+                  roster.map((m) => (
+                    <label
+                      key={m.employeeId}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-surface-raised"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={offCycleIds.includes(m.employeeId)}
+                        onChange={() => toggleOffCycle(m.employeeId)}
+                        disabled={isPending}
+                        className="size-4 accent-brand cursor-pointer"
+                      />
+                      <span className="text-sm text-fg">{m.employeeName}</span>
+                      <span className="font-mono text-xs text-fg-muted">{m.employeeCode}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Reversal — pick the run to offset */}
+          {isReversal && (
+            <div className="space-y-1.5">
+              <Label>Run to reverse</Label>
+              <Select
+                value={reversalTargetId}
+                onValueChange={(v) => v && setReversalTargetId(v)}
+                disabled={isPending}
+              >
+                <SelectTrigger className="w-full cursor-pointer">
+                  <SelectValue placeholder="Select an approved or paid run">
+                    {(v) => {
+                      const r = reversibleRuns.find((x) => x.id === v);
+                      return r
+                        ? `${r.periodLabel} · ${r.status}`
+                        : 'Select an approved or paid run';
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {reversibleRuns.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.periodLabel} · {r.status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-fg-muted">
+                Creates an offsetting run with negative amounts. The original run is unchanged.
+              </p>
             </div>
           )}
 
@@ -326,7 +433,7 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
             {(initiateMutation.isPending || calculateMutation.isPending) && (
               <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
             )}
-            {isFnf ? 'Calculate Settlement' : 'Calculate Payroll'}
+            {isExtraPay ? 'Create Run' : isFnf ? 'Calculate Settlement' : 'Calculate Payroll'}
           </Button>
         </DialogFooter>
       </DialogContent>

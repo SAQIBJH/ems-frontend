@@ -883,6 +883,11 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
                 {run?.type?.replace(/_/g, ' ')}
               </span>
             )}
+            {run?.type === 'REVERSAL' && run.reversalOfPeriodLabel && (
+              <span className="inline-flex items-center rounded bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
+                Reverses {run.reversalOfPeriodLabel}
+              </span>
+            )}
             {run && <StatusBadge status={run.status} />}
             {run?.published && (
               <span className="inline-flex items-center rounded bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
@@ -1035,8 +1040,11 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
           />
         )}
 
-        {/* Variance / anomaly review — surfaced in REVIEW */}
-        {run && run.status === 'REVIEW' && <VariancePanel runId={run.id} currency={run.currency} />}
+        {/* Variance / anomaly review — surfaced in REVIEW for regular runs (a bonus or
+            reversal vs a full-salary month would flag everyone misleadingly). */}
+        {run && run.status === 'REVIEW' && run.type === 'REGULAR' && (
+          <VariancePanel runId={run.id} currency={run.currency} />
+        )}
 
         {/* Audit trail — every transition / override / approval */}
         {run && <AuditPanel runId={run.id} />}
