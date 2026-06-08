@@ -8,8 +8,8 @@
 > **Sources compared:** live shapes in `docs/API_MAPPING.md` ↔ frontend
 > `src/modules/<m>/services/*.api.ts` (unwrap logic) + `types/*.ts` + `src/mocks/handlers/*`.
 >
-> **Status:** 🟢 cross-cutting done · **all 🔴 newly-live (A–M) reconciled** · Phase-1 🟡
-> sweep (N–U) + ⚪ notes (V/W) next (see index §3).
+> **Status:** ✅ **COMPLETE — all 23 domains (A–W) reconciled.** Cross-cutting (§2) + every
+> per-domain drift table (§4) filled. Ready to drive the §5 cutover.
 
 ## How to read a drift row
 
@@ -54,6 +54,24 @@ money correct); only migration status keys + mocked migration sub-routes lag.
 slabs, claims, loans → **major** units live; workers `monthlyCost` + cost-summary → **minor**
 units live. The FE is inconsistent (some `formatMoney`/minor, some `formatMajor`/major), so
 the unit is a **per-screen** decision, not a global one — see each domain's money row.
+
+**Whole-app verdict (all A–W done).** The split is sharp:
+
+- **🟢 Flip-ready / near-ready (most of the app):** the Phase-1 🟡 sweep (N–U, already live),
+  the four frontend-first modules (I–L Recruitment/Performance/Assets/Announcements), Timesheets
+  (H), Reports reads (M), and payroll workforce (G). These flip as-is or with one shared
+  one-liner each.
+- **🟠 Needs a service-boundary adapter (mechanical):** payroll runs list-envelope (A),
+  components config-fields (B), salary/tax (D), pay-equity/templates/tax-forms (F), Reports
+  **export** async flow (M), and the **`next-code` field bug** (O — breaks Create-Employee on
+  live today).
+- **🔴 True blockers (real engineering or backend work):** payroll **localization/StatutoryPack**
+  (C — structural rewrite or backend reshape) and **loans/claims/garnishments** (E — the money
+  **100×** zone + flat/nested shapes). Plus **W** run-types (backend feature gap) and the
+  no-live-route endpoints filed throughout C/D/F/G.
+
+So "the whole app" reconciles cleanly **except payroll C and E**, which are the two areas that
+must not be flipped without code changes. Nothing outside payroll is a hard blocker.
 
 **Cross-cutting issues found so far (read §2 — they affect every domain):**
 
@@ -121,16 +139,16 @@ Tiers: 🔴 deep field-level diff (newly live) · 🟡 sanity sweep (long-live) 
 | K   | Assets                                                                |  🔴  | `assets.api.ts`                                                     | ✅ done — clean                                 |
 | L   | Announcements                                                         |  🔴  | `announcements.api.ts`                                              | ✅ done — clean                                 |
 | M   | Reports (rich registers)                                              |  🔴  | `reports.api.ts`                                                    | ✅ done — reads flip; export async-broken       |
-| N   | Auth / sessions                                                       |  🟡  | `auth.api.ts`                                                       | ⏳                                              |
-| O   | Employees / documents / audit-logs                                    |  🟡  | `employees.api.ts`, `documents.api.ts`, `auditLogs.api.ts`          | ⏳                                              |
-| P   | Departments                                                           |  🟡  | `departments.api.ts`                                                | ⏳                                              |
-| Q   | Attendance                                                            |  🟡  | `attendance.api.ts`                                                 | ⏳                                              |
-| R   | Leave                                                                 |  🟡  | `leave.api.ts`                                                      | ⏳                                              |
-| S   | Holidays                                                              |  🟡  | `holidays.api.ts`                                                   | ⏳                                              |
-| T   | Settings / permissions                                                |  🟡  | `settings.api.ts`, `permissions.api.ts`                             | ⏳                                              |
-| U   | Analytics / dashboard / notifications / search                        |  🟡  | `analytics.api.ts`, `dashboard.api.ts`, …                           | ⏳                                              |
-| V   | Integrations / Billing (still mocked)                                 |  ⚪  | `settings.api.ts` (integration), billing                            | ⏳ note                                         |
-| W   | Payroll run-types (not on backend)                                    |  ⚪  | `payroll-runs.api.ts`                                               | ⏳ note                                         |
+| N   | Auth / sessions                                                       |  🟡  | `auth.api.ts`                                                       | ✅ done — flip-ready; drop otp MSW              |
+| O   | Employees / documents / audit-logs                                    |  🟡  | `employees.api.ts`, `documents.api.ts`, `auditLogs.api.ts`          | ✅ done — ❌ next-code field bug                |
+| P   | Departments                                                           |  🟡  | `departments.api.ts`                                                | ✅ done — clean                                 |
+| Q   | Attendance                                                            |  🟡  | `attendance.api.ts`                                                 | ✅ done — clean                                 |
+| R   | Leave                                                                 |  🟡  | `leave.api.ts`                                                      | ✅ done — calendar deviation                    |
+| S   | Holidays                                                              |  🟡  | `holidays.api.ts`                                                   | ✅ done — clean; drop import MSW                |
+| T   | Settings / permissions                                                |  🟡  | `settings.api.ts`, `permissions.api.ts`                             | ✅ done — verify sub-endpoints                  |
+| U   | Analytics / dashboard / notifications / search                        |  🟡  | `analytics.api.ts`, `dashboard.api.ts`, …                           | ✅ done — verify ext. analytics                 |
+| V   | Integrations / Billing (still mocked)                                 |  ⚪  | `settings.api.ts` (integration), billing                            | ✅ note — keep mocked                           |
+| W   | Payroll run-types (not on backend)                                    |  ⚪  | `payroll-runs.api.ts`                                               | ✅ note — split cutover                         |
 
 ---
 
@@ -482,6 +500,53 @@ money formatter (major).
 
 ---
 
+### Domains N–U — Phase-1 sanity sweep 🟡 (already live; app runs against them)
+
+These eight domains have been live for weeks and the running app already consumes them, so
+this is a **confirmation sweep**: every service unwraps `data.data` (or the documented nested
+key) and matches `API_MAPPING`. Verdict: **flip-ready**, save a few specific drifts called out
+per row.
+
+| #     | Domain                                         | Confirmed ✅                                                                                                                                                                     | Real drift / verify                                                                                                                                                                                                             |
+| ----- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **N** | Auth / sessions                                | login/me/sessions/logout/refresh all `data.data`; `verify-otp` sends `code` ✅; cookie flow ✅                                                                                   | `POST /auth/otp/initiate` is now **live** (API_MAPPING 2026-05-28) → its MSW handler can be dropped (CLAUDE §3 still lists it mocked)                                                                                           |
+| **O** | Employees / documents / audit-logs             | `list` double-nest `data.data[]`+`pagination` ✅; get/CRUD ✅; `audit-logs` → `data.logs[]`, snake_case ✅; documents ✅                                                         | ❌ **`getNextCode` reads `data.data.code`; live returns `data.nextCode`** → Create-Employee code pre-fill is `undefined` on live (known §3 deviation, not adapted). ❔ `/employees/bulk/deactivate`+`/bulk/export` live?        |
+| **P** | Departments                                    | `list` → `data[]` nested tree ✅; `getDepartmentEmployees` double-nest ✅                                                                                                        | ❔ `/departments/:id/reassign-and-delete` live? (verify route)                                                                                                                                                                  |
+| **Q** | Attendance                                     | `records` → `data.records[]`+`pagination` ✅; `today` nullable ✅; summary ✅; regularization approve/deny ✅                                                                    | ✅ clean — flip                                                                                                                                                                                                                 |
+| **R** | Leave                                          | `balance` → `data.balances[]` ✅; `requests`/`team/requests` → `data.requests[]` ✅; bulk approve/deny ✅                                                                        | ⚠️ `team/calendar` → `members[].leaves[]` range objects (**not** `days[]` grid) — documented §3 deviation, ensure FE renders ranges. ❔ `/leave/team/coverage` live?                                                            |
+| **S** | Holidays                                       | `GET` → `data.holidays[]`+`data.total` ✅; CRUD ✅; `.ics` import preview/commit **live** ✅                                                                                     | ✅ clean — flip (drop import MSW per CLAUDE §3)                                                                                                                                                                                 |
+| **T** | Settings / permissions                         | `settings/tenant` (snake_case `company_name`…) ✅; `email-templates` → `data.templates` ✅; `roles-permissions` ✅                                                               | ❔ `/settings/branding`, `/settings/attendance-rules`, `/settings/roles-permissions/custom` — live or still MSW? (verify each)                                                                                                  |
+| **U** | Analytics / dashboard / notifications / search | core `analytics/{summary,attendance,headcount,leave-summary,recent-activity}` ✅; manager+employee dashboards ✅; notifications (PATCH read/read-all) live ✅; `/search` live ✅ | ⚠️ **4 extended analytics** (`workforce-trend`, `attrition`, `payroll-cost`, `department-performance`) — CLAUDE §3 lists them **MSW**, but `API_MAPPING` documents them live → resolve which before flipping the Analytics page |
+
+**Cutover note (N–U):** **the safe block to flip first** (low blast radius, already exercised
+live). Two concrete fixes regardless of cutover: the **`next-code` field bug**
+(`code`→`nextCode`, Domain O — breaks the Create-Employee form on live today) and dropping the
+now-redundant MSW handlers for **`otp/initiate`** and **holiday `.ics` import** (Domains N/S).
+Before flipping the Analytics page, settle the **extended-analytics live-vs-MSW** contradiction
+(Domain U) and the handful of settings sub-endpoints (Domain T). Everything else in N–U is a
+clean flip. Field casing is per-endpoint as documented (camelCase except snake_case on
+audit-logs + settings/tenant) — do **not** normalize.
+
+---
+
+### Domains V–W — note-only ⚪ (intentionally still mocked)
+
+These two are **not cutover candidates** — they stay on MSW by design until the backend ships
+the work. Listed for completeness so nobody flips them by accident.
+
+| #     | Domain                 | Status                          | Note                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----- | ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **V** | Integrations / Billing | ⚪ MSW-only, no live backend    | Per CLAUDE §24: email/storage/webhook integration settings + billing (subscription/plans/invoices) are all MSW-backed; billing actions are read-only info dashboards. **Keep mocked.** No drift to file — there's nothing live to diff against. When the backend ships, diff then.                                                                                                                                                                                                                                                                                              |
+| **W** | Payroll run-types      | ⚪ accepted-but-ignored on live | Step-118 run types (`BONUS`, `ARREARS`, `OFF_CYCLE`, `REVERSAL`, `FNF`) are **real in the MSW engine** but **not on the live backend**: live `POST /payroll/runs` accepts only `{period, includeAllActiveEmployees}` and silently ignores `type`/`fnf`/`employeeIds`/`reversalOfRunId` (Domain A). So even after Payroll-A flips, **only `REGULAR` runs compute correctly on live** — the other five must **stay routed through MSW** (or the backend must implement them) or they'll produce a `REGULAR` run regardless of the type chosen. The single functional payroll gap. |
+
+**Cutover note (V–W):** leave both on MSW. **V** has no live counterpart yet (nothing to
+reconcile). **W** is the one place where "flip the domain" and "feature works" diverge: the
+Payroll runs list/CRUD can go live for regular monthly payroll while the four special run
+types remain mock-served — a **split cutover within Domain A**. Track W as a backend feature
+request, not a frontend adapter.
+
+---
+
 ## 5. Cutover procedure (domain-by-domain)
 
 For each domain, once its drift rows are all `flip`/resolved:
@@ -493,6 +558,25 @@ For each domain, once its drift rows are all `flip`/resolved:
    gaps, pagination shape.
 4. If clean → leave live; remove the MSW handler. If not → fix the drift row, re-test.
 
-Suggested order (low-blast-radius first): **Phase-1 🟡 domains → Reports → Timesheets →
-Payroll (sub-domain by sub-domain) → Recruitment/Performance/Assets/Announcements**. Keep
-Integrations/Billing on mock until their backends ship.
+**Recommended order (now that all 23 are mapped — low-blast-radius first):**
+
+1. **Settle the two app-wide blockers first** (one request each): validation **400 vs 422**
+   (§2 #1) and **payroll cookie-auth** (§2 #4). These gate everything.
+2. **Phase-1 🟡 sweep (N–U)** — already live; flip first as the proof. Ship the **`next-code`
+   fix** (O) and drop the redundant `otp/initiate` + holiday-import MSW (N/S) as you go.
+   Resolve the extended-analytics MSW-vs-live question (U) before the Analytics page.
+3. **Frontend-first modules (I–L)** — Recruitment / Performance / Assets / Announcements.
+   Gate only on the `pagination.pages`-vs-`totalPages` check; otherwise clean.
+4. **Timesheets (H)** — confirm approval `employeeName`, settings key, summary shape.
+5. **Reports (M)** — reads flip immediately; rebuild **export** as the async job→download flow.
+6. **Payroll, sub-domain by sub-domain (A–G), in adapter-difficulty order:** **G** (near-ready)
+   → **B** (verify config round-trip) → **A** (list-envelope + inputs remap; REGULAR runs only)
+   → **D** / **F** (adapters) → **C** and **E** last (the real blockers: StatutoryPack rewrite,
+   money-100× fixes). Do **not** flip C or E without the code changes.
+7. **Keep on MSW:** Integrations/Billing (V), payroll special run-types (W), and every
+   no-live-route endpoint filed in C/D/F/G (`/payroll/countries`, bank-schema, `audit-pack`,
+   `data-policy`, opening-balances, historical-payslips, register/statutory-return).
+
+Per-domain mechanics (unchanged): flip in a preview env → smoke-test as HR/Manager/Employee →
+watch 401s, 400-vs-422, 100×/÷100 money, enum/`null` gaps, pagination shape → clean ⇒ remove
+the handler; else fix the drift row and re-test.
