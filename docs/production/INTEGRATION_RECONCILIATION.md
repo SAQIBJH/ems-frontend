@@ -8,8 +8,8 @@
 > **Sources compared:** live shapes in `docs/API_MAPPING.md` ↔ frontend
 > `src/modules/<m>/services/*.api.ts` (unwrap logic) + `types/*.ts` + `src/mocks/handlers/*`.
 >
-> **Status:** 🟢 cross-cutting done · **all Payroll A–G reconciled** · Timesheets→Reports +
-> Phase-1 🟡 sweep next (see index §3).
+> **Status:** 🟢 cross-cutting done · **all 🔴 newly-live (A–M) reconciled** · Phase-1 🟡
+> sweep (N–U) + ⚪ notes (V/W) next (see index §3).
 
 ## How to read a drift row
 
@@ -115,12 +115,12 @@ Tiers: 🔴 deep field-level diff (newly live) · 🟡 sanity sweep (long-live) 
 | E   | Payroll — loans / claims / garnishments                               |  🔴  | `loans.api.ts`, `claims.api.ts`, `garnishments.api.ts`              | ✅ done — money 100× + flat/nested mismatch     |
 | F   | Payroll — disbursement / journal / compliance / templates / tax forms |  🔴  | `compliance.api.ts`, `payslip-templates.api.ts`, `tax-forms.api.ts` | ✅ done — pay-equity/template/tax-form remaps   |
 | G   | Payroll — global workforce / migration / roster                       |  🔴  | `workers.api.ts`, `migration.api.ts`                                | ✅ done — closest to flip-ready                 |
-| H   | Timesheets                                                            |  🔴  | `timesheets.api.ts`, `projects.api.ts`                              | ⏳ next                                         |
-| I   | Recruitment                                                           |  🔴  | `recruitment.api.ts`                                                | ⏳                                              |
-| J   | Performance                                                           |  🔴  | `performance.api.ts`                                                | ⏳                                              |
-| K   | Assets                                                                |  🔴  | `assets.api.ts`                                                     | ⏳                                              |
-| L   | Announcements                                                         |  🔴  | `announcements.api.ts`                                              | ⏳                                              |
-| M   | Reports (rich registers)                                              |  🔴  | `reports.api.ts`                                                    | ⏳                                              |
+| H   | Timesheets                                                            |  🔴  | `timesheets.api.ts`, `projects.api.ts`                              | ✅ done — mostly flip-ready                     |
+| I   | Recruitment                                                           |  🔴  | `recruitment.api.ts`                                                | ✅ done — clean (frontend-first)                |
+| J   | Performance                                                           |  🔴  | `performance.api.ts`                                                | ✅ done — clean                                 |
+| K   | Assets                                                                |  🔴  | `assets.api.ts`                                                     | ✅ done — clean                                 |
+| L   | Announcements                                                         |  🔴  | `announcements.api.ts`                                              | ✅ done — clean                                 |
+| M   | Reports (rich registers)                                              |  🔴  | `reports.api.ts`                                                    | ✅ done — reads flip; export async-broken       |
 | N   | Auth / sessions                                                       |  🟡  | `auth.api.ts`                                                       | ⏳                                              |
 | O   | Employees / documents / audit-logs                                    |  🟡  | `employees.api.ts`, `documents.api.ts`, `auditLogs.api.ts`          | ⏳                                              |
 | P   | Departments                                                           |  🟡  | `departments.api.ts`                                                | ⏳                                              |
@@ -398,6 +398,87 @@ edge: status uses different count keys (`*Set`/`*Imported` vs FE `*Count`), pay-
 carry Domain C's structural mismatch, and opening-balances / historical-payslips /
 parallel-reconcile have **no live route** (keep mocked). So: workforce sub-area → flip with
 trivial adapters; migration sub-area → stays largely on MSW.
+
+---
+
+### Domain H — Timesheets 🔴
+
+**Sources:** `timesheets.api.ts`, `projects.api.ts`, `timesheet.types.ts` ↔ `API_MAPPING`
+Domain G (Timesheets, live 2026-06-07).
+
+| Endpoint                                               | FE expects                                                              | Live returns                                                    | Drift                                                              | Action              |
+| ------------------------------------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------- |
+| `GET /timesheets?week=&employeeId=`                    | `data` → `Timesheet` (auto-DRAFT)                                       | `data` object, auto-creates DRAFT                               | ✅                                                                 | flip                |
+| timesheet object                                       | adds `employeeName`, `submittedAt`, `decidedBy`, `decidedAt`, `comment` | doc shape lists only `{…, standardHours, entries[]}`            | ⚠️ approval queue needs `employeeName`; decided-meta may be absent | verify              |
+| `POST`/`PATCH`/`DELETE /timesheets/entries`            | `TimeEntry` w/ `employeeId`, required `taskId`                          | entry `{…, taskId?, …}` (no `employeeId`, `taskId` optional)    | ⚠️ `employeeId` undefined; untasked entries → `taskId` undefined   | adapt-FE (nullable) |
+| `POST /timesheets/:id/submit` · `/approve` · `/reject` | `{comment}` → `Timesheet`                                               | DRAFT/REJECTED→SUBMITTED→APPROVED/REJECTED, `{comment}`         | ✅                                                                 | flip                |
+| `GET /timesheets/approvals?status=`                    | `data[]` → `Timesheet[]`                                                | `data[]`                                                        | ✅ (pending `employeeName`)                                        | flip                |
+| `GET /timesheets/projects?memberId=` (+ CRUD)          | `Project[]` w/ required `clientName`, `status`                          | POST `clientName`/`billable`/`defaultRate`/`memberIds` optional | ⚠️ `clientName` may be null on minimal projects                    | adapt-FE (nullable) |
+| `GET /timesheets/projects/:id/tasks` (+ CRUD)          | `Task[]` `{id, projectId, name, billable, active}`                      | matches                                                         | ✅                                                                 | flip                |
+| `GET /timesheets/summary?range=&employeeId=`           | `TimesheetSummary` `{…, byProject[], byEmployee[]}`                     | "utilization summary" — shape undocumented                      | ❔ shape                                                           | verify              |
+| `GET`/`PATCH /timesheets/settings`                     | `{standardWeeklyHours, overtimeThresholdHours, roundingMinutes, …}`     | `{standardWeeklyHours, overtimeThreshold, …}`                   | ⚠️ `overtimeThreshold` vs FE `overtimeThresholdHours`              | verify key          |
+
+**Cutover note (H):** **mostly flip-ready** — same camelCase domain pattern, envelopes and
+core CRUD match. Confirm three things against live: (1) the **approval queue's `employeeName`**
+(and decided-meta) actually come back, or the queue rows show blank; (2) the **settings key**
+is `overtimeThreshold` vs the FE's `overtimeThresholdHours`; (3) the **summary** object shape
+(`byProject`/`byEmployee`). Make entry `employeeId`/`taskId` and project `clientName` nullable
+in the FE types. No money concerns (hours are plain decimals). Note the payroll bridge
+`POST /payroll/runs/:id/inputs/from-timesheets` is live (Domain A row / F.8-ext).
+
+---
+
+### Domains I–L — Recruitment / Performance / Assets / Announcements 🔴 (frontend-first, backend-matched → cleanest)
+
+These four net-new Phase-3 modules were authored **frontend-first** (`newreqphase3.md`,
+camelCase) and the backend implemented to the mock. The FE page-wrapper keys, object fields,
+and the (unusually human-readable, title-case) enums **match `API_MAPPING` Domains A–D
+verbatim**. Verdict for all four: **expected clean flip**, with one shared thing to confirm.
+
+| Domain              | Endpoints (FE ↔ live)                                                                                                                                                                                                           | Match | Drift / verify                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **I Recruitment**   | `summary`, `openings`(`{openings[],pagination}`), `candidates`(`{candidates[],pagination}`), `candidates/:id/advance`(`{stage}`), `openings`POST/PATCH, `candidates/:id/rating`(`{rating:1-5}`), `recruiters`(`{recruiters[]}`) | ✅    | enums `applied→hired`, `Open\|Closing\|On hold\|Closed` match; candidate `tag=openingId` (confirm FE reads it)                      |
+| **J Performance**   | `cycles/active`(obj or **null**), `summary`, `reviews`(`{reviews[],pagination}`), `goals`(`{goals[],pagination}`), `calibration`(`{distribution[],notes[]}`), `employees`, `reviews/:employeeId`PATCH, `goals`POST              | ✅    | `RatingValue Exceeds\|Strong\|Meets\|Developing\|Below` matches; `getActiveCycle` already handles `null`                            |
+| **K Assets**        | `summary`, `assets`(`{assets[],pagination}`), `assets`POST, `assets/requests`(`{requests[],pagination}`), `requests/:id/approve\|decline`, `:id/status\|assign\|recall`, `employees`                                            | ✅    | enums `Laptop\|…`, `Assigned\|Available\|Repair\|Retired`, `Pending\|Approved\|Fulfilled\|Declined` match; `assignedTo` nullable ✅ |
+| **L Announcements** | `announcements`(`{pinned, feed[], pagination}`), POST, `channels`(`{channels[]}`), `events`(`{events[]}`)+POST, `:id/pin\|unpin`                                                                                                | ✅    | `author {name, role}` ✅; category `Company\|People\|Product\|IT\|Office` matches                                                   |
+
+**Shared verify (I–L):** the **`pagination` inner key** — FE types and MSW use `totalPages`;
+the live payroll list used `pages` (Domain A). These modules' live pagination field name
+must be confirmed `totalPages` (one response inspection per module), or the pagers under-count.
+No money in any of these four (hours/ratings/counts only).
+
+**Cutover note (I–L):** **the green block of the cutover.** Flip these first as the
+low-blast-radius proof that mocks-off works end-to-end, gated only on the `pagination.pages`
+vs `totalPages` check. If live returns `pages`, it's a trivial one-line service remap shared
+across all four; otherwise they flip as-is.
+
+---
+
+### Domain M — Reports (rich registers) 🔴
+
+**Sources:** `reports.api.ts`, `reports.types.ts` ↔ `API_MAPPING` "Phase 2 Report Endpoints
+(Domain 4)". All nine report endpoints + `/reports/export`.
+
+| Endpoint                                                                                                     | FE expects                                                            | Live returns                                                                         | Drift                                              | Action                |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- | --------------------- |
+| all 9 report GETs (envelope)                                                                                 | `data` → `{meta, summary, chartData, tableData:{items[],pagination}}` | exactly that shape                                                                   | ✅                                                 | flip                  |
+| `workforce/headcount`, `turnover`, `attendance/summary`, `absenteeism`, `leave/utilization`, `leave/pending` | per-endpoint summary/chart/table fields                               | documented fields match (`currentHeadcount`, `attritionRate`, …)                     | ✅                                                 | flip                  |
+| `workforce/demographics`                                                                                     | `{byEmploymentType[], byGender[], byDepartment[]}`                    | same                                                                                 | ✅                                                 | flip                  |
+| `payroll/ctc-analysis`                                                                                       | `{bands[], percentiles}`                                              | same                                                                                 | ✅                                                 | flip                  |
+| `payroll/summary` data quality                                                                               | real payroll numbers                                                  | **estimated from headcount** (FT 80k/mo, etc. — no live payroll feed)                | ⚠️ numbers are synthetic, not from Payroll module  | accept / note         |
+| payroll report money                                                                                         | numbers                                                               | major units (`totalGross/Net`)                                                       | ⚠️ verify formatter major                          | verify                |
+| `POST /reports/export`                                                                                       | **blob** (`responseType:'blob'`) → immediate CSV download             | **202 JSON** `{jobId, status, message}` → async; poll `GET /export/:job_id/download` | ❌ FE downloads the JSON job descriptor, not a CSV | adapt-FE (async flow) |
+| report `pagination` inner                                                                                    | `ReportPagination`                                                    | shape undocumented                                                                   | ❔ `pages` vs `totalPages`                         | verify                |
+
+**Cutover note (M):** **read paths flip cleanly** — the FE was built to the exact
+`{meta, summary, chartData, tableData}` contract and the field names line up across all nine
+registers. Two real items: (1) **export is broken on live** — the FE expects a synchronous
+CSV blob but `POST /reports/export` returns a **202 job** to be polled at
+`/export/:job_id/download`; the export button needs the two-step async flow before it works
+against the backend. (2) **payroll/summary + ctc-analysis are headcount-_estimated_** server-side
+(no live payroll wiring), so the figures are synthetic — fine for a register demo, but don't
+present them as actual payroll. Confirm the report `pagination` inner key and the payroll
+money formatter (major).
 
 ---
 
