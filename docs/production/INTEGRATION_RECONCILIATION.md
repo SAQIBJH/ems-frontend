@@ -62,9 +62,8 @@ the unit is a **per-screen** decision, not a global one — see each domain's mo
   (H), Reports reads (M), and payroll workforce (G). These flip as-is or with one shared
   one-liner each.
 - **🟠 Needs a service-boundary adapter (mechanical):** payroll runs list-envelope (A),
-  components config-fields (B), salary/tax (D), pay-equity/templates/tax-forms (F), Reports
-  **export** async flow (M), and the **`next-code` field bug** (O — breaks Create-Employee on
-  live today).
+  components config-fields (B), salary/tax (D), pay-equity/templates/tax-forms (F), and Reports
+  **export** async flow (M).
 - **🔴 True blockers (real engineering or backend work):** payroll **localization/StatutoryPack**
   (C — structural rewrite or backend reshape) and **loans/claims/garnishments** (E — the money
   **100×** zone + flat/nested shapes). Plus **W** run-types (backend feature gap) and the
@@ -72,6 +71,16 @@ the unit is a **per-screen** decision, not a global one — see each domain's mo
 
 So "the whole app" reconciles cleanly **except payroll C and E**, which are the two areas that
 must not be flipped without code changes. Nothing outside payroll is a hard blocker.
+
+> ⚠️ **Methodology caveat (added after a live check burned us).** This map diffs the FE against
+> the **documented** contract (`API_MAPPING.md` / CLAUDE.md), **not** against the running API in
+> most rows. We hit a concrete case where the docs are wrong: `GET /employees/next-code`
+> actually returns `{ data: { code } }` live, but API_MAPPING/CLAUDE §3 (and the service JSDoc)
+> claim `{ nextCode }` — so a "drift" the doc implied was a **doc bug**, and the FE was already
+> correct. **Lesson:** every ❌/⚠️/❔ row sourced from doc-reading (especially the payroll
+> domains, which were never exercised against live) must be **confirmed with one real request**
+> before any code is changed. Do not "fix" the FE to match a doc; fix it to match the live
+> response, and correct the doc.
 
 **Cross-cutting issues found so far (read §2 — they affect every domain):**
 
@@ -140,7 +149,7 @@ Tiers: 🔴 deep field-level diff (newly live) · 🟡 sanity sweep (long-live) 
 | L   | Announcements                                                         |  🔴  | `announcements.api.ts`                                              | ✅ done — clean                                 |
 | M   | Reports (rich registers)                                              |  🔴  | `reports.api.ts`                                                    | ✅ done — reads flip; export async-broken       |
 | N   | Auth / sessions                                                       |  🟡  | `auth.api.ts`                                                       | ✅ done — flip-ready; drop otp MSW              |
-| O   | Employees / documents / audit-logs                                    |  🟡  | `employees.api.ts`, `documents.api.ts`, `auditLogs.api.ts`          | ✅ done — ❌ next-code field bug                |
+| O   | Employees / documents / audit-logs                                    |  🟡  | `employees.api.ts`, `documents.api.ts`, `auditLogs.api.ts`          | ✅ done — clean (next-code: docs wrong, FE OK)  |
 | P   | Departments                                                           |  🟡  | `departments.api.ts`                                                | ✅ done — clean                                 |
 | Q   | Attendance                                                            |  🟡  | `attendance.api.ts`                                                 | ✅ done — clean                                 |
 | R   | Leave                                                                 |  🟡  | `leave.api.ts`                                                      | ✅ done — calendar deviation                    |
@@ -507,21 +516,22 @@ this is a **confirmation sweep**: every service unwraps `data.data` (or the docu
 key) and matches `API_MAPPING`. Verdict: **flip-ready**, save a few specific drifts called out
 per row.
 
-| #     | Domain                                         | Confirmed ✅                                                                                                                                                                     | Real drift / verify                                                                                                                                                                                                             |
-| ----- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **N** | Auth / sessions                                | login/me/sessions/logout/refresh all `data.data`; `verify-otp` sends `code` ✅; cookie flow ✅                                                                                   | `POST /auth/otp/initiate` is now **live** (API_MAPPING 2026-05-28) → its MSW handler can be dropped (CLAUDE §3 still lists it mocked)                                                                                           |
-| **O** | Employees / documents / audit-logs             | `list` double-nest `data.data[]`+`pagination` ✅; get/CRUD ✅; `audit-logs` → `data.logs[]`, snake_case ✅; documents ✅                                                         | ❌ **`getNextCode` reads `data.data.code`; live returns `data.nextCode`** → Create-Employee code pre-fill is `undefined` on live (known §3 deviation, not adapted). ❔ `/employees/bulk/deactivate`+`/bulk/export` live?        |
-| **P** | Departments                                    | `list` → `data[]` nested tree ✅; `getDepartmentEmployees` double-nest ✅                                                                                                        | ❔ `/departments/:id/reassign-and-delete` live? (verify route)                                                                                                                                                                  |
-| **Q** | Attendance                                     | `records` → `data.records[]`+`pagination` ✅; `today` nullable ✅; summary ✅; regularization approve/deny ✅                                                                    | ✅ clean — flip                                                                                                                                                                                                                 |
-| **R** | Leave                                          | `balance` → `data.balances[]` ✅; `requests`/`team/requests` → `data.requests[]` ✅; bulk approve/deny ✅                                                                        | ⚠️ `team/calendar` → `members[].leaves[]` range objects (**not** `days[]` grid) — documented §3 deviation, ensure FE renders ranges. ❔ `/leave/team/coverage` live?                                                            |
-| **S** | Holidays                                       | `GET` → `data.holidays[]`+`data.total` ✅; CRUD ✅; `.ics` import preview/commit **live** ✅                                                                                     | ✅ clean — flip (drop import MSW per CLAUDE §3)                                                                                                                                                                                 |
-| **T** | Settings / permissions                         | `settings/tenant` (snake_case `company_name`…) ✅; `email-templates` → `data.templates` ✅; `roles-permissions` ✅                                                               | ❔ `/settings/branding`, `/settings/attendance-rules`, `/settings/roles-permissions/custom` — live or still MSW? (verify each)                                                                                                  |
-| **U** | Analytics / dashboard / notifications / search | core `analytics/{summary,attendance,headcount,leave-summary,recent-activity}` ✅; manager+employee dashboards ✅; notifications (PATCH read/read-all) live ✅; `/search` live ✅ | ⚠️ **4 extended analytics** (`workforce-trend`, `attrition`, `payroll-cost`, `department-performance`) — CLAUDE §3 lists them **MSW**, but `API_MAPPING` documents them live → resolve which before flipping the Analytics page |
+| #     | Domain                                         | Confirmed ✅                                                                                                                                                                                                                 | Real drift / verify                                                                                                                                                                                                                                                               |
+| ----- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **N** | Auth / sessions                                | login/me/sessions/logout/refresh all `data.data`; `verify-otp` sends `code` ✅; cookie flow ✅                                                                                                                               | `POST /auth/otp/initiate` is now **live** (API_MAPPING 2026-05-28) → its MSW handler can be dropped (CLAUDE §3 still lists it mocked)                                                                                                                                             |
+| **O** | Employees / documents / audit-logs             | `list` double-nest `data.data[]`+`pagination` ✅; get/CRUD ✅; `audit-logs` → `data.logs[]`, snake_case ✅; documents ✅; **`getNextCode` reads `data.code` — matches live ✅ (verified live: `{"data":{"code":"E0071"}}`)** | ❗ **DOC BUG (not FE):** CLAUDE §3 + API_MAPPING + the service JSDoc all claim the field is `nextCode` — the **live API returns `code`**. The FE is correct; the docs are wrong → fix CLAUDE §3 / API_MAPPING, not the code. ❔ `/employees/bulk/deactivate`+`/bulk/export` live? |
+| **P** | Departments                                    | `list` → `data[]` nested tree ✅; `getDepartmentEmployees` double-nest ✅                                                                                                                                                    | ❔ `/departments/:id/reassign-and-delete` live? (verify route)                                                                                                                                                                                                                    |
+| **Q** | Attendance                                     | `records` → `data.records[]`+`pagination` ✅; `today` nullable ✅; summary ✅; regularization approve/deny ✅                                                                                                                | ✅ clean — flip                                                                                                                                                                                                                                                                   |
+| **R** | Leave                                          | `balance` → `data.balances[]` ✅; `requests`/`team/requests` → `data.requests[]` ✅; bulk approve/deny ✅                                                                                                                    | ⚠️ `team/calendar` → `members[].leaves[]` range objects (**not** `days[]` grid) — documented §3 deviation, ensure FE renders ranges. ❔ `/leave/team/coverage` live?                                                                                                              |
+| **S** | Holidays                                       | `GET` → `data.holidays[]`+`data.total` ✅; CRUD ✅; `.ics` import preview/commit **live** ✅                                                                                                                                 | ✅ clean — flip (drop import MSW per CLAUDE §3)                                                                                                                                                                                                                                   |
+| **T** | Settings / permissions                         | `settings/tenant` (snake_case `company_name`…) ✅; `email-templates` → `data.templates` ✅; `roles-permissions` ✅                                                                                                           | ❔ `/settings/branding`, `/settings/attendance-rules`, `/settings/roles-permissions/custom` — live or still MSW? (verify each)                                                                                                                                                    |
+| **U** | Analytics / dashboard / notifications / search | core `analytics/{summary,attendance,headcount,leave-summary,recent-activity}` ✅; manager+employee dashboards ✅; notifications (PATCH read/read-all) live ✅; `/search` live ✅                                             | ⚠️ **4 extended analytics** (`workforce-trend`, `attrition`, `payroll-cost`, `department-performance`) — CLAUDE §3 lists them **MSW**, but `API_MAPPING` documents them live → resolve which before flipping the Analytics page                                                   |
 
 **Cutover note (N–U):** **the safe block to flip first** (low blast radius, already exercised
-live). Two concrete fixes regardless of cutover: the **`next-code` field bug**
-(`code`→`nextCode`, Domain O — breaks the Create-Employee form on live today) and dropping the
-now-redundant MSW handlers for **`otp/initiate`** and **holiday `.ics` import** (Domains N/S).
+live). One cleanup regardless of cutover: drop the now-redundant MSW handlers for
+**`otp/initiate`** and **holiday `.ics` import** (Domains N/S). _(Correction: an earlier draft
+listed a `next-code` "field bug" — that was wrong. The live API returns `data.code` and the FE
+already reads `code`; it's the **docs** that wrongly say `nextCode`. See Domain O.)_
 Before flipping the Analytics page, settle the **extended-analytics live-vs-MSW** contradiction
 (Domain U) and the handful of settings sub-endpoints (Domain T). Everything else in N–U is a
 clean flip. Field casing is per-endpoint as documented (camelCase except snake_case on
@@ -562,9 +572,10 @@ For each domain, once its drift rows are all `flip`/resolved:
 
 1. **Settle the two app-wide blockers first** (one request each): validation **400 vs 422**
    (§2 #1) and **payroll cookie-auth** (§2 #4). These gate everything.
-2. **Phase-1 🟡 sweep (N–U)** — already live; flip first as the proof. Ship the **`next-code`
-   fix** (O) and drop the redundant `otp/initiate` + holiday-import MSW (N/S) as you go.
-   Resolve the extended-analytics MSW-vs-live question (U) before the Analytics page.
+2. **Phase-1 🟡 sweep (N–U)** — already live; flip first as the proof. Drop the redundant
+   `otp/initiate` + holiday-import MSW (N/S) as you go. Resolve the extended-analytics
+   MSW-vs-live question (U) before the Analytics page. _(Correct CLAUDE §3 / API_MAPPING re
+   `next-code` = `code`, not `nextCode` — doc fix, no code change.)_
 3. **Frontend-first modules (I–L)** — Recruitment / Performance / Assets / Announcements.
    Gate only on the `pagination.pages`-vs-`totalPages` check; otherwise clean.
 4. **Timesheets (H)** — confirm approval `employeeName`, settings key, summary shape.
