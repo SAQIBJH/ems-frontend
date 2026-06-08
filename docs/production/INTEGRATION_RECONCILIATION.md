@@ -8,7 +8,8 @@
 > **Sources compared:** live shapes in `docs/API_MAPPING.md` ↔ frontend
 > `src/modules/<m>/services/*.api.ts` (unwrap logic) + `types/*.ts` + `src/mocks/handlers/*`.
 >
-> **Status:** 🟢 cross-cutting done · Payroll A–C reconciled · rest in progress (see index §3).
+> **Status:** 🟢 cross-cutting done · **all Payroll A–G reconciled** · Timesheets→Reports +
+> Phase-1 🟡 sweep next (see index §3).
 
 ## How to read a drift row
 
@@ -32,14 +33,27 @@ responses. The **Phase-1** modules (auth, employees, departments, attendance, le
 holidays, settings, analytics, notifications, dashboards) have been live for weeks and the
 app already works against them → low drift, sanity-sweep only.
 
-**Payroll sub-domain verdicts so far (§4 A–C):** **A** runs — list-envelope rename
+**Payroll sub-domain verdicts (§4 A–G, all reconciled):** **A** runs — list-envelope rename
 (`runs`/`pages`→`items`/`totalPages`) + inputs/roster remap block the flip; run money is
-already major-correct (don't touch). **B** components/groups — envelopes match; the §26
-config fields (`statutoryTag`/`prorate`/`payInPeriods`) may not round-trip (verify). **C**
-localization — ⛔ **the `StatutoryPack` is a structural mismatch** (object-vs-string policies,
-nested-vs-flat contribution schemes, minor-vs-major slab units, `packData` POST wrapper);
-the pack screen will throw on live data. Pay-calendars and `/payroll/countries` bank-schema
-are likewise unaligned/absent. **Net: no payroll sub-domain is a clean flag-flip yet.**
+already major-correct. **B** components/groups — envelopes match; §26 config fields
+(`statutoryTag`/`prorate`/`payInPeriods`) may not round-trip (verify). **C** localization —
+⛔ **the `StatutoryPack` is a structural mismatch** (object-vs-string policies, nested-vs-flat
+contribution schemes, minor-vs-major slab units, `packData` wrapper) → pack screen throws on
+live; pay-calendars/`/payroll/countries` likewise unaligned/absent. **D** salary — bank model
+is hardcoded-flat live vs schema-driven `Record` in FE; tax-declaration items
+`section/description` vs `code/proofStatus`. **E** loans/claims/garnishments — the **money
+100× zone** (`toMinor` submits, minor-unit reads) + flat-vs-nested shapes (loan `amount`,
+garnishment `amountKind`, claim `data.claim` nesting). **F** disbursement/compliance —
+pay-equity/template/tax-form key remaps; `audit-pack`/`data-policy` have no live route. **G**
+workforce/migration — ✅ **closest to flip** (workers/cost/invoices near-exact, minor-unit
+money correct); only migration status keys + mocked migration sub-routes lag.
+**Net: G is near-ready; A/B/D/F need service-boundary adapters; C/E are the blockers
+(structural pack + money 100×). No sub-domain is a zero-change flag-flip yet.**
+
+**Two payroll-wide money rules to remember at cutover:** run totals, salary CTC, statutory
+slabs, claims, loans → **major** units live; workers `monthlyCost` + cost-summary → **minor**
+units live. The FE is inconsistent (some `formatMoney`/minor, some `formatMajor`/major), so
+the unit is a **per-screen** decision, not a global one — see each domain's money row.
 
 **Cross-cutting issues found so far (read §2 — they affect every domain):**
 
@@ -99,9 +113,9 @@ Tiers: 🔴 deep field-level diff (newly live) · 🟡 sanity sweep (long-live) 
 | C   | Payroll — localization (entities/packs/calendars)                     |  🔴  | `localization.api.ts`                                               | ✅ done — ⛔ statutory-pack structural mismatch |
 | D   | Payroll — salary / YTD / tax declaration                              |  🔴  | `employee-salary.api.ts`                                            | ✅ done — bank-model + tax-item mismatch        |
 | E   | Payroll — loans / claims / garnishments                               |  🔴  | `loans.api.ts`, `claims.api.ts`, `garnishments.api.ts`              | ✅ done — money 100× + flat/nested mismatch     |
-| F   | Payroll — disbursement / journal / compliance / templates / tax forms |  🔴  | `compliance.api.ts`, `payslip-templates.api.ts`, `tax-forms.api.ts` | ⏳ next                                         |
-| G   | Payroll — global workforce / migration / roster                       |  🔴  | `workers.api.ts`, `migration.api.ts`                                | ⏳                                              |
-| H   | Timesheets                                                            |  🔴  | `timesheets.api.ts`, `projects.api.ts`                              | ⏳                                              |
+| F   | Payroll — disbursement / journal / compliance / templates / tax forms |  🔴  | `compliance.api.ts`, `payslip-templates.api.ts`, `tax-forms.api.ts` | ✅ done — pay-equity/template/tax-form remaps   |
+| G   | Payroll — global workforce / migration / roster                       |  🔴  | `workers.api.ts`, `migration.api.ts`                                | ✅ done — closest to flip-ready                 |
+| H   | Timesheets                                                            |  🔴  | `timesheets.api.ts`, `projects.api.ts`                              | ⏳ next                                         |
 | I   | Recruitment                                                           |  🔴  | `recruitment.api.ts`                                                | ⏳                                              |
 | J   | Performance                                                           |  🔴  | `performance.api.ts`                                                | ⏳                                              |
 | K   | Assets                                                                |  🔴  | `assets.api.ts`                                                     | ⏳                                              |
@@ -312,6 +326,78 @@ vs FE nested `amount{kind,value}`, with two enum-value mismatches (`DEFAULTED_LO
 `PERCENT_OF_DISPOSABLE`↔`PERCENTAGE`) and minor-unit money. Every write path here needs a
 service-boundary adapter before the flip; do not enable on live with the current minor-unit
 `toMinor()` calls or amounts go in 100× too large.
+
+---
+
+### Domain F — Payroll: disbursement / journal / compliance / templates / tax forms 🔴
+
+**Sources:** `compliance.api.ts`, `payslip-templates.api.ts`, `tax-forms.api.ts` (+ the
+disbursement/journal/events methods on `payroll-runs.api.ts`, already row-noted in Domain A)
+↔ `API_MAPPING` F.16 (pay-equity), F.10-ext (templates), F.13-ext (tax forms), F.9/F.11/F.12-ext
+(disbursement/journal/events). `audit-pack` + `data-policy` not in mapping.
+
+| Endpoint                                                  | FE expects                                                                                                               | Live returns                                                                                                                                                    | Drift                                                                                                                           | Action              |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `GET /payroll/reports/pay-equity` (envelope)              | `data` → `PayEquityReport`                                                                                               | `data` object                                                                                                                                                   | ✅ envelope                                                                                                                     | —                   |
+| pay-equity group item                                     | `{group, headcount, meanPay, medianPay, meanGapPct, medianGapPct}`                                                       | `{key, count, meanCtc, medianCtc}`                                                                                                                              | ❌ every key differs; per-group gap pcts absent                                                                                 | adapt-FE (remap)    |
+| pay-equity report-level                                   | `{referenceGroup, overallMeanGapPct, overallMedianGapPct, generatedAt}`                                                  | single `gapPct`                                                                                                                                                 | ⚠️ FE's reference-group gap model not provided                                                                                  | adapt-FE / backend  |
+| pay-equity money                                          | major (`meanPay`)                                                                                                        | major (`meanCtc`)                                                                                                                                               | ✅ no 100×                                                                                                                      | flip                |
+| `GET /payroll/reports/audit-pack`                         | `Blob` (AuditPack)                                                                                                       | **not in `API_MAPPING`** → no live route                                                                                                                        | ❌ MSW-only                                                                                                                     | keep-mock / backend |
+| `GET`/`PATCH /payroll/settings/data-policy`               | `DataPolicy`                                                                                                             | **not in `API_MAPPING`** → no live route                                                                                                                        | ❌ MSW-only                                                                                                                     | keep-mock / backend |
+| `GET /payroll/payslip-templates` (envelope)               | `data` → `PayslipTemplate`                                                                                               | `data` object (auto-creates)                                                                                                                                    | ✅ envelope                                                                                                                     | —                   |
+| template `sections[]`                                     | `{key, label, enabled, order}`                                                                                           | `{id, label, visible, order}`                                                                                                                                   | ⚠️ `key`vs`id`, `enabled`vs`visible` → toggles read `undefined`                                                                 | adapt-FE (remap)    |
+| template `fields[]`                                       | `{key, label, enabled}`                                                                                                  | `{key, label, visible}`                                                                                                                                         | ⚠️ `enabled`vs`visible`                                                                                                         | adapt-FE            |
+| `PATCH /payroll/payslip-templates` body                   | sends `sections/fields` with `enabled`                                                                                   | expects `visible`                                                                                                                                               | ⚠️ write uses wrong toggle key                                                                                                  | adapt-FE            |
+| `GET /payroll/employees/:id/tax-form` (envelope)          | `data` → `TaxFormDocument`                                                                                               | `data` object                                                                                                                                                   | ✅ envelope                                                                                                                     | —                   |
+| tax-form object                                           | generic `{type, title, jurisdiction, authority, employer/employee: party{identifiers[]}, sections:[{title, rows[]}], …}` | fixed `{formType, fiscalYear, employee:{id,name,employeeCode,pan}, employer:{name,tan}, incomeDetails:{grossIncome,netTaxableIncome,taxDeducted}, downloadUrl}` | ❌ FE's template-rendered sections/rows model vs live's fixed 3-number + downloadUrl shape — `type` undefined, `sections` empty | adapt-FE / backend  |
+| disbursement / journal / events / publish (Domain A rows) | live (F.9/F.11/F.12-ext)                                                                                                 | live; detailed shapes undocumented in mapping                                                                                                                   | ❔ shapes                                                                                                                       | verify              |
+
+**Cutover note (F):** mixed. **Pay-equity** is live but the group/report shape differs on
+every key (`key/count/meanCtc` ↔ `group/headcount/meanPay`) — a service remap, and the FE's
+richer reference-group gap model isn't computed live (degrade to single `gapPct`).
+**Payslip templates** + **tax-forms** are live but mis-shaped: templates use `visible`/`id`
+where FE uses `enabled`/`key` (toggles silently no-op on both read and write), and the
+tax-form viewer was built as a generic template renderer (`sections[].rows[]`,
+`party.identifiers[]`) while live returns a fixed `{incomeDetails, downloadUrl}` — the form
+body will render empty. **`audit-pack`** and **`data-policy`** have **no live route** → keep
+mocked. Disbursement/journal/events endpoints are live (Domain A) but their exact payloads
+aren't documented in `API_MAPPING` — verify against the running API before trusting those
+screens. Net: remap pay-equity + templates; keep tax-forms/audit-pack/data-policy on the
+adapter-or-mock path.
+
+---
+
+### Domain G — Payroll: global workforce / migration / roster 🔴 (most-aligned)
+
+**Sources:** `workers.api.ts`, `migration.api.ts`, types `Worker`, `ContractorInvoice(Input)`,
+`CostSummary(Group)`, `MigrationStatus`, `PayCalendar`, `OpeningBalance` ↔ `API_MAPPING`
+F.12 (workforce), F.15 (migration), F.13 (roster, see Domain A).
+
+| Endpoint                                                                                                      | FE expects                                                                                                           | Live returns                                                                                  | Drift                                                                    | Action                |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------- |
+| `GET /payroll/workers` (envelope)                                                                             | `data[]` → `Worker[]`                                                                                                | `data[]`                                                                                      | ✅                                                                       | flip                  |
+| worker object                                                                                                 | `{id, name, classification, country, currency, legalEntityId, legalEntityName, monthlyCost, riskFlag, active}`       | same + `employeeCode`; `legalEntityId/Name` = `null`                                          | ✅ (FE types entity fields non-null → may show "null")                   | flip (relax null)     |
+| worker `monthlyCost` money                                                                                    | **minor units** (`formatMoney`)                                                                                      | **minor** (`15000000`=₹1.5L)                                                                  | ✅ correct — no 100×                                                     | flip                  |
+| `PATCH /payroll/workers/:id`                                                                                  | returns full `Worker`                                                                                                | returns partial `{id, classification, employmentType}`                                        | ⚠️ cache set to partial until refetch                                    | adapt-FE (invalidate) |
+| `GET /payroll/cost-summary`                                                                                   | `CostSummary` `{groupBy, baseCurrency, totalBaseCost, totalWorkers, groups:[{key,workerCount,baseAmount}], fxRates}` | identical                                                                                     | ✅                                                                       | flip                  |
+| `GET /payroll/contractor-invoices` (envelope)                                                                 | `data[]` → `ContractorInvoice[]`                                                                                     | `data[]`, identical object                                                                    | ✅                                                                       | flip                  |
+| invoice `status` enum                                                                                         | `SUBMITTED\|APPROVED\|PAID`                                                                                          | adds `VOIDED`                                                                                 | ⚠️ no badge mapping for `VOIDED`                                         | adapt-FE (enum)       |
+| `POST /payroll/contractor-invoices` body                                                                      | `{workerId, period, amount, currency, withholdingPct}`                                                               | also accepts `workerName`                                                                     | ❔ `workerName` derived or required?                                     | verify                |
+| `PATCH …/contractor-invoices/:id`                                                                             | `{status, payoutRef?}`                                                                                               | same                                                                                          | ✅                                                                       | flip                  |
+| `GET /payroll/migration/status`                                                                               | `{sandboxMode, goLivePeriod, openingBalancesCount, historicalPayslipsCount, lastReconciledRunId, updatedAt}`         | `{sandboxMode, goLivePeriod, historicalPayslipsImported, openingBalancesSet, totalEmployees}` | ⚠️ count keys differ (`*Count` vs `*Set`/`*Imported`) → counts undefined | adapt-FE (remap)      |
+| `GET /payroll/pay-calendars` (+ POST/PATCH)                                                                   | rich `PayCalendar`                                                                                                   | thin live shape                                                                               | ❌ see **Domain C**                                                      | adapt-FE / backend    |
+| `/payroll/opening-balances`, `/payroll/migration/historical-payslips`, `/payroll/runs/:id/parallel-reconcile` | live data                                                                                                            | **not in `API_MAPPING`** → no live route                                                      | ❌ MSW-only                                                              | keep-mock / backend   |
+
+**Cutover note (G):** **the closest payroll domain to flip-ready.** Workers, cost-summary,
+and contractor-invoices match the live shapes almost exactly — and critically, worker
+`monthlyCost` is **minor units on both sides** (`GlobalWorkforceScreen`'s `formatMoney` is
+correct here; do **not** "fix" it). Only small adapters needed: relax `legalEntity*` to
+nullable, add the `VOIDED` invoice status, invalidate after the partial `PATCH /workers`
+response, and confirm whether POST invoice needs `workerName`. **Migration** is the rough
+edge: status uses different count keys (`*Set`/`*Imported` vs FE `*Count`), pay-calendars
+carry Domain C's structural mismatch, and opening-balances / historical-payslips /
+parallel-reconcile have **no live route** (keep mocked). So: workforce sub-area → flip with
+trivial adapters; migration sub-area → stays largely on MSW.
 
 ---
 
