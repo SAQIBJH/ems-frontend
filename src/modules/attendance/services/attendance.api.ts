@@ -111,9 +111,11 @@ export const attendanceApi = {
     id: string;
     comment?: string;
   }): Promise<RegularizationRecord> => {
+    // Backend field is `reviewerComment` (optional on approve). Sending `comment`
+    // was silently ignored — the approver's note never got recorded.
     const { data } = await apiClient.patch<{ data: RegularizationRecord }>(
       `/attendance/regularization/${id}/approve`,
-      { comment },
+      { reviewerComment: comment },
     );
     return data.data;
   },
@@ -128,9 +130,11 @@ export const attendanceApi = {
     id: string;
     comment?: string;
   }): Promise<RegularizationRecord> => {
+    // Backend requires `reviewerComment` (not `comment`) on deny — sending the
+    // wrong key 400'd every deny, so denying a regularization was fully broken.
     const { data } = await apiClient.patch<{ data: RegularizationRecord }>(
       `/attendance/regularization/${id}/deny`,
-      { comment },
+      { reviewerComment: comment },
     );
     return data.data;
   },
