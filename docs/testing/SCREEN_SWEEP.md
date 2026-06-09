@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **SCAFFOLDED — sweep not yet started** (awaiting go for Dashboard pilot)_
+_Last updated: 2026-06-10 · Status: **Dashboard swept — clean (0 issues). Next: Employees.**_
 
 ---
 
@@ -103,12 +103,12 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** _none — sweep not started_
-**Next action:** run the **Dashboard** sweep (pilot — validate this doc's format), all roles, then pause for review.
+**Current screen:** Dashboard — ✅ done (clean)
+**Next action:** run the **Employees** sweep (list + filters + new/edit + profile tabs + Terminate), all roles, then pause for review.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status      |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------- |
-| 1   | Dashboard   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
+| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
 | 2   | Employees   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 3   | Departments | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 4   | Attendance  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
@@ -152,15 +152,22 @@ screen uses one of these, check it against this list first.
 - **CC-5 · Backend effective-dating oddities.** Observed salary history with `effectiveTo`
   **before** `effectiveFrom`, and duplicate same-day records. Treat payroll date math with
   suspicion; verify against live.
+- **CC-6 · Leave approve/reject/withdraw are `PATCH`, not `POST` (FE is correct; docs stale).**
+  `leave.api.ts` uses `PATCH /leave/requests/:id/{approve,reject,withdraw}` and these work live
+  (withdraw → 200 verified). `CLAUDE.md §3` lists them as `POST` — that's stale. When testing
+  Leave, use PATCH. _(Not a bug — noted so a future session doesn't "fix" the working FE.)_
 
 ### Shared engines/components (note which screens depend on each as we go)
 
 - `DynamicTable` — _used by: TBD (Employees, Departments, Payroll runs, Reports tables, …)_
 - `DynamicForm` + RHF + Zod — _used by: TBD_
-- `FilterEngine`, `ChartEngine` (Recharts), `ReportShell`
+- `FilterEngine`, `ChartEngine` (Recharts: `AreaChart`/`DonutChart`) — _used by: **Dashboard** (HR charts)_
 - shadcn `Select` (Base UI — render label not value), `Sheet`/`Dialog`/`Tabs`/`Switch`
-- `PageHeader`, `StatsCard`, `PermissionWrapper`/`RoleGate`, four-state components
-  (`EmptyState`/`ErrorState`/`Skeleton`)
+- `PageHeader`, `StatsCard`, `SectionCard`, `PermissionWrapper`/`RoleGate`, four-state components
+  (`EmptyState`/`ErrorState`/`Skeleton`) — `StatsCard`/`SectionCard`/`PermissionWrapper` used by **Dashboard**
+- `NewLeaveRequestDialog` — _used by: **Dashboard** (Employee "Request leave") + Leave screen_ — submit verified 201
+- `TodayAttendanceCard` (check-in/out) — _used by: **Dashboard** (Employee) + Attendance screen_ — check-in verified 201
+- `PendingApprovalsPanel` / `BulkApproveModal` / `TeamWeeklyAttendanceGrid` — _used by: **Dashboard** (HR/Manager) + Leave/Attendance approvals_
 
 _(Fill the "used by" lists during the sweep so a fix in one engine flags every dependent screen.)_
 
@@ -184,13 +191,33 @@ payroll create-path E2E). All committed to `main`, local:
 > Template per screen — fill during the sweep. Enumerate sub-panels on entry (routes below are
 > the starting map; confirm against the live app).
 
-### 1. Dashboard `/dashboard`
+### 1. Dashboard `/dashboard` — ✅ SWEPT, CLEAN (2026-06-10)
 
-- **Sub-units:** role-specific variants (HR / Manager / Employee dashboards), each with its
-  widgets (stats cards, charts, recent activity, approvals, etc.).
-- **Per role:** _pending_
-- **Findings:** _none yet_
-- **Carry-forward notes:** —
+- **Sub-units / routing:** `DashboardRouter` picks by role → `HRDashboard` (SUPER_ADMIN + HR_ADMIN),
+  `ManagerDashboard` (MANAGER), `EmployeeDashboard` (EMPLOYEE).
+- **Tested per role (login → load → all widget endpoints → interactions):**
+  - **SUPER_ADMIN / HR_ADMIN** → HRDashboard ("Welcome back, …"). Widgets all 200:
+    `/analytics/summary`, `/analytics/attendance?range=30d`, `/analytics/headcount-by-department`,
+    `/analytics/recent-activity?limit=8`, `/manager/approvals`. Interactions: range toggles
+    **7d/90d** fire `/analytics/attendance?range=…` → 200 ✓; PendingApprovalsPanel renders 20
+    approve buttons (approve **action deferred to Leave screen**).
+  - **MANAGER** → ManagerDashboard ("My Team"). Widgets 200: `/manager/dashboard`,
+    `/manager/approvals`, `/attendance/team/weekly?weekStart=…`. **Bulk-approve modal** opens &
+    loads (9 pending pre-selected) ✓ (approve action deferred to Leave screen).
+  - **EMPLOYEE** → EmployeeDashboard ("Hi, Priya"). Widgets 200: `/employee/dashboard`,
+    `/attendance/today`, `/leave/types`, `/holidays?year=2026`, `/employee/documents`,
+    `/employee/team`, `/timesheets?week=…`. Interactions: **Request-leave dialog** submit →
+    `POST /leave/requests` **201** ✓; **check-in** → `POST /attendance/check-in` **201** ✓.
+- **Findings:** **none — 0 issues.** Loads clean for all 4 roles (no console errors beyond the
+  known CC-3 auth-boot 400/401 noise; no API 4xx/5xx). Every interactive control fires its
+  network call (no silent failures).
+- **Carry-forward notes:**
+  - Leave withdraw is **PATCH** not POST (see CC-6) — confirmed live 200 while cleaning up.
+  - HR/SUPER_ADMIN PendingApprovalsPanel reads `/manager/approvals` (shared with Manager).
+  - **Deferred to later screens:** approve/deny (Leave), bulk-approve (Leave), team weekly grid
+    (Attendance) — exercised "open + loaded" here, destructive approve tested on home screens.
+  - **Test residue (harmless, test DB):** priya now has a check-in record for today; the test
+    leave request was withdrawn (cleaned).
 
 ### 2. Employees `/employees`
 
@@ -270,9 +297,9 @@ payroll create-path E2E). All committed to `main`, local:
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID                                      | Screen / panel | Sev | Summary | Root cause | Status | Commit |
-| --------------------------------------- | -------------- | --- | ------- | ---------- | ------ | ------ |
-| _(none logged yet — sweep not started)_ |                |     |         |            |        |        |
+| ID  | Screen / panel        | Sev | Summary                                      | Root cause | Status   | Commit |
+| --- | --------------------- | --- | -------------------------------------------- | ---------- | -------- | ------ |
+| —   | Dashboard (all roles) | —   | **0 issues** — load + all interactions clean | —          | ✅ swept | —      |
 
 ---
 
