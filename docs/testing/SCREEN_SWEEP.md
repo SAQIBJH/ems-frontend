@@ -46,13 +46,13 @@ settings panel, drawer counts as its own unit). See each screen's section in §7
 
 ## 3. Rules of engagement (agreed)
 
-| Decision                  | Choice                                                                                                                                                                                    |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Roles**                 | SUPER_ADMIN, HR_ADMIN, MANAGER, EMPLOYEE. **No AUDITOR.**                                                                                                                                 |
-| **Writes**                | **Full end-to-end, incl. irreversible** (test DB). Approve/mark-paid/terminate/delete are all fair game.                                                                                  |
-| **Destructive-test data** | Use **throwaway tagged records** (prefix `ZZZ E2E`) for terminate/delete so the **seed role accounts stay intact** (we need aman/priya to keep logging in).                               |
-| **Cadence**               | Sweep one screen (all roles) → log all findings here → **fix that screen's issues** (`pnpm typecheck` + `pnpm lint`, commit each) → update §4/§5/§8 → **pause for review** → next screen. |
-| **Doc**                   | This file (`docs/testing/SCREEN_SWEEP.md`).                                                                                                                                               |
+| Decision                  | Choice                                                                                                                                                                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Roles**                 | SUPER_ADMIN, HR_ADMIN, MANAGER, EMPLOYEE. **No AUDITOR.**                                                                                                                                                                        |
+| **Writes**                | **Full end-to-end, incl. irreversible** (test DB). Approve/mark-paid/terminate/delete are all fair game.                                                                                                                         |
+| **Destructive-test data** | Use **throwaway tagged records** (prefix `ZZZ E2E`) for terminate/delete so the **seed role accounts stay intact** (we need aman/priya to keep logging in).                                                                      |
+| **Cadence**               | Sweep one screen (all roles) → log all findings here → **fix that screen's issues** (`pnpm typecheck` + `pnpm lint`, commit each) → update §4/§5/§8 (+ **§6B** for any backend-side issue) → **pause for review** → next screen. |
+| **Doc**                   | This file (`docs/testing/SCREEN_SWEEP.md`).                                                                                                                                                                                      |
 
 ### Environment & access
 
@@ -199,6 +199,27 @@ payroll create-path E2E). All committed to `main`, local:
 | `6640cbb` | auth: silent-refresh on `400 INVALID_TENANT`, not just 401                      |
 | `f9d42c9` | payroll: drop null component overrides in pay-group writes (was 500)            |
 | `cb01083` | employees: salary CTC input rejected round values, blocking save (`step="any"`) |
+
+---
+
+## 6B. 🟠 FOR THE BACKEND TEAM — handoff list
+
+> **Hand this section to the backend developer.** These are issues whose root cause is in the
+> **backend**, not this frontend. Where the frontend has a workaround it is noted, but the proper
+> fix is backend-side. Keep appending as the sweep continues. (FE-side bugs are tracked in §8.)
+
+| ID   | Endpoint / area                           | Sev | Problem                                                                                                                                                                                                                                       | Expected                                                                                                                                            | Evidence / repro                                                                                                                 | FE workaround?                                                                                                                         |
+| ---- | ----------------------------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| BE-1 | `GET /auth/me` (and tenant-scoped routes) | P2  | Returns **`400 INVALID_TENANT`** when the access token is **missing or expired**, instead of `401`. Causes a red console error on **every** page load, and would break silent token-refresh.                                                  | Return **`401 Unauthorized`** for absent/expired/invalid tokens; reserve `400 INVALID_TENANT` for a genuinely bad tenant.                           | `GET /auth/me` with no cookie → `400 {code:INVALID_TENANT}`; with a garbage token → same `400`; with valid cookie → `200`.       | Yes — axios interceptor treats `400 INVALID_TENANT` like `401` (`6640cbb`). Still noisy; please fix server-side.                       |
+| BE-2 | `POST` / `PATCH /payroll/groups`          | P1  | **500 `INTERNAL_ERROR`** (`prisma.payGroup.create()` invalid invocation) when a component override is `null` — backend coerces `null → ""`/`0` and feeds it to a Prisma **enum** column **without input validation**.                         | Validate/normalise the request body; accept omitted/`null` override fields and store `NULL`, don't 500.                                             | `POST /payroll/groups` with `components:[{componentId, overrideCalculationType:null,…}]` → 500; with `{componentId}` only → 201. | Yes — FE omits null override fields (`f9d42c9`). Backend still lacks input validation here (likely affects other write endpoints too). |
+| BE-3 | `GET /employees/:id` after Terminate      | P3  | A **terminated** (soft-deleted) employee returns **`404 NOT_FOUND`**, so their profile is **inaccessible** — HR cannot view or **reverse** a termination from the UI, despite the dialog promising "can be reversed by an administrator".     | Either keep terminated employees retrievable via `GET /employees/:id`, or expose a documented param (e.g. `?includeTerminated=true`).               | Create → `DELETE /employees/:id` (200, status→TERMINATED) → `GET /employees/:id` → **404**.                                      | None — needs backend.                                                                                                                  |
+| BE-4 | Payroll salary history / effective-dating | P2  | Salary history rows come back with **`effectiveTo` _before_ `effectiveFrom`** and **duplicate same-day records** after re-assignments. Suggests effective-dating/overlap handling is off — payroll date math can't be trusted until verified. | Effective ranges should be ordered (`effectiveFrom ≤ effectiveTo`); superseding an assignment should close the prior range correctly without dupes. | Re-assign an employee's pay group on the same day; inspect `GET /payroll/employees/:id/salary` → `history[]`.                    | N/A — observation; verify before relying on payroll figures.                                                                           |
+
+### Contract / docs to update (not code bugs — backend **docs** are stale)
+
+- **Leave actions are `PATCH`, not `POST`.** `PATCH /leave/requests/:id/{approve,reject,withdraw}` is
+  what's live and correct; `CLAUDE.md §3` / `BACKEND_API_REQUESTS.md` list them as `POST`. Update the docs.
+- (Append other `API_MAPPING.md` / `CLAUDE.md §3` drifts here as the sweep finds them.)
 
 ---
 
@@ -354,7 +375,8 @@ Password123!; no AUDITOR). Drive it with Playwright (resolution path in §3),
 capturing console errors, network 4xx/5xx, the four states, and — critically —
 assert every form/drawer actually fires a network call on submit (silent-failure
 catch). Log every finding into the per-screen section (§7) and the issue tracker
-(§8); update the cross-cutting memory (§5) and progress table (§4). Then FIX that
+(§8); add any backend-root-cause issue to the **For-the-backend-team** list (§6B);
+update the cross-cutting memory (§5) and progress table (§4). Then FIX that
 screen's issues (pnpm typecheck + pnpm lint clean, commit each with a
 conventional message), tick them off, and PAUSE for my review before the next
 screen.
