@@ -38,7 +38,16 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config as typeof error.config & { _retry?: boolean };
 
-    if (error.response?.status !== 401 || original._retry) {
+    // The backend returns 401 for an expired/absent token on most endpoints, but
+    // tenant-scoped endpoints (e.g. /auth/me) fail tenant resolution *first* and
+    // return `400 INVALID_TENANT` instead. Both mean "the access token is no longer
+    // valid" — treat them identically so the silent refresh still fires on expiry.
+    // Gated on the error code so genuine 400 validation errors are untouched.
+    const status = error.response?.status;
+    const errorCode = error.response?.data?.error?.code;
+    const isAuthFailure = status === 401 || (status === 400 && errorCode === 'INVALID_TENANT');
+
+    if (!isAuthFailure || original._retry) {
       return Promise.reject(error);
     }
 
