@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Dashboard swept — clean (0 issues). Next: Employees.**_
+_Last updated: 2026-06-10 · Status: **Employees swept — 2 issues found + fixed. Next: Departments.**_
 
 ---
 
@@ -103,13 +103,13 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Dashboard — ✅ done (clean)
-**Next action:** run the **Employees** sweep (list + filters + new/edit + profile tabs + Terminate), all roles, then pause for review.
+**Current screen:** Employees — ✅ done (2 issues found + fixed)
+**Next action:** run the **Departments** sweep (org tree + create/edit/delete/reparent), all roles, then pause for review.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status      |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------- |
 | 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
-| 2   | Employees   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
+| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
 | 3   | Departments | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 4   | Attendance  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 5   | Timesheets  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
@@ -156,11 +156,27 @@ screen uses one of these, check it against this list first.
   `leave.api.ts` uses `PATCH /leave/requests/:id/{approve,reject,withdraw}` and these work live
   (withdraw → 200 verified). `CLAUDE.md §3` lists them as `POST` — that's stale. When testing
   Leave, use PATCH. _(Not a bug — noted so a future session doesn't "fix" the working FE.)_
+- **CC-7 · API omits array fields the TS type marks as required → `.length`/`.map` crashes.**
+  Detail endpoints drop empty collections (e.g. `GET /employees/:id` omits `documents` &
+  `leaveBalances` for new employees), but types declared them required arrays → runtime
+  `Cannot read properties of undefined (reading 'length')`, caught by the error boundary.
+  _Fix pattern: mark the field optional in the type + default `?? []` at every consumer._
+  **On every detail/profile screen, create a fresh/empty record and open it** — that's when the
+  omitted-array crash surfaces. _(First seen: Employee profile OverviewTab — fixed, commit on `main`.)_
+- **CC-8 · Write routes gated only by hiding the button, not the route.** `/employees/new` &
+  `/employees/[id]/edit` rendered the full form to MANAGER/EMPLOYEE via direct URL (server
+  enforces with 403 on submit, so not a security hole — but bad UX). _Fix pattern: wrap the page
+  in the new **`RequirePermission`** guard (`src/shared/guards/RequirePermission.tsx`) which shows
+  an access-denied state._ **Check every create/edit/delete route** (Departments, Holidays,
+  Settings panels, Payroll, Timesheets, Leave-types, etc.) for the same gap and reuse the guard.
 
 ### Shared engines/components (note which screens depend on each as we go)
 
-- `DynamicTable` — _used by: TBD (Employees, Departments, Payroll runs, Reports tables, …)_
-- `DynamicForm` + RHF + Zod — _used by: TBD_
+- `DynamicTable` — _used by: **Employees** (list), Departments, Payroll runs, Reports tables, …_
+- `DynamicForm` + RHF + Zod — _used by: **Employees edit** (`EmployeeForm`). NOTE: Employee **create**
+  uses a separate 4-step wizard `EmployeeFormStepper` (not DynamicForm) — fields share `#df-<name>` ids._
+- `RequirePermission` (NEW, `shared/guards`) — route-level permission guard with access-denied state.
+  _used by: **Employees** new/edit. Apply to other write routes (CC-8)._
 - `FilterEngine`, `ChartEngine` (Recharts: `AreaChart`/`DonutChart`) — _used by: **Dashboard** (HR charts)_
 - shadcn `Select` (Base UI — render label not value), `Sheet`/`Dialog`/`Tabs`/`Switch`
 - `PageHeader`, `StatsCard`, `SectionCard`, `PermissionWrapper`/`RoleGate`, four-state components
@@ -219,12 +235,30 @@ payroll create-path E2E). All committed to `main`, local:
   - **Test residue (harmless, test DB):** priya now has a check-in record for today; the test
     leave request was withdrawn (cleaned).
 
-### 2. Employees `/employees`
+### 2. Employees `/employees` — ✅ SWEPT, 2 issues fixed (2026-06-10)
 
-- **Sub-units:** list (search / department / status filters, pagination, row actions), `/employees/new`,
-  `/employees/[id]` profile tabs (Overview, Job, **Compensation**, Documents, Attendance, Leave),
-  `/employees/[id]/edit`, Terminate flow.
-- **Findings:** _none yet_
+- **Sub-units:** list (search / dept / status filters, pagination, row actions), `/employees/new`
+  (4-step wizard `EmployeeFormStepper`: Personal→Job→Documents→Access), `/employees/[id]` profile
+  tabs (Overview, Job, **Compensation** [HR only], Documents, Attendance, Leave, Activity),
+  `/employees/[id]/edit` (`EmployeeForm`/DynamicForm), Terminate (type-to-confirm).
+- **Per role:**
+  - **SUPER_ADMIN / HR_ADMIN:** list 20 rows + "Add Employee" ✓. Full write flow exercised:
+    create via stepper → **POST /employees 201** ✓; all 7 profile tabs visited; edit →
+    **PATCH 200** ✓; terminate → **DELETE 200** ✓.
+  - **MANAGER:** sees list, **no "Add" button** (correct). After fix, `/new` + `/[id]/edit` → access-denied ✓.
+  - **EMPLOYEE:** sees only own 1 row, no "Add" (correct). After fix, `/new` + `/[id]/edit` → access-denied ✓.
+- **Findings (both FIXED):**
+  - **EMP-1 (P1):** OverviewTab crashed (`Cannot read properties of undefined (reading 'length')`)
+    on a freshly-created employee — `GET /employees/:id` omits `documents`/`leaveBalances`. → CC-7. Fixed.
+  - **EMP-2 (P2):** `/employees/new` + `/[id]/edit` not permission-guarded — MANAGER/EMPLOYEE could
+    open the form by URL (server enforces 403 on submit). → CC-8. Fixed with `RequirePermission`.
+- **Observations (not bugs):**
+  - Server **enforces** employee writes: POST/PATCH/DELETE → **403** for MANAGER & EMPLOYEE (verified live).
+  - Compensation tab `GET /payroll/employees/:id/salary` → **404** for unassigned employee = expected empty state (handled).
+  - **Backend quirk (P3, backend-side):** after Terminate (soft-delete), `GET /employees/:id` → **404**,
+    so a terminated employee's profile is **inaccessible** (can't review/reverse from the UI). Worth raising with backend.
+- **Carry-forward:** create wizard ≠ edit form (separate components); `RequirePermission` guard now
+  exists — apply to other write routes. Terminate-then-404 quirk may affect any "view terminated employee" flow.
 
 ### 3. Departments `/departments`
 
@@ -297,9 +331,12 @@ payroll create-path E2E). All committed to `main`, local:
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID  | Screen / panel        | Sev | Summary                                      | Root cause | Status   | Commit |
-| --- | --------------------- | --- | -------------------------------------------- | ---------- | -------- | ------ |
-| —   | Dashboard (all roles) | —   | **0 issues** — load + all interactions clean | —          | ✅ swept | —      |
+| ID    | Screen / panel                | Sev | Summary                                                              | Root cause                                                       | Status     | Commit |
+| ----- | ----------------------------- | --- | -------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------- | ------ |
+| —     | Dashboard (all roles)         | —   | **0 issues** — load + all interactions clean                         | —                                                                | ✅ swept   | —      |
+| EMP-1 | Employees / profile Overview  | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7) | ✅ fixed   | `main` |
+| EMP-2 | Employees / new + edit routes | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                  | ✅ fixed   | `main` |
+| EMP-3 | Employees / terminate         | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                        | ⏳ backend | —      |
 
 ---
 
