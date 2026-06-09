@@ -1,172 +1,139 @@
 # Payroll Live API — Issues for the Backend Team
 
-> **Verified directly against the live Render API on 2026-06-09** (logged in as
-> `superadmin@acme.test`), comparing each endpoint's real response to the frontend's
-> TypeScript types. This is wire-truth, not docs.
+> **Status: mostly resolved.** Backend shipped P1–P5 (commit `fe13d18`, see
+> `docs/PAYROLL_PHASE3_CONTRACT_FIXES.md`). The frontend **re-verified every fix directly
+> against the live Render API on 2026-06-09** (logged in as `superadmin@acme.test`).
+> **P1, P3, P4, P5 are confirmed fixed. Two items remain open** — see below.
 >
 > **Reading convention:** the frontend **ignores extra fields**, so an endpoint returning
-> _more_ than we use is fine. An issue is only raised when the live response is **missing
-> a field the FE needs**, **renames it**, or **changes the envelope**. A `200` alone does
-> **not** mean an endpoint is correct — only the shape comparison below does.
+> _more_ than we use is fine. An issue is only raised when the live response is **missing a
+> field the FE needs**, **renames it**, **changes its type**, or **changes the envelope**.
+> A `200` alone does **not** mean an endpoint is correct — only the shape comparison does.
+
+---
+
+## 🔴 OPEN — still needs the backend team (2 items)
+
+### O1 — `pay-calendars.periodAnchor` is a string enum; FE needs an integer
+
+Live returns `periodAnchor: "MONTH_START"` (a **string**) on every calendar. The frontend
+`PayCalendar` contract models it as a **day-of-month number (1–28)** — `PayCalendarPanel`
+renders `Day {periodAnchor}` and the edit form treats it numerically.
+
+**Impact on the FE today:**
+
+- Displays literally **"Day MONTH_START"**.
+- Editing does `Number("MONTH_START") || 1` → silently **coerces the value to `1`**.
+
+**Fix:** return `periodAnchor` as the **integer day-of-month the period starts on**
+(`MONTH_START` → `1`). Everything else in the pay-calendar shape is correct
+(`frequency`, `payDay`, `cutoffDay`, `payDateRule`, `legalEntityId`, `holidayCalendarId`).
+This is the only remaining response-shape mismatch.
+
+### O2 — Wire `statutoryTag` into the PF/ESI calculation engine
+
+This is the backend's own follow-up #1, and it's the **most important remaining item for
+correct live payroll**. The field is now stored and returned perfectly (P1 ✅), but the
+calculation engine does **not consume it yet** — so a **live payroll run does not compute
+PF/ESI from component tags**, and payslip numbers won't reflect the statutory wiring.
+
+**Fix:** in the run calculation, build each contribution scheme's wage base from the
+earnings whose `component.statutoryTag` equals the scheme's `wageBaseTag` (e.g. earnings
+tagged `PF_WAGE` form the EPF base), then apply the pack's rate/ceiling. The configuration
+side is complete; only the runtime computation is missing.
+
+> _Low-priority confirm (not blocking):_ the FE reads payment batches from the **run-scoped**
+> endpoint `GET /payroll/runs/:runId/payment-batch` (which should include `lines`), **not**
+> the bare `GET /payroll/payment-batches` list — so the list omitting `lines` does not affect
+> the FE. Just confirm the run-scoped detail returns `lines`.
+
+---
+
+## Frontend status
+
+- **No FE change required** for P1/P3/P4/P5 — they all align with existing FE types.
+  (The earlier defensive `prorate ?? true` guard in the component drawer is now a harmless
+  no-op since the backend returns the real value.)
+- **O1 is the only FE-affecting item, and it's conditional:** if the backend returns
+  `periodAnchor` as an integer, **zero FE change**; if it keeps the string enum, the FE must
+  change the type to a string enum and rework the PayCalendar input/display. Waiting on the
+  backend decision before touching FE code.
 
 ---
 
 ## Summary
 
-| Endpoint                                                  | Verdict                               |
-| --------------------------------------------------------- | ------------------------------------- |
-| `GET /payroll/statutory-packs`                            | ✅ Fixed & verified (separate thread) |
-| `GET /payroll/components`                                 | 🔴 **P1 — missing statutory fields**  |
-| `GET /payroll/pay-calendars`                              | 🟠 **P2 — shape mismatch**            |
-| `GET /payroll/legal-entities`                             | 🟡 **P3 — missing `active`**          |
-| `GET /payroll/countries`                                  | ✅ Match                              |
-| `GET /payroll/groups` (+ nested `components[]`)           | ✅ Match                              |
-| `GET /payroll/schedules`                                  | ✅ Match (live returns a superset)    |
-| `GET /payroll/runs`                                       | ✅ Match                              |
-| `GET /payroll/roster`                                     | ✅ Match                              |
-| `GET /payroll/event-catalogue`                            | ✅ Match (extra `color`)              |
-| `GET /payroll/events`                                     | ✅ Match                              |
-| `GET /payroll/payslip-templates`                          | ✅ Match                              |
-| `GET /payroll/reimbursement-categories`                   | ✅ Match                              |
-| `GET /payroll/reimbursement-claims` (+ nested `claims[]`) | ✅ Match (extra `categoryLabel`)      |
-| `GET /payroll/workers`                                    | ✅ Match (extra `employeeCode`)       |
-| `GET /payroll/cost-summary` (+ nested `groups[]`)         | ✅ Match                              |
-| `GET /payroll/contractor-invoices`                        | ❔ Unverifiable — empty list          |
-| `GET /payroll/opening-balances`                           | ❔ Unverifiable — empty list          |
-| `/payroll/employees`                                      | ⛔ **404 — not implemented**          |
-| `/payroll/migration`                                      | ⛔ **404 — not implemented**          |
-| `/payroll/payment-batches`                                | ⛔ **404 — not implemented**          |
-| `/payroll/reports`                                        | ⛔ **404 — not implemented**          |
-| `/payroll/settings`                                       | ⛔ **404 — not implemented**          |
+| Endpoint                                                                                                                                                                              | Verdict                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `GET/POST/PATCH /payroll/components`                                                                                                                                                  | ✅ **P1 RESOLVED** — statutory fields returned & typed |
+| `GET /payroll/pay-calendars`                                                                                                                                                          | 🟠 **O1 OPEN** — `periodAnchor` string vs FE number    |
+| `GET/POST/PATCH /payroll/legal-entities`                                                                                                                                              | ✅ **P3 RESOLVED** — `active` returned (true/false)    |
+| `GET /payroll/employees`                                                                                                                                                              | ✅ **P4 RESOLVED** — `200`, array[70]                  |
+| `GET /payroll/migration`                                                                                                                                                              | ✅ **P4 RESOLVED** — matches `MigrationStatus`         |
+| `GET /payroll/payment-batches`                                                                                                                                                        | ✅ **P4 RESOLVED** — `200` (FE uses run-scoped detail) |
+| `GET /payroll/reports`                                                                                                                                                                | ✅ **P4 RESOLVED** — `200`                             |
+| `GET /payroll/settings`                                                                                                                                                               | ✅ **P4 RESOLVED** — `200`                             |
+| `GET /payroll/contractor-invoices`                                                                                                                                                    | ✅ **P5 RESOLVED** — seeded, shape matches             |
+| `GET /payroll/opening-balances`                                                                                                                                                       | ✅ **P5 RESOLVED** — seeded, shape matches             |
+| `statutoryTag` in PF/ESI calculation                                                                                                                                                  | 🔴 **O2 OPEN** — stored/returned but not computed      |
+| `GET /payroll/statutory-packs`                                                                                                                                                        | ✅ Fixed & verified (earlier round)                    |
+| `countries`, `groups`, `schedules`, `runs`, `roster`, `event-catalogue`, `events`, `payslip-templates`, `reimbursement-categories`, `reimbursement-claims`, `workers`, `cost-summary` | ✅ Verified clean                                      |
 
 ---
 
-## 🔴 P1 — `GET /payroll/components` is missing the statutory fields
+## Verification evidence (live, 2026-06-09)
 
-This is the most important one — it breaks the statutory wiring (PF/ESI/TDS) in the UI.
+**P1 — components** — `GET /payroll/components`, first item:
+`statutoryTag:"PF_WAGE"` · `prorate:true` · `payInPeriods:[3,9]` ·
+`glAccountCode:null` · `costCenterRule:"DEPARTMENT"` · `createdAt`/`updatedAt` present. ✅
 
-**Live returns (per component):**
+**P3 — legal-entities** — two entities returned: `Acme India Pvt Ltd → active:true`,
+`Acme Legacy Entity → active:false`. ✅
 
-```
-id, name, code, type, calculationType, value, basisCode, formula,
-taxable, active, displayOrder, description, color, amount
-```
+**P4 — base paths** — all `200`:
+`employees` (array[70], rich shape), `migration` (object matching `MigrationStatus`
+exactly), `payment-batches` (array[3]), `reports` (`{reports,recentRuns}`),
+`settings` (`{defaultCountry,defaultCurrency,sandboxMode,dataPolicy,features,updatedAt}`). ✅
 
-**Frontend requires (missing on live, on every component checked):**
+**P5 — seeded & shape-matched:**
 
-| Missing field      | Type               | Why it matters                                                                                                                                                                                                                                        |
-| ------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`statutoryTag`** | `string \| null`   | **Critical.** Links an earning to a contribution scheme's `wageBaseTag` (e.g. `BASIC.statutoryTag = "PF_WAGE"` → forms the PF wage base). Without it, HR can't see/set which earnings feed PF/ESI, and the base can't be computed from configuration. |
-| **`prorate`**      | `boolean`          | Whether the component is reduced by loss-of-pay. Arrives `undefined` → the Prorate switch breaks (uncontrolled→controlled) and defaults off.                                                                                                          |
-| **`payInPeriods`** | `number[] \| null` | Months a component is paid in (13th-month etc.).                                                                                                                                                                                                      |
-| **`createdAt`**    | `string`           | Audit/sort.                                                                                                                                                                                                                                           |
-| **`updatedAt`**    | `string`           | Audit/sort.                                                                                                                                                                                                                                           |
+- `contractor-invoices[1]` → `id, workerId, workerName, period, amount, currency, withholdingPct, netPayable, status, payoutRef, submittedAt, decidedAt` ✅
+- `opening-balances[1]` → `employeeId, employeeCode, employeeName, fiscalYear, grossEarnings, taxableIncome, taxDeducted, totalDeductions, netPay, contributions, importedAt` ✅
 
-**Extra fields live adds (harmless, FE ignores):** `color`, `amount`.
-
-**Fix:**
-
-- Return `statutoryTag`, `prorate`, `payInPeriods`, `createdAt`, `updatedAt` on `GET` (list and by-id).
-- Accept the same fields on `POST` / `PATCH`.
-- **Confirm the backend _stores_ `statutoryTag`** (not just echoes it) so the calculation engine actually uses it for the PF/ESI wage base.
-- Optional: also accept/return `glAccountCode`, `costCenterRule` (FE treats these as optional, so not blocking).
+**O1 — pay-calendars** — keys all present, but `periodAnchor:"MONTH_START"` (string) on all
+6 calendars; FE expects an integer day-of-month. 🟠
 
 ---
 
-## 🟠 P2 — `GET /payroll/pay-calendars` shape doesn't match
+## Historical detail (resolved P1–P5)
 
-The pay-calendar screen reads scheduling rules that the live response doesn't contain.
+The original issue write-ups are retained below for reference; all are now **RESOLVED**
+except the `periodAnchor` type (O1).
 
-**Live returns:**
+### P1 — `GET /payroll/components` missing statutory fields — ✅ RESOLVED
 
-```
-id, tenantId, name, code, country, paySchedule, firstPayDate, createdAt, updatedAt
-```
+Was missing `statutoryTag`, `prorate`, `payInPeriods`, `createdAt`, `updatedAt`. Backend now
+returns all of them (and accepts them on POST/PATCH); `payInPeriods` is a real `number[]`,
+not a JSON string. **Note:** the field is stored/returned but not yet used by the calc engine
+— tracked as **O2**.
 
-**Frontend `PayCalendar` requires:**
+### P2 — `pay-calendars` shape — ✅ MOSTLY RESOLVED (→ O1)
 
-```
-id, name, legalEntityId, frequency, periodAnchor, payDateRule,
-payDay, cutoffDay, holidayCalendarId, createdAt, updatedAt
-```
+The scheduling fields (`legalEntityId`, `frequency`, `periodAnchor`, `payDateRule`, `payDay`,
+`cutoffDay`, `holidayCalendarId`) are now returned. The **only remaining problem** is the
+**type of `periodAnchor`** (string enum vs integer) — see **O1**.
 
-**Missing on live:** `legalEntityId`, `frequency`, `periodAnchor`, `payDateRule`, `payDay`,
-`cutoffDay`, `holidayCalendarId`.
-**Present on live but not used by FE:** `code`, `country`, `paySchedule`, `firstPayDate`.
+### P3 — `legal-entities.active` — ✅ RESOLVED
 
-> Note: the scheduling fields the FE wants (`periodAnchor`, `payDateRule`, `cutoffDay`)
-> _do_ appear on **`GET /payroll/schedules`**, so the two concepts may have been modelled
-> differently than the FE expects.
+`active` is returned on list/create/update; seed includes an active and an inactive entity.
 
-**Fix (please confirm intended design):** either return the scheduling fields on
-`pay-calendars` (so the calendar screen has `frequency`, `periodAnchor`, `payDateRule`,
-`payDay`, `cutoffDay`, `holidayCalendarId`, `legalEntityId`), **or** tell us the calendar
-screen should source those from `/payroll/schedules` and we'll re-point the FE.
+### P4 — base path 404s — ✅ RESOLVED
 
----
+`/payroll/employees`, `/migration`, `/payment-batches`, `/reports`, `/settings` all return
+`200` with contract-aligned shapes. `migration` matches the FE `MigrationStatus` exactly.
+(The FE consumes payment batches via the run-scoped detail endpoint, not the bare list.)
 
-## 🟡 P3 — `GET /payroll/legal-entities` is missing `active`
+### P5 — contractor-invoices & opening-balances — ✅ RESOLVED
 
-**Live returns:** `id, tenantId, name, country, currency, fiscalYearStartMonth, timezone,
-locale, registrationIds, statutoryPackId, payCalendarId, createdAt, updatedAt`
-
-**Missing:** **`active`** (`boolean`). The FE shows an Active/Inactive status badge and
-filters the entity picker by it; without it, entities render as inactive/blank.
-
-**Fix:** include `active` on `GET` (and accept it on `POST`/`PATCH`). Extra `tenantId` is fine.
-
----
-
-## ⛔ Not implemented (404) — these FE screens break with mocks off
-
-| Path                           | Screen affected                                      |
-| ------------------------------ | ---------------------------------------------------- |
-| `GET /payroll/employees`       | (payroll employee list / salary roster base path)    |
-| `GET /payroll/migration`       | Migration / go-live wizard                           |
-| `GET /payroll/payment-batches` | Disbursement — bank file & reconciliation            |
-| `GET /payroll/reports`         | Reports → Payroll (registers, pay equity, summaries) |
-| `GET /payroll/settings`        | Payroll settings (data policy, etc.)                 |
-
-**Fix / confirm:** implement these, **or** confirm whether they live under different
-paths/sub-paths (e.g. `/payroll/employees/:id/salary`) so the FE can be re-pointed. Until
-then these screens error when `NEXT_PUBLIC_USE_MOCKS=false`.
-
----
-
-## ❔ Unverifiable — endpoint works but returned no data
-
-Both responded `200` with an **empty array**, so the item shape couldn't be checked:
-
-- `GET /payroll/contractor-invoices` → `[]`
-- `GET /payroll/opening-balances` → `[]`
-
-**Ask:** please seed at least one record (or share the serializer) so we can verify the
-item shape. Expected fields:
-
-- **ContractorInvoice:** `id, workerId, workerName, period, amount, currency, withholdingPct, netPayable, status, payoutRef, submittedAt, decidedAt`
-- **OpeningBalance:** `employeeId, employeeCode, employeeName, fiscalYear, grossEarnings, taxableIncome, taxDeducted, totalDeductions, netPay, contributions, importedAt`
-
----
-
-## ✅ Verified clean (no action needed)
-
-These matched the FE types exactly (extra fields noted in parentheses are harmless):
-
-`countries`, `groups` (+ nested `components[]`), `schedules` (live superset), `runs`,
-`roster`, `event-catalogue` (extra `color`), `events`, `payslip-templates`,
-`reimbursement-categories` (extra `id`/`tenantId`/`createdAt`/`color`),
-`reimbursement-claims` (+ nested `claims[]`, extra `categoryLabel`),
-`workers` (extra `employeeCode`), `cost-summary` (+ nested `groups[]`).
-
----
-
-## Priority order to fix
-
-1. **P1 `components.statutoryTag`** (+ `prorate`, `payInPeriods`, timestamps) — unblocks the core PF/ESI/TDS configuration.
-2. **P2 `pay-calendars`** shape (or confirm it's `schedules`).
-3. **P3 `legal-entities.active`**.
-4. The five **404** endpoints (or confirm alternate paths).
-5. Seed **contractor-invoices** / **opening-balances** so we can verify their shapes.
-
-When each is fixed, the frontend needs **no code change** for the matched ones — we only
-adapt where you tell us a field genuinely moved (e.g. pay-calendars → schedules).
+Both seeded and reading from their Prisma models; item shapes match the FE
+`ContractorInvoice` / `OpeningBalance` types exactly.
