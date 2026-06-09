@@ -1,9 +1,10 @@
 # Payroll Live API — Issues for the Backend Team
 
-> **Status: mostly resolved.** Backend shipped P1–P5 (commit `fe13d18`, see
-> `docs/PAYROLL_PHASE3_CONTRACT_FIXES.md`). The frontend **re-verified every fix directly
-> against the live Render API on 2026-06-09** (logged in as `superadmin@acme.test`).
-> **P1, P3, P4, P5 are confirmed fixed. Two items remain open** — see below.
+> **Status: ✅ ALL RESOLVED.** Backend shipped P1–P5 (commit `fe13d18`) and then O1–O2; the
+> frontend **re-verified every fix directly against the live Render API** — P1–P5 on
+> 2026-06-09 and the final two (O1, O2) on 2026-06-10, logged in as `superadmin@acme.test`.
+> **Nothing is open on either side.** See `docs/PAYROLL_PHASE3_CONTRACT_FIXES.md` for the
+> backend write-up.
 >
 > **Reading convention:** the frontend **ignores extra fields**, so an endpoint returning
 > _more_ than we use is fine. An issue is only raised when the live response is **missing a
@@ -12,35 +13,30 @@
 
 ---
 
-## 🔴 OPEN — still needs the backend team (2 items)
+## ✅ RESOLVED — O1 & O2 verified closed on live (2026-06-10)
 
-### O1 — `pay-calendars.periodAnchor` is a string enum; FE needs an integer
+### O1 — `pay-calendars.periodAnchor` → integer — ✅ RESOLVED
 
-Live returns `periodAnchor: "MONTH_START"` (a **string**) on every calendar. The frontend
-`PayCalendar` contract models it as a **day-of-month number (1–28)** — `PayCalendarPanel`
-renders `Day {periodAnchor}` and the edit form treats it numerically.
+Was: `periodAnchor: "MONTH_START"` (string), which the FE (`PayCalendarPanel`, day-of-month
+`number` model) rendered as "Day MONTH_START" and coerced to `1` on edit.
 
-**Impact on the FE today:**
+**Fixed & verified (2026-06-10):** all 7 live calendars now return `periodAnchor: 1` (type
+`number`); legacy `"MONTH_START"` is normalized to `1` on read. The pay-calendar screen
+renders "Day 1" correctly. **Zero FE change required.**
 
-- Displays literally **"Day MONTH_START"**.
-- Editing does `Number("MONTH_START") || 1` → silently **coerces the value to `1`**.
+### O2 — `statutoryTag` in the PF/ESI calculation engine — ✅ RESOLVED
 
-**Fix:** return `periodAnchor` as the **integer day-of-month the period starts on**
-(`MONTH_START` → `1`). Everything else in the pay-calendar shape is correct
-(`frequency`, `payDay`, `cutoffDay`, `payDateRule`, `legalEntityId`, `holidayCalendarId`).
-This is the only remaining response-shape mismatch.
+Was: the field was stored/returned (P1) but the calc engine didn't consume it, so live
+payroll runs didn't compute PF/ESI from tags.
 
-### O2 — Wire `statutoryTag` into the PF/ESI calculation engine
+**Fixed & verified (2026-06-10)** via a fresh live payroll calculation:
 
-This is the backend's own follow-up #1, and it's the **most important remaining item for
-correct live payroll**. The field is now stored and returned perfectly (P1 ✅), but the
-calculation engine does **not consume it yet** — so a **live payroll run does not compute
-PF/ESI from component tags**, and payslip numbers won't reflect the statutory wiring.
+- BASIC (tagged `PF_WAGE`) = ₹50,000; untagged HRA/Conveyance correctly **excluded** from the base.
+- **PF (employee) = ₹1,800 = 12% of the ₹15,000 ceiling** (not 12% of ₹50,000) → the
+  `wageCeiling` is applied. Employee PF → `deductions`, employer `PF_ER` → `employerContributions`.
+- Matches the backend's stated example exactly.
 
-**Fix:** in the run calculation, build each contribution scheme's wage base from the
-earnings whose `component.statutoryTag` equals the scheme's `wageBaseTag` (e.g. earnings
-tagged `PF_WAGE` form the EPF base), then apply the pack's rate/ceiling. The configuration
-side is complete; only the runtime computation is missing.
+The original spec / reference implementation is retained below for the record.
 
 **Reference implementation — the exact algorithm already exists on the frontend.** The
 mock calculation engine the UI was built against implements this correctly; the backend
@@ -79,13 +75,10 @@ for (const scheme of pack.contributionSchemes) {
 
 ## Frontend status
 
-- **No FE change required** for P1/P3/P4/P5 — they all align with existing FE types.
-  (The earlier defensive `prorate ?? true` guard in the component drawer is now a harmless
-  no-op since the backend returns the real value.)
-- **O1 is the only FE-affecting item, and it's conditional:** if the backend returns
-  `periodAnchor` as an integer, **zero FE change**; if it keeps the string enum, the FE must
-  change the type to a string enum and rework the PayCalendar input/display. Waiting on the
-  backend decision before touching FE code.
+- **No FE change required anywhere.** P1/P3/P4/P5 align with existing FE types; O1 landed as
+  the integer the FE already expected; O2 is entirely backend (the FE just displays the
+  computed payslip). The earlier defensive `prorate ?? true` guard in the component drawer is
+  now a harmless no-op since the backend returns the real value.
 
 ---
 
@@ -94,7 +87,7 @@ for (const scheme of pack.contributionSchemes) {
 | Endpoint                                                                                                                                                                              | Verdict                                                |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | `GET/POST/PATCH /payroll/components`                                                                                                                                                  | ✅ **P1 RESOLVED** — statutory fields returned & typed |
-| `GET /payroll/pay-calendars`                                                                                                                                                          | 🟠 **O1 OPEN** — `periodAnchor` string vs FE number    |
+| `GET /payroll/pay-calendars`                                                                                                                                                          | ✅ **O1 RESOLVED** — `periodAnchor` integer (verified) |
 | `GET/POST/PATCH /payroll/legal-entities`                                                                                                                                              | ✅ **P3 RESOLVED** — `active` returned (true/false)    |
 | `GET /payroll/employees`                                                                                                                                                              | ✅ **P4 RESOLVED** — `200`, array[70]                  |
 | `GET /payroll/migration`                                                                                                                                                              | ✅ **P4 RESOLVED** — matches `MigrationStatus`         |
@@ -103,7 +96,7 @@ for (const scheme of pack.contributionSchemes) {
 | `GET /payroll/settings`                                                                                                                                                               | ✅ **P4 RESOLVED** — `200`                             |
 | `GET /payroll/contractor-invoices`                                                                                                                                                    | ✅ **P5 RESOLVED** — seeded, shape matches             |
 | `GET /payroll/opening-balances`                                                                                                                                                       | ✅ **P5 RESOLVED** — seeded, shape matches             |
-| `statutoryTag` in PF/ESI calculation                                                                                                                                                  | 🔴 **O2 OPEN** — stored/returned but not computed      |
+| `statutoryTag` in PF/ESI calculation                                                                                                                                                  | ✅ **O2 RESOLVED** — PF computed from tags (verified)  |
 | `GET /payroll/statutory-packs`                                                                                                                                                        | ✅ Fixed & verified (earlier round)                    |
 | `countries`, `groups`, `schedules`, `runs`, `roster`, `event-catalogue`, `events`, `payslip-templates`, `reimbursement-categories`, `reimbursement-claims`, `workers`, `cost-summary` | ✅ Verified clean                                      |
 
