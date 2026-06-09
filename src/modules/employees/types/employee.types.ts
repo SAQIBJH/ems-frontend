@@ -75,10 +75,12 @@ export interface Employee {
   user: EmployeeUserRef | null;
 }
 
-/** Shape returned by GET /employees/:id — adds leaveBalances and documents. */
+/** Shape returned by GET /employees/:id — adds leaveBalances and documents.
+ * Both are omitted by the live API for freshly-created employees (verified
+ * live), so they are optional — consumers must default to `[]`. */
 export interface EmployeeDetail extends Employee {
-  leaveBalances: LeaveBalance[];
-  documents: EmployeeDocument[];
+  leaveBalances?: LeaveBalance[];
+  documents?: EmployeeDocument[];
 }
 
 export interface Pagination {

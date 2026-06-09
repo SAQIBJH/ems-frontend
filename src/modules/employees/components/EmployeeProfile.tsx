@@ -52,6 +52,8 @@ function getInitials(first: string, last: string): string {
 /* ── Overview tab ─────────────────────────────────────────────────────────── */
 
 function OverviewTab({ employee }: { employee: EmployeeDetail }) {
+  // leaveBalances/documents are omitted by the live API for new employees.
+  const documents = employee.documents ?? [];
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       {/* Left — personal details */}
@@ -90,11 +92,11 @@ function OverviewTab({ employee }: { employee: EmployeeDetail }) {
 
       {/* Right sidebar */}
       <div className="flex flex-col gap-4">
-        <LeaveBalanceSidecard balances={employee.leaveBalances} />
+        <LeaveBalanceSidecard balances={employee.leaveBalances ?? []} />
 
-        {employee.documents.length > 0 && (
+        {documents.length > 0 && (
           <SectionCard title="Documents" noPad>
-            {employee.documents.slice(0, 4).map((doc) => (
+            {documents.slice(0, 4).map((doc) => (
               <div
                 key={doc.id}
                 className="flex items-center justify-between border-b border-subtle px-5 py-2.5 last:border-0"
@@ -396,7 +398,9 @@ export function EmployeeProfile({ id }: { id: string }) {
         {activeTab === 'compensation' && <CompensationTab employeeId={id} />}
         {activeTab === 'documents' && <DocumentsTab employeeId={id} />}
         {activeTab === 'attendance' && <AttendanceTab employeeId={id} />}
-        {activeTab === 'leave' && <LeaveTab balances={employee.leaveBalances} employeeId={id} />}
+        {activeTab === 'leave' && (
+          <LeaveTab balances={employee.leaveBalances ?? []} employeeId={id} />
+        )}
         {activeTab === 'activity' && <ActivityTab employeeId={id} />}
       </div>
 
