@@ -199,11 +199,14 @@ export function SalaryAssignmentDrawer({
           {/* Annual CTC */}
           <div className="space-y-1.5">
             <Label htmlFor="sal-ctc">Annual CTC *</Label>
+            {/* step must stay "any": a fixed step (e.g. 1000) makes the browser's native
+               number validation reject round CTCs like 1200000 (only 1+1000·n pass),
+               which silently blocks the form's submit event before RHF/Zod ever run. */}
             <Input
               id="sal-ctc"
               type="number"
               min={1}
-              step={1000}
+              step="any"
               placeholder="e.g. 1200000"
               {...form.register('annualCtc', { valueAsNumber: true })}
             />
