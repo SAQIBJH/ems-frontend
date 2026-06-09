@@ -42,6 +42,34 @@ earnings whose `component.statutoryTag` equals the scheme's `wageBaseTag` (e.g. 
 tagged `PF_WAGE` form the EPF base), then apply the pack's rate/ceiling. The configuration
 side is complete; only the runtime computation is missing.
 
+**Reference implementation — the exact algorithm already exists on the frontend.** The
+mock calculation engine the UI was built against implements this correctly; the backend
+engine can mirror it 1:1. See **`src/mocks/data/payroll-engine.ts`** (the wage-base loop)
+and the pure helpers in **`src/modules/payroll/utils/formula.utils.ts`**
+(`computeContribution`, `evaluateSlab`). The core wiring:
+
+```ts
+// For each contribution scheme in the active statutory pack:
+for (const scheme of pack.contributionSchemes) {
+  // wage base = sum of earnings whose component.statutoryTag matches the
+  // scheme's wageBaseTag (e.g. PF_WAGE). Untagged earnings never enter the base.
+  const rawBase = earnings
+    .filter((e) => componentByCode.get(e.code)?.statutoryTag === scheme.wageBaseTag)
+    .reduce((s, e) => s + e.amount, 0);
+  if (rawBase <= 0) continue; // no tagged earnings → scheme not applicable
+
+  // cap at the scheme's wageCeiling, then apply employee/employer rates
+  const base = scheme.wageCeiling != null ? Math.min(rawBase, scheme.wageCeiling) : rawBase;
+  const employee = Math.round((base * scheme.employee.rate) / 100); // → posts to scheme.employee.component
+  const employer = Math.round((base * scheme.employer.rate) / 100); // → posts to scheme.employer.component (employer cost)
+}
+```
+
+> This is mock/demo code (MSW, runs only with `NEXT_PUBLIC_USE_MOCKS=true`) and is **not**
+> the production calculator — payroll must be computed server-side for trust,
+> reproducibility, and config-version pinning. It is provided purely as the **authoritative
+> spec** for O2: match this logic in the backend engine.
+
 > _Low-priority confirm (not blocking):_ the FE reads payment batches from the **run-scoped**
 > endpoint `GET /payroll/runs/:runId/payment-batch` (which should include `lines`), **not**
 > the bare `GET /payroll/payment-batches` list — so the list omitting `lines` does not affect
