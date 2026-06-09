@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Employees swept — 2 issues found + fixed. Next: Departments.**_
+_Last updated: 2026-06-10 · Status: **Departments swept — clean (0 issues). Next: Attendance.**_
 
 ---
 
@@ -103,14 +103,14 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Employees — ✅ done (2 issues found + fixed)
-**Next action:** run the **Departments** sweep (org tree + create/edit/delete/reparent), all roles, then pause for review.
+**Current screen:** Departments — ✅ done (clean)
+**Next action:** run the **Attendance** sweep (today/check-in-out, records grid, summary, regularization + approve/deny), all roles, then pause for review.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status      |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------- |
 | 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
 | 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
-| 3   | Departments | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
+| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
 | 4   | Attendance  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 5   | Timesheets  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 6   | Leave       | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
@@ -281,10 +281,21 @@ payroll create-path E2E). All committed to `main`, local:
 - **Carry-forward:** create wizard ≠ edit form (separate components); `RequirePermission` guard now
   exists — apply to other write routes. Terminate-then-404 quirk may affect any "view terminated employee" flow.
 
-### 3. Departments `/departments`
+### 3. Departments `/departments` — ✅ SWEPT, CLEAN (2026-06-10)
 
-- **Sub-units:** org tree (nested `children[]`), create / edit / delete drawer, move/reparent.
-- **Findings:** _none yet_
+- **Sub-units:** org tree (nested `children[]`, 8 roots), detail panel (sub-teams grid + Members table
+  `DepartmentEmployeesTable`), create/edit/add-sub/delete — **all modal-based** (`DepartmentForm` dialog,
+  `ConfirmDialog`, reassign-and-delete dialog). **No `/new` or `/edit` routes → CC-8 N/A here.**
+- **Per role:**
+  - **SUPER_ADMIN / HR_ADMIN:** tree + "Add department" + 8 row action menus. Write flow all fire:
+    create root **POST 201**, edit **PATCH 200**, add sub-dept **POST 201**, delete (root, via UI) **DELETE 200** ✓.
+  - **MANAGER / EMPLOYEE:** can **view** the tree (8 items) but **"Add" hidden + 0 row menus** (correct
+    `PermissionWrapper departments:write` gating). Server also **enforces**: POST/PATCH/DELETE → **403**.
+- **Findings:** **none — 0 issues.** No console errors, no API 4xx/5xx for any role.
+- **Not exercised:** reassign-and-delete (delete a dept that has employees → move-then-delete dialog) —
+  skipped to avoid reassigning real employees; wiring mirrors the verified empty-delete path.
+- **Carry-forward:** modal-based CRUD pattern (no routes) — gating via PermissionWrapper + server 403
+  is the correct combo; contrast with Employees' route-based forms (which needed CC-8 RequirePermission).
 
 ### 4. Attendance `/attendance`
 
@@ -358,6 +369,7 @@ All issues across all screens. Fix status drives the per-screen cadence.
 | EMP-1 | Employees / profile Overview  | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7) | ✅ fixed   | `main` |
 | EMP-2 | Employees / new + edit routes | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                  | ✅ fixed   | `main` |
 | EMP-3 | Employees / terminate         | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                        | ⏳ backend | —      |
+| —     | Departments (all roles)       | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                | ✅ swept   | —      |
 
 ---
 
