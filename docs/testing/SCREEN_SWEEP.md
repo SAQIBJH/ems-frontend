@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Departments swept — clean (0 issues). Next: Attendance.**_
+_Last updated: 2026-06-10 · Status: **Attendance swept — 1 issue found + fixed (deny was broken). Next: Timesheets.**_
 
 ---
 
@@ -103,15 +103,15 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Departments — ✅ done (clean)
-**Next action:** run the **Attendance** sweep (today/check-in-out, records grid, summary, regularization + approve/deny), all roles, then pause for review.
+**Current screen:** Attendance — ✅ done (1 issue found + fixed)
+**Next action:** run the **Timesheets** sweep (weekly grid + timer, submit, approvals, projects/tasks, utilization report, settings), all roles, then pause for review.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status      |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------- |
 | 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
 | 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
 | 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
-| 4   | Attendance  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
+| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed       |
 | 5   | Timesheets  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 6   | Leave       | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 7   | Holidays    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
@@ -163,6 +163,12 @@ screen uses one of these, check it against this list first.
   _Fix pattern: mark the field optional in the type + default `?? []` at every consumer._
   **On every detail/profile screen, create a fresh/empty record and open it** — that's when the
   omitted-array crash surfaces. _(First seen: Employee profile OverviewTab — fixed, commit on `main`.)_
+- **CC-9 · Service sends the wrong field name → 400 (required) or silently dropped (optional).**
+  The FE sent `{ comment }` to regularization approve/deny, but the backend field is
+  **`reviewerComment`** — **deny** (where it's required) 400'd every time = fully broken; **approve**
+  (optional) silently dropped the note. _Fix pattern: match the live request body field names exactly._
+  **For every write, diff the FE request body keys against a real successful request** — don't trust
+  the FE's own naming. _(First seen: attendance regularization approve/deny — fixed, commit on `main`.)_
 - **CC-8 · Write routes gated only by hiding the button, not the route.** `/employees/new` &
   `/employees/[id]/edit` rendered the full form to MANAGER/EMPLOYEE via direct URL (server
   enforces with 403 on submit, so not a security hole — but bad UX). _Fix pattern: wrap the page
@@ -183,7 +189,8 @@ screen uses one of these, check it against this list first.
   (`EmptyState`/`ErrorState`/`Skeleton`) — `StatsCard`/`SectionCard`/`PermissionWrapper` used by **Dashboard**
 - `NewLeaveRequestDialog` — _used by: **Dashboard** (Employee "Request leave") + Leave screen_ — submit verified 201
 - `TodayAttendanceCard` (check-in/out) — _used by: **Dashboard** (Employee) + Attendance screen_ — check-in verified 201
-- `PendingApprovalsPanel` / `BulkApproveModal` / `TeamWeeklyAttendanceGrid` — _used by: **Dashboard** (HR/Manager) + Leave/Attendance approvals_
+- `PendingApprovalsPanel` / `BulkApproveModal` / `TeamWeeklyAttendanceGrid` — _used by: **Dashboard** (HR/Manager) + Leave/Attendance approvals_ — **regularization approve/deny lives ONLY here** (no approval UI on the Attendance page)
+- `RegularizationDialog` / `CheckInOutCard` / `AttendanceCalendar` / `AttendanceTableView` — _used by: **Attendance** page_ (CheckInOutCard also on Dashboard)
 
 _(Fill the "used by" lists during the sweep so a fix in one engine flags every dependent screen.)_
 
@@ -297,11 +304,27 @@ payroll create-path E2E). All committed to `main`, local:
 - **Carry-forward:** modal-based CRUD pattern (no routes) — gating via PermissionWrapper + server 403
   is the correct combo; contrast with Employees' route-based forms (which needed CC-8 RequirePermission).
 
-### 4. Attendance `/attendance`
+### 4. Attendance `/attendance` — ✅ SWEPT, 1 issue fixed (2026-06-10)
 
-- **Sub-units:** today / check-in / check-out, records grid (`?month=`), summary, regularization
-  (request + approve/deny).
-- **Findings:** _none yet_
+- **Sub-units:** summary cards (`/attendance/summary`), dept/employee filters (HR/Manager), month nav,
+  calendar ↔ table view toggle (`nuqs` URL state), `CheckInOutCard`, `RegularizationDialog` (request),
+  `DayDetailDrawer`. **Regularization approve/deny is NOT on this page** — it lives in the dashboard
+  `PendingApprovalsPanel` (tested there as part of this sweep).
+- **Per role:**
+  - **SUPER_ADMIN / HR_ADMIN / MANAGER:** summary + check-in card + **dept/employee filters** + reg
+    button; table view fires `/attendance/records|team`. Clean.
+  - **EMPLOYEE:** summary + check-in card + reg button, **no filters** (correct). Clean.
+  - **Regularization request** (employee, via UI) → `POST /attendance/regularization` **201** ✓.
+  - **Approve** (HR, dashboard panel) → `PATCH …/approve` **200** ✓.
+- **Findings (FIXED):**
+  - **ATT-1 (P1):** **Deny regularization was fully broken** — service sent `{ comment }` but the
+    backend requires **`reviewerComment`** → `PATCH …/deny` **400** every time. Approve had the same
+    wrong key (silently dropped the note). → CC-9. Fixed (both now send `reviewerComment`); deny
+    verified **200** end-to-end via the dashboard.
+- **Observations:** no console errors / no other 4xx-5xx for any role; check-in/out already verified
+  (Dashboard). `nuqs` view/month/filter state all drive the right record fetches.
+- **Carry-forward:** the `comment` vs `reviewerComment` mismatch (CC-9) — audit other approve/deny/review
+  payloads (Leave reject uses `comment` too — **verify it's the right key when sweeping Leave**).
 
 ### 5. Timesheets `/timesheets`
 
@@ -363,13 +386,14 @@ payroll create-path E2E). All committed to `main`, local:
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID    | Screen / panel                | Sev | Summary                                                              | Root cause                                                       | Status     | Commit |
-| ----- | ----------------------------- | --- | -------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------- | ------ |
-| —     | Dashboard (all roles)         | —   | **0 issues** — load + all interactions clean                         | —                                                                | ✅ swept   | —      |
-| EMP-1 | Employees / profile Overview  | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7) | ✅ fixed   | `main` |
-| EMP-2 | Employees / new + edit routes | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                  | ✅ fixed   | `main` |
-| EMP-3 | Employees / terminate         | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                        | ⏳ backend | —      |
-| —     | Departments (all roles)       | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                | ✅ swept   | —      |
+| ID    | Screen / panel                   | Sev | Summary                                                              | Root cause                                                       | Status     | Commit |
+| ----- | -------------------------------- | --- | -------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------- | ------ |
+| —     | Dashboard (all roles)            | —   | **0 issues** — load + all interactions clean                         | —                                                                | ✅ swept   | —      |
+| EMP-1 | Employees / profile Overview     | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7) | ✅ fixed   | `main` |
+| EMP-2 | Employees / new + edit routes    | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                  | ✅ fixed   | `main` |
+| EMP-3 | Employees / terminate            | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                        | ⏳ backend | —      |
+| —     | Departments (all roles)          | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                | ✅ swept   | —      |
+| ATT-1 | Attendance / regularization deny | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)     | ✅ fixed   | `main` |
 
 ---
 
