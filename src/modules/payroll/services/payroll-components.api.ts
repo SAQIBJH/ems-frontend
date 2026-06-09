@@ -18,9 +18,14 @@ export const payrollComponentsApi = {
     id,
     ...body
   }: { id: string } & Partial<SalaryComponentInput>): Promise<SalaryComponent> => {
+    // `code` is immutable on PATCH — the live backend rejects any body that
+    // carries it with 400 CODE_IMMUTABLE (docs/API_MAPPING.md). Strip it so the
+    // edit goes through; the stored code is preserved server-side either way.
+    const payload = { ...body };
+    delete (payload as Record<string, unknown>).code;
     const { data } = await apiClient.patch<{ data: SalaryComponent }>(
       `/payroll/components/${id}`,
-      body,
+      payload,
     );
     return data.data;
   },

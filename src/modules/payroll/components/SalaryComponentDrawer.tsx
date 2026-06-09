@@ -184,12 +184,16 @@ export function SalaryComponentDrawer({
         value: component.value,
         basisCode: component.basisCode,
         formula: component.formula,
-        taxable: component.taxable,
-        active: component.active,
+        taxable: component.taxable ?? true,
+        active: component.active ?? true,
         displayOrder: component.displayOrder,
-        statutoryTag: component.statutoryTag,
-        prorate: component.prorate,
-        payInPeriods: component.payInPeriods,
+        // The live GET /payroll/components response omits these fields (see
+        // docs/payroll/BACKEND_LIVE_API_ISSUES.md P1). Without a fallback,
+        // `prorate` arrives `undefined`, fails the required `z.boolean()` check,
+        // and Save silently no-ops. Default them until the backend returns them.
+        statutoryTag: component.statutoryTag ?? null,
+        prorate: component.prorate ?? true,
+        payInPeriods: component.payInPeriods ?? null,
         description: component.description ?? null,
         glAccountCode: component.glAccountCode ?? null,
         costCenterRule: component.costCenterRule ?? 'DEPARTMENT',
@@ -315,7 +319,12 @@ export function SalaryComponentDrawer({
           <SheetTitle>{isEdit ? 'Edit Salary Component' : 'New Salary Component'}</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+        <form
+          onSubmit={form.handleSubmit(onSubmit, () =>
+            toast.error('Please fix the highlighted fields before saving.'),
+          )}
+          className="flex flex-col flex-1 min-h-0"
+        >
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
             {/* Section 1 — Basic Information */}
             <div className="space-y-4">
