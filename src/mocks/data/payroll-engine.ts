@@ -411,7 +411,7 @@ function computeEmployeeMonth(
       CURRENCY,
     );
     for (const lt of pack.localTaxes) {
-      if (!jset.has(lt.jurisdiction)) continue;
+      if (!lt.jurisdiction || !jset.has(lt.jurisdiction)) continue;
       const amount = fromMinor(evaluateLocalTax(grossMinor, lt.slabs), CURRENCY);
       upsertLine(deductions, lt.component, compByCode.get(lt.component)?.name ?? lt.name, amount);
     }

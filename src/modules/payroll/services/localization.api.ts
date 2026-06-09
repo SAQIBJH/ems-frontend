@@ -66,4 +66,10 @@ export const localizationApi = {
     );
     return data.data;
   },
+
+  deleteStatutoryPack: async (id: string): Promise<void> => {
+    // Backend returns { success, data: { deleted: true } }; a 409 PACK_IN_USE is
+    // surfaced when a legal entity still references the pack.
+    await apiClient.delete(`/payroll/statutory-packs/${id}`);
+  },
 };

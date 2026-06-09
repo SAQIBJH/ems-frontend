@@ -272,6 +272,7 @@ export {
   useStatutoryPacks,
   useCreateStatutoryPack,
   useUpdateStatutoryPack,
+  useDeleteStatutoryPack,
 } from './hooks/useLocalization';
 export {
   usePayCalendars,
@@ -346,6 +347,8 @@ export { PaySchedulesPanel } from './components/PaySchedulesPanel';
 export { LegalEntitiesPanel } from './components/LegalEntitiesPanel';
 export { LegalEntityDrawer } from './components/LegalEntityDrawer';
 export { StatutoryPacksPanel } from './components/StatutoryPacksPanel';
+export { StatutoryPackEditor } from './components/StatutoryPackEditor';
+export { StatutoryPackDetailSheet } from './components/StatutoryPackDetailSheet';
 export { PayrollScreen } from './components/PayrollScreen';
 export { GlobalWorkforceScreen } from './components/GlobalWorkforceScreen';
 export { MigrationScreen } from './components/MigrationScreen';

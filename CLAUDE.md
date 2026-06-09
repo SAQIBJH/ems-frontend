@@ -1196,6 +1196,23 @@ bar as §25/§21 — not a new style.
   backend later ships a documented endpoint, the only change is flipping
   `NEXT_PUBLIC_USE_MOCKS` / removing the handler — no app-code change.
 
+> **Live transition — updated 2026-06-09 (verify before trusting).** The backend has
+> since shipped much of payroll, so "payroll is MSW-first" above is now partly stale.
+> **`/payroll/statutory-packs` (GET/POST/PATCH/DELETE) is LIVE and shape-verified**
+> end-to-end against production: flat body & response (no `packData` wrapper),
+> `statutoryComponents` is `string[]` on read **and** write (legacy `{code}` objects
+> tolerated), `gratuity` returned, `DELETE` → `200 {deleted:true}` or `409 PACK_IN_USE`.
+> The FE types reflect this (`applicability`/`jurisdiction` optional, `tenantId?` added).
+> A live sweep of the FE's payroll paths (2026-06-09) found most respond `200` —
+> `components`, `countries`, `groups`, `schedules`, `runs`, `roster`, `legal-entities`,
+> `event-catalogue`, `events`, `pay-calendars`, `payslip-templates`,
+> `reimbursement-categories/-claims`, `workers`, `cost-summary`, `contractor-invoices`,
+> `opening-balances` — while **`employees`, `migration`, `payment-batches`, `reports`,
+> `settings` still `404`** (those screens break with mocks fully off, unless they use
+> sub-paths). **A `200` only means the route exists — only `statutory-packs` has had its
+> response shape verified against the FE types.** Treat the other live endpoints as
+> unverified until checked the same way (see the verify-live-API discipline).
+
 ### Run types (Step 118)
 
 `Bonus`, `Arrears`, `Off-cycle`, and `Reversal` are **real, config-driven** run types

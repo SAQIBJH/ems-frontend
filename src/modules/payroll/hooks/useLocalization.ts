@@ -71,3 +71,11 @@ export function useUpdateStatutoryPack() {
     onSuccess: () => qc.invalidateQueries({ queryKey: STATUTORY_PACKS_KEY }),
   });
 }
+
+export function useDeleteStatutoryPack() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => localizationApi.deleteStatutoryPack(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: STATUTORY_PACKS_KEY }),
+  });
+}

@@ -70,8 +70,11 @@ export interface ContributionScheme {
   wageCeiling: number | null;
   employee: ContributionParty;
   employer: ContributionParty;
-  /** Free-form applicability rule key, resolved by the engine. */
-  applicability: string;
+  /**
+   * Free-form applicability rule key, resolved by the engine. Optional — the live
+   * backend may omit it (verified 2026-06-09 against the live statutory-packs API).
+   */
+  applicability?: string;
 }
 
 /* Sub-national / local flat-amount tax (professional tax, LWF, city tax). */
@@ -87,8 +90,11 @@ export interface LocalTaxSlab {
 export interface LocalTax {
   code: string;
   name: string;
-  /** ISO 3166-2 jurisdiction this tax applies in. */
-  jurisdiction: string;
+  /**
+   * ISO 3166-2 jurisdiction this tax applies in. Optional — the live backend may
+   * omit it (verified 2026-06-09 against the live statutory-packs API).
+   */
+  jurisdiction?: string;
   /** Component code the deduction posts to. */
   component: string;
   slabs: LocalTaxSlab[];
@@ -111,6 +117,8 @@ export interface MinimumWage {
 
 export interface StatutoryPack {
   id: string;
+  /** Backend-assigned tenant owner — present on live responses, not sent on writes. */
+  tenantId?: string;
   /** ISO 3166-1 alpha-2. */
   country: string;
   /** Pack version label, e.g. "2026.1". */
