@@ -205,8 +205,11 @@ export const payrollRunsApi = {
 
   /** Pre-fill OT/LOP from approved timesheets in the run's period (Step T6). */
   importInputsFromTimesheets: async (runId: string): Promise<TimesheetInputResult> => {
+    // Send an explicit empty-object body: the backend validates the body as an object
+    // and 400s ("must be object") on a bodyless POST. See CC-10.
     const { data } = await apiClient.post<{ data: TimesheetInputResult }>(
       `/payroll/runs/${runId}/inputs/from-timesheets`,
+      {},
     );
     return data.data;
   },
