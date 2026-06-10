@@ -174,3 +174,24 @@ export interface EmployeeDashboardData {
 }
 
 export type AttendanceRange = '7d' | '30d' | '90d';
+
+/**
+ * Optional org-analytics filters threaded through the analytics endpoints.
+ * All fields optional — omitting them yields the unfiltered org-wide result
+ * (so the Dashboard widgets, which pass nothing, are unaffected).
+ *
+ * - `departmentId` scopes a metric to a single department.
+ * - A date window is either a preset (`range`) OR a custom span (`from`+`to`);
+ *   when `from`+`to` are both present they take precedence over `range`.
+ *
+ * NOTE (backend): as of 2026-06-10 the live endpoints **accept and ignore**
+ * these params (verified — still 200). Filtering is implemented FE-first and
+ * documented in docs/BACKEND_API_REQUESTS.md; once the backend honours them the
+ * data filters with no FE change.
+ */
+export interface AnalyticsFilters {
+  departmentId?: string;
+  range?: string;
+  from?: string;
+  to?: string;
+}

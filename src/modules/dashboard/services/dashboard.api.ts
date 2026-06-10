@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import type {
+  AnalyticsFilters,
   AnalyticsSummary,
   AttendanceAnalytics,
   AttendanceRange,
@@ -15,58 +16,90 @@ import type {
   EmployeeTeamResponse,
 } from '../types/dashboard.types';
 
+/**
+ * Build a clean date-window param object from analytics filters:
+ * a custom `from`+`to` span wins over the preset `range`.
+ */
+function dateWindowParams(filters?: AnalyticsFilters): Record<string, string> {
+  if (filters?.from && filters?.to) return { from: filters.from, to: filters.to };
+  if (filters?.range) return { range: filters.range };
+  return {};
+}
+
+function withDepartment(
+  params: Record<string, string | number>,
+  filters?: AnalyticsFilters,
+): Record<string, string | number> {
+  return filters?.departmentId ? { ...params, departmentId: filters.departmentId } : params;
+}
+
 export const dashboardApi = {
   /**
-   * GET /analytics/summary
+   * GET /analytics/summary[?departmentId&range|from&to]
    * Returns { totalEmployees, activeToday, onLeaveToday, openRequests }
    */
-  getAnalyticsSummary: async (): Promise<AnalyticsSummary> => {
-    const { data } = await apiClient.get<{ data: AnalyticsSummary }>('/analytics/summary');
-    return data.data;
-  },
-
-  /**
-   * GET /analytics/attendance?range=7d|30d|90d
-   * Returns { range, series: [...] }
-   */
-  getAttendanceAnalytics: async (range: AttendanceRange): Promise<AttendanceAnalytics> => {
-    const { data } = await apiClient.get<{ data: AttendanceAnalytics }>('/analytics/attendance', {
-      params: { range },
+  getAnalyticsSummary: async (filters?: AnalyticsFilters): Promise<AnalyticsSummary> => {
+    const { data } = await apiClient.get<{ data: AnalyticsSummary }>('/analytics/summary', {
+      params: withDepartment(dateWindowParams(filters), filters),
     });
     return data.data;
   },
 
   /**
-   * GET /analytics/headcount-by-department
+   * GET /analytics/attendance?range=7d|30d|90d (or from&to)[&departmentId]
+   * Returns { range, series: [...] }. A custom `from`+`to` window overrides the preset.
+   */
+  getAttendanceAnalytics: async (
+    range: AttendanceRange,
+    filters?: AnalyticsFilters,
+  ): Promise<AttendanceAnalytics> => {
+    const dateWindow: Record<string, string> =
+      filters?.from && filters?.to ? { from: filters.from, to: filters.to } : { range };
+    const { data } = await apiClient.get<{ data: AttendanceAnalytics }>('/analytics/attendance', {
+      params: withDepartment(dateWindow, filters),
+    });
+    return data.data;
+  },
+
+  /**
+   * GET /analytics/headcount-by-department[?departmentId]
    * Returns data[] — flat array
    */
-  getHeadcountByDepartment: async (): Promise<DepartmentHeadcount[]> => {
+  getHeadcountByDepartment: async (filters?: AnalyticsFilters): Promise<DepartmentHeadcount[]> => {
     const { data } = await apiClient.get<{ data: DepartmentHeadcount[] }>(
       '/analytics/headcount-by-department',
+      { params: withDepartment({}, filters) },
     );
     return data.data;
   },
 
   /**
-   * GET /analytics/leave-summary?range=30d
+   * GET /analytics/leave-summary?range=30d (or from&to)[&departmentId]
    * Returns { pending, approved, rejected, withdrawn }
    */
-  getLeaveSummary: async (): Promise<LeaveSummaryAnalytics> => {
+  getLeaveSummary: async (filters?: AnalyticsFilters): Promise<LeaveSummaryAnalytics> => {
+    const dateWindow: Record<string, string> =
+      filters?.from && filters?.to
+        ? { from: filters.from, to: filters.to }
+        : { range: filters?.range ?? '30d' };
     const { data } = await apiClient.get<{ data: LeaveSummaryAnalytics }>(
       '/analytics/leave-summary',
-      { params: { range: '30d' } },
+      { params: withDepartment(dateWindow, filters) },
     );
     return data.data;
   },
 
   /**
-   * GET /analytics/recent-activity?limit=N
+   * GET /analytics/recent-activity?limit=N[&departmentId]
    * Returns data[] — flat array
    */
-  getRecentActivity: async (limit = 10): Promise<RecentActivityItem[]> => {
+  getRecentActivity: async (
+    limit = 10,
+    filters?: AnalyticsFilters,
+  ): Promise<RecentActivityItem[]> => {
     const { data } = await apiClient.get<{ data: RecentActivityItem[] }>(
       '/analytics/recent-activity',
-      { params: { limit } },
+      { params: withDepartment({ limit }, filters) },
     );
     return data.data;
   },

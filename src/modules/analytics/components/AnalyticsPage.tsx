@@ -42,7 +42,7 @@ import {
   useLeaveSummaryAnalytics,
   useRecentActivity,
 } from '@/modules/dashboard';
-import type { AttendanceRange, RecentActivityItem } from '@/modules/dashboard';
+import type { AnalyticsFilters, AttendanceRange, RecentActivityItem } from '@/modules/dashboard';
 import {
   useWorkforceTrend,
   useAttritionTrend,
@@ -171,9 +171,9 @@ function RangeToggle<T extends string>({
   );
 }
 
-function WorkforceTrendChart() {
+function WorkforceTrendChart({ departmentId }: { departmentId?: string }) {
   const [range, setRange] = useState<WorkforceTrendRange>('6m');
-  const { data, isLoading, isError, refetch } = useWorkforceTrend(range);
+  const { data, isLoading, isError, refetch } = useWorkforceTrend(range, departmentId);
 
   return (
     <SectionCard title="Workforce Trend">
@@ -245,9 +245,9 @@ function WorkforceTrendChart() {
   );
 }
 
-function AttritionChart() {
+function AttritionChart({ departmentId }: { departmentId?: string }) {
   const [range, setRange] = useState<WorkforceTrendRange>('6m');
-  const { data, isLoading, isError, refetch } = useAttritionTrend(range);
+  const { data, isLoading, isError, refetch } = useAttritionTrend(range, departmentId);
 
   return (
     <SectionCard title="Attrition Rate">
@@ -307,9 +307,9 @@ function AttritionChart() {
   );
 }
 
-function PayrollCostChart() {
+function PayrollCostChart({ departmentId }: { departmentId?: string }) {
   const [range, setRange] = useState<Exclude<WorkforceTrendRange, '2y'>>('6m');
-  const { data, isLoading, isError, refetch } = usePayrollCostTrend(range);
+  const { data, isLoading, isError, refetch } = usePayrollCostTrend(range, departmentId);
 
   const chartData = (data ?? []) as unknown as Record<string, unknown>[];
 
@@ -398,9 +398,9 @@ const DEPT_PERF_COLS: ColumnDef<DepartmentPerformanceRow>[] = [
   },
 ];
 
-function DeptPerformanceTable() {
+function DeptPerformanceTable({ departmentId }: { departmentId?: string }) {
   const [range, setRange] = useState<DeptPerfRange>('30d');
-  const { data, isLoading, isError, refetch } = useDepartmentPerformance(range);
+  const { data, isLoading, isError, refetch } = useDepartmentPerformance(range, departmentId);
 
   return (
     <SectionCard title="Department Performance">
@@ -434,40 +434,53 @@ export function AnalyticsPage() {
   const attendanceRange: AttendanceRange =
     range === '7d' || range === '30d' || range === '90d' ? range : '30d';
 
+  // Custom span wins over the preset; otherwise pass the preset range. Always
+  // include the selected department (omitted keys yield the unfiltered result).
+  const isCustomRange = range === 'custom' && !!from && !!to;
+  const filters: AnalyticsFilters = {
+    departmentId: departmentId || undefined,
+    ...(isCustomRange
+      ? { from, to }
+      : range === '7d' || range === '30d' || range === '90d'
+        ? { range }
+        : {}),
+  };
+  const deptFilter = departmentId || undefined;
+
   const {
     data: summary,
     isLoading: summaryLoading,
     isError: summaryError,
     refetch: refetchSummary,
-  } = useAnalyticsSummary();
+  } = useAnalyticsSummary(filters);
 
   const {
     data: attendanceData,
     isLoading: attendanceLoading,
     isError: attendanceError,
     refetch: refetchAttendance,
-  } = useAttendanceAnalytics(attendanceRange);
+  } = useAttendanceAnalytics(attendanceRange, filters);
 
   const {
     data: headcountData,
     isLoading: headcountLoading,
     isError: headcountError,
     refetch: refetchHeadcount,
-  } = useHeadcountByDepartment();
+  } = useHeadcountByDepartment(filters);
 
   const {
     data: leaveData,
     isLoading: leaveLoading,
     isError: leaveError,
     refetch: refetchLeave,
-  } = useLeaveSummaryAnalytics();
+  } = useLeaveSummaryAnalytics(filters);
 
   const {
     data: activityData,
     isLoading: activityLoading,
     isError: activityError,
     refetch: refetchActivity,
-  } = useRecentActivity(activityLimit);
+  } = useRecentActivity(activityLimit, filters);
 
   const attendanceChartData =
     attendanceData?.series.map((p) => ({
@@ -605,7 +618,11 @@ export function AnalyticsPage() {
 
         {/* Row 2 — Attendance trend (full width) */}
         <SectionCard
-          title={`Attendance Trend — Last ${attendanceRange === '7d' ? '7 days' : attendanceRange === '30d' ? '30 days' : '90 days'}`}
+          title={
+            isCustomRange
+              ? `Attendance Trend — ${from} → ${to}`
+              : `Attendance Trend — Last ${attendanceRange === '7d' ? '7 days' : attendanceRange === '30d' ? '30 days' : '90 days'}`
+          }
         >
           {attendanceLoading ? (
             <Skeleton className="h-60 w-full rounded-md" />
@@ -737,20 +754,20 @@ export function AnalyticsPage() {
         </SectionCard>
 
         {/* Row 5 — Workforce Trend (full width) */}
-        <WorkforceTrendChart />
+        <WorkforceTrendChart departmentId={deptFilter} />
 
         {/* Row 6 — Attrition (6-col) + Payroll Cost (6-col) */}
         <div className="grid gap-6 xl:grid-cols-12">
           <div className="xl:col-span-6">
-            <AttritionChart />
+            <AttritionChart departmentId={deptFilter} />
           </div>
           <div className="xl:col-span-6">
-            <PayrollCostChart />
+            <PayrollCostChart departmentId={deptFilter} />
           </div>
         </div>
 
         {/* Row 7 — Department Performance (full width) */}
-        <DeptPerformanceTable />
+        <DeptPerformanceTable departmentId={deptFilter} />
       </div>
     </div>
   );

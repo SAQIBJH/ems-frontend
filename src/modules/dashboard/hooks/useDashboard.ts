@@ -2,44 +2,52 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../services/dashboard.api';
-import type { AttendanceRange } from '../types/dashboard.types';
+import type { AnalyticsFilters, AttendanceRange } from '../types/dashboard.types';
 
-export function useAnalyticsSummary() {
+/** Stable, serialisable key fragment for the optional analytics filters. */
+const filterKey = (f?: AnalyticsFilters) => ({
+  departmentId: f?.departmentId ?? null,
+  range: f?.range ?? null,
+  from: f?.from ?? null,
+  to: f?.to ?? null,
+});
+
+export function useAnalyticsSummary(filters?: AnalyticsFilters) {
   return useQuery({
-    queryKey: ['analytics', 'summary'],
-    queryFn: dashboardApi.getAnalyticsSummary,
+    queryKey: ['analytics', 'summary', filterKey(filters)],
+    queryFn: () => dashboardApi.getAnalyticsSummary(filters),
     staleTime: 60_000,
   });
 }
 
-export function useAttendanceAnalytics(range: AttendanceRange) {
+export function useAttendanceAnalytics(range: AttendanceRange, filters?: AnalyticsFilters) {
   return useQuery({
-    queryKey: ['analytics', 'attendance', range],
-    queryFn: () => dashboardApi.getAttendanceAnalytics(range),
+    queryKey: ['analytics', 'attendance', range, filterKey(filters)],
+    queryFn: () => dashboardApi.getAttendanceAnalytics(range, filters),
     staleTime: 60_000,
   });
 }
 
-export function useHeadcountByDepartment() {
+export function useHeadcountByDepartment(filters?: AnalyticsFilters) {
   return useQuery({
-    queryKey: ['analytics', 'headcount-by-department'],
-    queryFn: dashboardApi.getHeadcountByDepartment,
+    queryKey: ['analytics', 'headcount-by-department', filterKey(filters)],
+    queryFn: () => dashboardApi.getHeadcountByDepartment(filters),
     staleTime: 60_000,
   });
 }
 
-export function useLeaveSummaryAnalytics() {
+export function useLeaveSummaryAnalytics(filters?: AnalyticsFilters) {
   return useQuery({
-    queryKey: ['analytics', 'leave-summary'],
-    queryFn: dashboardApi.getLeaveSummary,
+    queryKey: ['analytics', 'leave-summary', filterKey(filters)],
+    queryFn: () => dashboardApi.getLeaveSummary(filters),
     staleTime: 60_000,
   });
 }
 
-export function useRecentActivity(limit = 10) {
+export function useRecentActivity(limit = 10, filters?: AnalyticsFilters) {
   return useQuery({
-    queryKey: ['analytics', 'recent-activity', limit],
-    queryFn: () => dashboardApi.getRecentActivity(limit),
+    queryKey: ['analytics', 'recent-activity', limit, filterKey(filters)],
+    queryFn: () => dashboardApi.getRecentActivity(limit, filters),
     staleTime: 30_000,
   });
 }
