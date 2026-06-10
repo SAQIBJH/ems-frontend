@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Payroll swept (core run lifecycle) — 1 FE fix (from-timesheets import was 400) + 2 gating mismatches logged. Next: finish Payroll sub-panels OR Reports (your call).**_
+_Last updated: 2026-06-10 · Status: **Payroll swept (core + panels) — 4 FE fixes (PR-1 from-timesheets 400; PR-2 cancel gating; PR-3 self-service template 403; PR-4 /global guard). Next: Reports.**_
 
 ---
 
@@ -103,29 +103,28 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Payroll — ✅ core swept (run lifecycle), 1 fix + 2 gating issues logged. **Partial:** the
-deep per-panel sweep of `/payroll/global`, `/payroll/migration` (5 sub-panels), and the run-detail panels
-(disbursement/journal/statutory/audit-pack/adjustments) was **not** exhaustively driven — flagged as
-follow-up.
-**Next action:** decide with the user — either (a) finish the remaining **Payroll sub-panels**, or
-(b) move to **Reports** (15 report types). Whole-payroll API health: **ALL top-level GETs now 200** (the
-§26 404s — migration/reports/settings/employees/payment-batches — have since shipped). Run lifecycle
-verified live: initiate 201 → calculate 202→REVIEW → approve 200 → mark-paid 200 → publish 200.
+**Current screen:** Payroll — ✅ done (4 FE fixes: PR-1…PR-4). Core run lifecycle + global/migration panels
+swept; run-detail/migration **write forms** load clean but weren't each driven E2E (lower-priority deep pass).
+**Next action:** run the **Reports** sweep — 15 report types (each: summary + chart + table + CSV export):
+Workforce {Headcount, Turnover, Demographics}; Attendance {Monthly Summary, Absenteeism Trend}; Leave
+{Utilization, Pending}; Payroll {Summary, CTC, Salary Register, Statutory Register, Bank Advice, Variance,
+Pay Equity}; Timesheets {Utilization}. **Mocks OFF** — probe which report endpoints are live (payroll
+`/payroll/reports` is 200; the rest TBD). Watch the CSV-export path (Blob download) and CC-10/CC-9.
 
-| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                              |
-| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------------------------------- |
-| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                         |
-| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                               |
-| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                         |
-| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed                               |
-| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed                               |
-| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                   |
-| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed                               |
-| 8   | Payroll     | 🐞          | ✅       | ✅      | ✅       | 1          | core fixed (2 gating + panels open) |
-| 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
-| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
-| 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
-| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
+| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                             |
+| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ---------------------------------- |
+| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                        |
+| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                              |
+| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                        |
+| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed                              |
+| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed                              |
+| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                  |
+| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed                              |
+| 8   | Payroll     | ✅          | ✅       | ✅      | ✅       | 4          | fixed (writes: deep pass deferred) |
+| 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
+| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
+| 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
+| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
 
 Legend: ⬜ pending · 🔄 in progress · ✅ swept+clean · 🐞 swept, issues open · 🔧 issues fixed
 
@@ -544,11 +543,25 @@ reimbursement-categories/-claims, migration, reports, settings, employees, payme
 - **Observations:** `approve` sends `{notes}` — accepted (200), though the run's `approvals[]` came back
   empty (note may persist elsewhere; not blocking). No other bodyless payroll writes (the rest send `{}`/a
   body). FnF number inputs have no `step` (CC-1 N/A).
-- **NOT exhaustively swept (follow-up):** `/payroll/global` (Salary Components / Pay Groups / Statutory
-  Packs / Legal Entities / Payslip Template / Data Policy editors), `/payroll/migration` (opening balances,
-  historical payslips, parallel reconcile, go-live, pay calendar), and the run-detail panels
-  (disbursement / journal / statutory filing / audit pack / adjustments / payslip drawer write actions).
-  Their **GETs are 200**; their **write actions** were not all driven. Recommend a focused follow-up pass.
+- **PR-2/PR-3 — FIXED (your call: gate FE).** PR-2: added a SUPER_ADMIN-only `canCancel` to
+  `usePayrollPermissions`; the run-detail Cancel button now uses it (verified: HR no longer sees Cancel,
+  super_admin does). PR-3: gated `usePayslipTemplate` to elevated roles so self-service doesn't fetch the
+  HR-only template (verified: 0 template calls for an employee). BE-7/BE-8 stay flagged for the backend.
+- **Panel follow-up pass (done):** `/payroll/global` (GlobalWorkforceScreen — cost summary, workers,
+  contractor invoices) and `/payroll/migration` (all **5** panels: Pay Calendar / Opening Balances /
+  Historical Payslips / Parallel Run / Go-Live) and a run-detail (all panels) **load clean for HR** — no
+  4xx/5xx, no console errors. The editor panels (Salary Components / Pay Groups / Statutory Packs / Legal
+  Entities / Payslip Template / Data Policy) live under **Settings → Pay & Compliance** and are swept with
+  **screen 12 (Settings)**, not here. Migration/run-detail writes all send a body (no CC-10).
+  - **PR-4 (P2, FIXED):** **`/payroll/global` had no role guard** — unlike `/payroll` (PayrollScreen) and
+    `/payroll/migration` (MigrationScreen), which redirect self-service roles. An employee/manager opening
+    `/payroll/global` by URL got a page whose every data endpoint (`workers`, `cost-summary`,
+    `contractor-invoices`, `countries`) **403s** → all error states. Fixed: mirror the sibling guard
+    (redirect non-HR/admin → `/payroll/my-payslips`). Verified: employee → my-payslips, HR still loads.
+  - **Still not driven (lower priority):** individual run-detail **write actions** (create payment batch,
+    adjust payslip, hold/release/reprocess payslip, journal/statutory/register exports) and the migration
+    **write forms** (create pay calendar, save opening balance, import historical payslips, go-live toggle)
+    — all load clean and their service calls send proper bodies; exercising each write E2E is a deeper pass.
 - **Test residue (test DB, harmless):** throwaway 2025 runs left — `2025-01` PAID+published, `2025-02`
   DRAFT (cancel 403'd), `2025-03` REVIEW. All 2025 periods, won't affect seed accounts.
 
@@ -585,22 +598,23 @@ reimbursement-categories/-claims, migration, reports, settings, employees, payme
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                                    | Status      | Commit |
-| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- | ------ |
-| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                             | ✅ swept    | —      |
-| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                              | ✅ fixed    | `main` |
-| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                               | ✅ fixed    | `main` |
-| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                                     | ⏳ backend  | —      |
-| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                             | ✅ swept    | —      |
-| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                  | ✅ fixed    | `main` |
-| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)         | ✅ fixed    | `main` |
-| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)              | ✅ fixed    | `main` |
-| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                                  | ✅ fixed    | `main` |
-| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                          | ⏳ backend  | —      |
-| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                  | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case) | ✅ fixed    | `main` |
-| PR-1  | Payroll / inputs from timesheets     | P1  | "Import from timesheets" 400'd every time (broken)                   | bodyless `apiClient.post` → backend "must be object" (CC-10)                                  | ✅ fixed    | `main` |
-| PR-2  | Payroll / run-detail Cancel Run      | P2  | HR sees Cancel Run; backend requires SUPER_ADMIN → 403               | FE gates on `canInitiate`; cancel is super_admin-only server-side                             | ⏳ decision | —      |
-| PR-3  | Payroll / self-service my-payslips   | P2  | manager/employee load fires `payslip-templates` → 403 (×2)           | PayslipDrawer fetches HR-only template endpoint for self-service users                        | ⏳ decision | —      |
+| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                                    | Status     | Commit |
+| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------- | ------ |
+| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                             | ✅ swept   | —      |
+| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                              | ✅ fixed   | `main` |
+| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                               | ✅ fixed   | `main` |
+| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                                     | ⏳ backend | —      |
+| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                             | ✅ swept   | —      |
+| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                  | ✅ fixed   | `main` |
+| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)         | ✅ fixed   | `main` |
+| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)              | ✅ fixed   | `main` |
+| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                                  | ✅ fixed   | `main` |
+| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                          | ⏳ backend | —      |
+| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                  | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case) | ✅ fixed   | `main` |
+| PR-1  | Payroll / inputs from timesheets     | P1  | "Import from timesheets" 400'd every time (broken)                   | bodyless `apiClient.post` → backend "must be object" (CC-10)                                  | ✅ fixed   | `main` |
+| PR-2  | Payroll / run-detail Cancel Run      | P2  | HR sees Cancel Run; backend requires SUPER_ADMIN → 403               | FE gated on `canInitiate`; added super_admin-only `canCancel` (BE-7 flagged)                  | ✅ fixed   | `main` |
+| PR-3  | Payroll / self-service my-payslips   | P2  | manager/employee load fires `payslip-templates` → 403 (×2)           | gated `usePayslipTemplate` to elevated roles (BE-8 flagged)                                   | ✅ fixed   | `main` |
+| PR-4  | Payroll / `/payroll/global` route    | P2  | employee/manager open it by URL → page of 403 error states           | GlobalWorkforceScreen lacked the self-service redirect its siblings have                      | ✅ fixed   | `main` |
 
 ---
 
