@@ -59,20 +59,23 @@ token), not only when a decoded `tenantId` fails to resolve.
 
 ---
 
-## FE follow-ups now UNBLOCKED by these fixes
+## FE follow-ups — DONE (commit `f55c4bc`, verified in-browser)
 
-These are frontend changes that were **waiting** on the backend and are now actionable
-(cross-ref the sweep's §6C):
+Frontend changes that were **waiting** on the backend, now applied & verified:
 
-| Backend fix | FE follow-up                                                                                                                                                 | Type        |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| **BE-7**    | Relax the run-detail **Cancel** gate (`usePayrollPermissions.canCancel`, PR-2) from SUPER_ADMIN-only back to **HR_ADMIN + SUPER_ADMIN** — HR can cancel now. | **REVISIT** |
-| **BE-8**    | Un-gate `usePayslipTemplate` (PR-3) so self-service **my-payslips** fetch the template (now `allAuth`) and render the configured layout.                     | **REVISIT** |
-| **BE-9**    | None — reports export auto-works now. Optionally retest the full flow in the browser.                                                                        | AUTO        |
-| **BE-10**   | None — Add Role now persists permissions in one call (FE already sends them).                                                                                | AUTO        |
-| **BE-11**   | None — keep `isCustom` from the built-in set; custom-role **friendly names** now populate after refresh.                                                     | KEEP        |
-| **BE-1**    | **Do NOT remove** the `400 INVALID_TENANT`→401 interceptor workaround — still needed (see above).                                                            | KEEP        |
-| **ANA**     | None — department filter now returns filtered data on 4 endpoints.                                                                                           | AUTO        |
+| Backend fix | FE follow-up                                                                                                                                          | Status      |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **BE-7**    | Run-detail **Cancel** gate relaxed (`usePayrollPermissions.canCancel` → `payroll:initiate` = HR_ADMIN + SUPER_ADMIN). Verified: HR sees "Cancel Run". | ✅ **DONE** |
+| **BE-8**    | `usePayslipTemplate` un-gated (was HR/SUPER-only). Verified: employee my-payslips fetches `payslip-templates` → 200.                                  | ✅ **DONE** |
+| **BE-3**    | Employee profile fetch passes `?includeTerminated=true`. Verified: HR opens a terminated profile → renders (TERMINATED), no 404 wall.                 | ✅ **DONE** |
+| **BE-9**    | None — reports export auto-works now (FE already polls the download route).                                                                           | AUTO        |
+| **BE-10**   | None — Add Role now persists permissions in one call (FE already sends them).                                                                         | AUTO        |
+| **BE-11**   | None — keep `isCustom` from the built-in set; custom-role **friendly names** now populate after refresh.                                              | KEEP        |
+| **BE-1**    | **Do NOT remove** the `400 INVALID_TENANT`→401 interceptor workaround — still needed (BE-1 partial).                                                  | KEEP        |
+| **ANA**     | None — department filter now returns filtered data on 4 endpoints.                                                                                    | AUTO        |
+
+> **Only remaining FE cleanup is backend-gated:** once BE-1's absent-token path returns `401`,
+> the interceptor workaround can be removed. Nothing else is pending on the FE.
 
 ---
 
