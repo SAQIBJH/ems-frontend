@@ -956,7 +956,7 @@ export function PayrollRunDetail({ runId }: PayrollRunDetailProps) {
 
             {run &&
               (run.status === 'DRAFT' || run.status === 'CALCULATING' || run.status === 'REVIEW') &&
-              perms.canInitiate && (
+              perms.canCancel && (
                 <Button
                   variant="outline"
                   size="default"

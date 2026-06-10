@@ -19,6 +19,8 @@ export interface PayrollPermissions {
   canAdjust: boolean;
   canApprove: boolean;
   canDisburse: boolean;
+  /** Cancel a run — SUPER_ADMIN only (the backend restricts cancel to that role). */
+  canCancel: boolean;
 }
 
 /**
@@ -35,5 +37,7 @@ export function usePayrollPermissions(): PayrollPermissions {
     canAdjust: has(PAYROLL_PERMISSIONS.ADJUST),
     canApprove: has(PAYROLL_PERMISSIONS.APPROVE),
     canDisburse: has(PAYROLL_PERMISSIONS.DISBURSE),
+    // Backend allows cancel for SUPER_ADMIN only; HR_ADMIN gets 403. Gate the UI to match.
+    canCancel: user?.memberType === 'SUPER_ADMIN',
   };
 }
