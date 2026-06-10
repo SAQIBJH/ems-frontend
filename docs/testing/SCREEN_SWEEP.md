@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Reports swept — all 15 panels render clean; 1 FE fix (RP-1: CSV export downloaded the async job-stub + faked success → now secure server-side download flow). Next: Analytics.**_
+_Last updated: 2026-06-10 · Status: **Analytics swept — all 11 endpoints live+200 for HR/SUPER; 1 FE fix (AN-1: route had no role guard → manager/employee got a wall of 403s; now RoleGate'd). 1 open UX nit (AN-2: dead Department filter + Custom range — wire-vs-remove pending review). Next: Permissions.**_
 
 ---
 
@@ -103,12 +103,15 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Reports — ✅ done (1 FE fix, RP-1). All 15 panels render clean; gating correct.
-**Next action:** run the **Analytics** sweep (`/analytics` — dashboard widgets/charts + range toggles
-7d/30d/90d + any filters), all roles. **Mocks OFF**; the live analytics endpoints (`/analytics/summary`,
-`/attendance`, `/headcount-by-department`, `/recent-activity`, `/leave-summary`) were already 200 in the
-Dashboard sweep — plus 4 newer ones (`workforce-trend`, `attrition`, `payroll-cost`, `department-performance`)
-that may still be MSW-only → **will 404 with mocks off** (probe each). Watch the range-toggle refetch + CC-10/CC-11.
+**Current screen:** Analytics — ✅ done (1 FE fix, AN-1; 1 open UX nit AN-2 pending review). All 11
+endpoints live+200 for HR/SUPER (the 4 "newer" ones shipped — no 404s). HR/SUPER render clean; manager/
+employee now gated.
+**Next action:** run the **Permissions** sweep (`/permissions` — roles × permissions matrix, toggle + save),
+all roles. The route is already `RoleGate roles={['SUPER_ADMIN']}` (see `permissions/page.tsx`) → only
+super_admin sees the matrix; HR/MANAGER/EMPLOYEE should get the access-denied state (verify). Drive the
+**matrix toggle + Save** end-to-end and assert `PATCH /settings/roles-permissions` actually fires (silent-
+failure catch). Watch CC-9 (field names) / CC-10 (bodyless writes).
+**AN-2 still open** (below) — decide wire-vs-remove for the dead Analytics Department filter + Custom range.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                             |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ---------------------------------- |
@@ -121,7 +124,7 @@ that may still be MSW-only → **will 404 with mocks off** (probe each). Watch t
 | 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed                              |
 | 8   | Payroll     | ✅          | ✅       | ✅      | ✅       | 4          | fixed (writes: deep pass deferred) |
 | 9   | Reports     | ✅          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                  |
-| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
+| 10  | Analytics   | ✅          | ✅       | ✅      | ✅       | 1          | fixed (AN-2 nit open for review)   |
 | 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
 | 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
 
@@ -217,6 +220,29 @@ screen uses one of these, check it against this list first.
   in the new **`RequirePermission`** guard (`src/shared/guards/RequirePermission.tsx`) which shows
   an access-denied state._ **Check every create/edit/delete route** (Departments, Holidays,
   Settings panels, Payroll, Timesheets, Leave-types, etc.) for the same gap and reuse the guard.
+- **CC-12 · HR-only data screen with NO role guard → wall of 403s for non-HR roles.** A whole-screen
+  dashboard whose every widget hits an HR/SUPER-only endpoint, but the **route/page itself isn't gated**
+  and the **nav item isn't role-filtered** (`NAV_ITEMS` in `AppShell.tsx` shows every item to every role).
+  A MANAGER/EMPLOYEE clicks it and fires N HR-only endpoints that all **403** — ×3 React Query retries =
+  **dozens of failed requests + console errors**, the page a grid of "Failed to load" error states.
+  _Fix pattern: wrap the route page in `RoleGate roles={[...]}` with an `ErrorState` fallback (the
+  `permissions/page.tsx` pattern) — gated roles then fire **zero** calls and see a clean access-denied._
+  **Audit every read-only HR/admin screen** (Analytics done; check Settings sub-panels, any future
+  admin-only dashboard). _(First seen: Payroll `/payroll/global` — PR-4, but that one **redirects** rather
+  than gates. Seen again: **Analytics `/analytics`** — manager/employee fired 9 endpoints ×3 = 17–27 403s;
+  fixed with RoleGate → 0 calls. AN-1.)_ Contrast: **Payroll screens redirect** self-service to
+  `/my-payslips`; **Reports/Permissions/Analytics show an access-denied state** — both are acceptable, pick
+  per screen (redirect when there's a self-service home; access-denied when there isn't).
+- **CC-13 · Decorative filter control that drives no query (silent no-op).** A filter (Select, date range,
+  toggle) is rendered and its state updates on change, but that state is **never read by any query** — so
+  using the control **fires no network call and changes nothing on screen**. Looks functional, does nothing
+  — the silent-failure class this sweep hunts, applied to filters not forms. _Detection: in the browser,
+  change the control and assert a refetch actually fires; in code, grep the state var — if it's only in the
+  control's own `value`/`onChange` and never in a `queryKey`/`params`, it's dead._ _Fix: either wire it
+  through the consuming queries, or remove it so the UI is honest._ _(First seen: **Analytics** top filter
+  bar — the **Department Select** and **Custom date range** (`from`/`to`) update state but no analytics hook
+  consumes `departmentId`/`from`/`to`; only the 7d/30d/90d preset works, and only for the attendance chart.
+  AN-2, open for wire-vs-remove decision.)_
 
 ### Shared engines/components (note which screens depend on each as we go)
 
@@ -598,10 +624,54 @@ reimbursement-categories/-claims, migration, reports, settings, employees, payme
 - **Carry-forward:** the `/reports/export` async pattern (202 job → poll server download) is the secure
   export model — reuse it if other screens add server exports. Don't build CSVs from client-loaded data.
 
-### 10. Analytics `/analytics`
+### 10. Analytics `/analytics` — ✅ SWEPT, 1 FE fix (AN-1) + 1 open UX nit (AN-2) (2026-06-10)
 
-- **Sub-units:** dashboard widgets/charts + range toggles (7d/30d/90d) + any filters.
-- **Findings:** _none yet_
+- **Sub-units (single page `AnalyticsPage`, no sub-routes):** top filter bar (`RangeSelector` 7d/30d/90d +
+  custom range; Department `Select`); 7 rows — KPI cards (`/analytics/summary`), Attendance Trend
+  (`/analytics/attendance?range=`), Headcount donut (`/headcount-by-department`) + Leave Summary bar
+  (`/leave-summary`), Recent Activity (`/recent-activity?limit=` + Load-more), Workforce Trend
+  (`/workforce-trend?range=6m|12m|2y`, own toggle), Attrition (`/attrition`, own toggle) + Payroll Cost
+  (`/payroll-cost?range=6m|12m`, own toggle), Department Performance table (`/department-performance?range=30d|90d`,
+  own toggle). Reuses dashboard analytics hooks + 4 analytics-module hooks (`useWorkforceTrend`/`useAttritionTrend`/
+  `usePayrollCostTrend`/`useDepartmentPerformance`).
+- **⚠️ Live reality (mocks OFF):** **all 11 analytics endpoints are LIVE + 200 for HR/SUPER** — including the
+  4 the §4 pointer feared were "MSW-only → 404" (`workforce-trend`, `attrition`, `payroll-cost`,
+  `department-performance`). **They've shipped** — no 404s. (Probe: `scripts/probe-analytics.mjs`.)
+- **Per role:**
+  - **SUPER_ADMIN / HR_ADMIN:** page renders **clean** — 9 analytics GETs on load all **200**, all 7 rows
+    render (KPI cards, area/line/composed/donut/bar charts, activity table, dept table). **No console errors
+    / no 4xx-5xx** beyond the known CC-3 auth-boot 400/401 noise. Interactions fire: per-chart **6m→12m
+    toggle → `workforce-trend?range=12m` 200 ✓**; attendance 7d/30d/90d preset → `attendance?range=` refetch.
+  - **MANAGER / EMPLOYEE (before fix):** **no role guard** → opened the page and fired **9 HR-only endpoints
+    → all 403**, ×3 React Query retries = **17 (manager) / 27 (employee) failed requests** + console errors;
+    the page a grid of "Failed to load" error states. (Manager incidentally got **200** on
+    `department-performance` only; everything else 403; employee 403 on all 11. Server enforces — these are
+    HR/SUPER-only endpoints.) → **CC-12.**
+  - **MANAGER / EMPLOYEE (after fix):** clean **access-denied** state, **0 analytics calls fired**.
+- **Findings:**
+  - **AN-1 (P2, FIXED):** **`/analytics` route had no role guard** while every widget hits an HR/SUPER-only
+    endpoint → manager/employee got a wall of 403s + console errors (CC-12). The nav item is also unfiltered
+    (`NAV_ITEMS` shows Analytics to every role). Fixed: wrapped the route page in
+    `RoleGate roles={['SUPER_ADMIN','HR_ADMIN']}` with an `ErrorState` fallback (the `permissions/page.tsx`
+    pattern). Verified in-browser: employee/manager → 0 analytics calls + access-denied; HR/SUPER unchanged
+    (9 calls, all 200). Commit `853c465`.
+  - **AN-2 (P3, OPEN — your call):** **the top filter bar's Department `Select` and Custom date range are
+    dead controls** — selecting a department or applying a custom range **fires no network call and changes
+    nothing** (verified in-browser: dept-select → 0 analytics calls). No analytics hook reads `departmentId`/
+    `from`/`to`; `range='custom'` even makes the attendance chart **fall back to 30d**. Only the **7d/30d/90d
+    preset works, and only for the Attendance Trend chart** (each other chart has its own independent toggle).
+    → **CC-13.** **Not fixed — decision needed:** (a) **remove** the Department filter + Custom range (and
+    relabel the 7d/30d/90d as an attendance-only range), making the UI honest — small, low-risk; or
+    (b) **wire** department + custom range through all analytics endpoints — larger, and backend support for
+    `?departmentId`/`?from&to` across the 9 endpoints is **unverified**. Recommend (a) unless dept-scoped
+    analytics is a product requirement.
+- **Observations (not bugs):** the per-chart range toggles (6m/12m/2y on workforce/attrition, 6m/12m on
+  payroll-cost, 30d/90d on dept-perf) are **independent local state** and each **does** refetch correctly —
+  these are fine; only the **top-bar** Department/Custom controls are dead. No bodyless writes (all-GET
+  screen — CC-10 N/A); no `useEffect`-dep array loops observed (CC-11 N/A).
+- **Carry-forward:** **CC-12** (unguarded HR-only screen → 403 wall) and **CC-13** (decorative no-op filter)
+  are now general patterns — apply on Settings + any remaining admin dashboard. The nav (`NAV_ITEMS`) is
+  **unfiltered by role** — every screen owes its own route-level gate (guard or redirect).
 
 ### 11. Permissions `/permissions`
 
@@ -623,24 +693,26 @@ reimbursement-categories/-claims, migration, reports, settings, employees, payme
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID    | Screen / panel                       | Sev | Summary                                                                 | Root cause                                                                                      | Status     | Commit |
-| ----- | ------------------------------------ | --- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------- | ------ |
-| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                            | —                                                                                               | ✅ swept   | —      |
-| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)                  | API omits `documents`/`leaveBalances`; type said required (CC-7)                                | ✅ fixed   | `main` |
-| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                      | routes unguarded; only list button gated (CC-8)                                                 | ✅ fixed   | `main` |
-| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible    | **backend** soft-delete excludes from GET                                                       | ⏳ backend | —      |
-| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean         | —                                                                                               | ✅ swept   | —      |
-| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)           | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                    | ✅ fixed   | `main` |
-| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore          | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)           | ✅ fixed   | `main` |
-| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)        | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)                | ✅ fixed   | `main` |
-| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note        | FE sent `comment`; backend requires `approverComment` (CC-9)                                    | ✅ fixed   | `main` |
-| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)              | `/leave/team/*` employee-scoped; super_admin has no employee profile                            | ⏳ backend | —      |
-| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                     | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case)   | ✅ fixed   | `main` |
-| PR-1  | Payroll / inputs from timesheets     | P1  | "Import from timesheets" 400'd every time (broken)                      | bodyless `apiClient.post` → backend "must be object" (CC-10)                                    | ✅ fixed   | `main` |
-| PR-2  | Payroll / run-detail Cancel Run      | P2  | HR sees Cancel Run; backend requires SUPER_ADMIN → 403                  | FE gated on `canInitiate`; added super_admin-only `canCancel` (BE-7 flagged)                    | ✅ fixed   | `main` |
-| PR-3  | Payroll / self-service my-payslips   | P2  | manager/employee load fires `payslip-templates` → 403 (×2)              | gated `usePayslipTemplate` to elevated roles (BE-8 flagged)                                     | ✅ fixed   | `main` |
-| PR-4  | Payroll / `/payroll/global` route    | P2  | employee/manager open it by URL → page of 403 error states              | GlobalWorkforceScreen lacked the self-service redirect its siblings have                        | ✅ fixed   | `main` |
-| RP-1  | Reports / CSV export (all reports)   | P1  | export downloaded the async 202 JSON job-stub as `.csv` + faked success | backend `/reports/export` went async; FE expected a sync blob. Now polls server download (BE-9) | ✅ fixed   | `main` |
+| ID    | Screen / panel                       | Sev | Summary                                                                                               | Root cause                                                                                              | Status     | Commit    |
+| ----- | ------------------------------------ | --- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------- | --------- |
+| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                                                          | —                                                                                                       | ✅ swept   | —         |
+| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)                                                | API omits `documents`/`leaveBalances`; type said required (CC-7)                                        | ✅ fixed   | `main`    |
+| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                                                    | routes unguarded; only list button gated (CC-8)                                                         | ✅ fixed   | `main`    |
+| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible                                  | **backend** soft-delete excludes from GET                                                               | ⏳ backend | —         |
+| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean                                       | —                                                                                                       | ✅ swept   | —         |
+| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)                                         | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                            | ✅ fixed   | `main`    |
+| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore                                        | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)                   | ✅ fixed   | `main`    |
+| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)                                      | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)                        | ✅ fixed   | `main`    |
+| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note                                      | FE sent `comment`; backend requires `approverComment` (CC-9)                                            | ✅ fixed   | `main`    |
+| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)                                            | `/leave/team/*` employee-scoped; super_admin has no employee profile                                    | ⏳ backend | —         |
+| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                                                   | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case)           | ✅ fixed   | `main`    |
+| PR-1  | Payroll / inputs from timesheets     | P1  | "Import from timesheets" 400'd every time (broken)                                                    | bodyless `apiClient.post` → backend "must be object" (CC-10)                                            | ✅ fixed   | `main`    |
+| PR-2  | Payroll / run-detail Cancel Run      | P2  | HR sees Cancel Run; backend requires SUPER_ADMIN → 403                                                | FE gated on `canInitiate`; added super_admin-only `canCancel` (BE-7 flagged)                            | ✅ fixed   | `main`    |
+| PR-3  | Payroll / self-service my-payslips   | P2  | manager/employee load fires `payslip-templates` → 403 (×2)                                            | gated `usePayslipTemplate` to elevated roles (BE-8 flagged)                                             | ✅ fixed   | `main`    |
+| PR-4  | Payroll / `/payroll/global` route    | P2  | employee/manager open it by URL → page of 403 error states                                            | GlobalWorkforceScreen lacked the self-service redirect its siblings have                                | ✅ fixed   | `main`    |
+| RP-1  | Reports / CSV export (all reports)   | P1  | export downloaded the async 202 JSON job-stub as `.csv` + faked success                               | backend `/reports/export` went async; FE expected a sync blob. Now polls server download (BE-9)         | ✅ fixed   | `main`    |
+| AN-1  | Analytics / `/analytics` route       | P2  | manager/employee open it → 9 HR-only endpoints 403 ×3 retries = wall of error states + console errors | route had no role guard; `NAV_ITEMS` unfiltered (CC-12). Wrapped in `RoleGate` HR/SUPER (access-denied) | ✅ fixed   | `853c465` |
+| AN-2  | Analytics / top filter bar           | P3  | Department `Select` + Custom date range fire no query — selecting them does nothing                   | no analytics hook reads `departmentId`/`from`/`to` (CC-13). Decide wire-vs-remove                       | ⏳ review  | —         |
 
 ---
 
