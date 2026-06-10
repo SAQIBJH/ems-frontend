@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Leave swept — 1 FE issue fixed (reject sent wrong field, was fully broken) + 1 backend issue logged (super_admin team 400). Next: Holidays.**_
+_Last updated: 2026-06-10 · Status: **Holidays swept — 1 issue fixed (.ics import was fully broken: 406, multipart upload sent as application/json). Next: Payroll.**_
 
 ---
 
@@ -103,8 +103,8 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Leave — ✅ done (1 FE fix + 1 backend issue logged)
-**Next action:** run the **Holidays** sweep (year grid `?year=`, create/edit/delete, `.ics` import — MSW preview+commit), all roles, then pause for review. **NB:** verify Holidays' live/mock state first (CLAUDE.md lists holidays CRUD as live, `.ics` import as MSW) — don't trust the doc, probe it.
+**Current screen:** Holidays — ✅ done (1 issue fixed)
+**Next action:** run the **Payroll** sweep — the biggest screen (runs + InitiateRunDialog, run-detail panels: calculate/dry-run/approve/mark-paid/publish/cancel, adjustments, run inputs, disbursement, journal, statutory, payslip drawer; `/payroll/global`, `/payroll/migration`, `/payroll/my-payslips`), all roles. **Mocks are OFF** — much of payroll is live (CLAUDE.md §26 live note), but `migration`/`payment-batches`/`reports`/`settings`/`employees` sub-paths **404** live; probe each before trusting. Watch CC-9 (run approve field), CC-10 (bodyless action POSTs like `inputs/from-timesheets`), and CC-11.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status            |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------------- |
@@ -114,7 +114,7 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 | 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed             |
 | 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed             |
 | 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open) |
-| 7   | Holidays    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed             |
 | 8   | Payroll     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
 | 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
 | 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
@@ -189,6 +189,13 @@ screen uses one of these, check it against this list first.
   `PATCH /leave/requests/:id/withdraw` are also bodyless but **verified to tolerate** an empty body
   live (200). _(First seen: timesheet **submit-week** — POST `/timesheets/:id/submit` 400'd every
   time; fixed by sending `{}`, verified 200.)_
+  - **Same default-header trap bites FILE UPLOADS.** A `FormData` (multipart) upload posted through the
+    shared client carries the default `Content-Type: application/json`, so the browser never sets
+    `multipart/form-data; boundary=…` → backend rejects it (**406 `FST_INVALID_MULTIPART_CONTENT_TYPE`**).
+    _Fix pattern: pass `headers: { 'Content-Type': undefined }` on the upload request so the browser sets
+    the boundaried multipart header._ **Audit every `FormData`/file POST** (`.ics` import, employee
+    document upload/presign, avatar, payroll imports). _(Seen: Holidays **.ics import** — fully broken,
+    406; fixed + verified end-to-end start 202 → preview 200 → commit 200. HD-1.)_
 - **CC-11 · `const { data: x = [] } = useQuery(...)` as a `useEffect` dep → infinite render loop.**
   When a query's `data` is `undefined` (loading/disabled), the `= []` default mints a **new array
   every render**; using it as a `useEffect` dependency makes the effect re-run each render, and if the
@@ -223,6 +230,7 @@ screen uses one of these, check it against this list first.
 - `RegularizationDialog` / `CheckInOutCard` / `AttendanceCalendar` / `AttendanceTableView` — _used by: **Attendance** page_ (CheckInOutCard also on Dashboard)
 - `TimerBar` / `WeeklyGrid` / `TimeEntryDialog` / `TimesheetSubmitBar` / `ApprovalsTab` / `ProjectsPanel`+`ProjectDrawer` — _used by: **Timesheets** page only._ TimerBar timer state is the module's only Zustand slice (`store/timer.slice.ts`, sessionStorage-persisted, survives refresh). `useTasks` (`hooks/useProjects.ts`) feeds both TimerBar & TimeEntryDialog — the CC-11 loop source.
 - `LeaveRequestsTable` / `LeaveApprovalsTable` (+ Deny/Bulk dialogs) / `LeaveTeamCalendar` / `NewLeaveRequestDialog` — _used by: **Leave** page._ Approve/reject go through `leave.api.ts` → backend wants **`approverComment`** (LV-1/CC-9). Team views (`useTeamLeaveRequests`/`useTeamLeaveCalendar`) are employee-scoped → 400 for profile-less SUPER_ADMIN (LV-2); the calendar query is `enabled` only for MANAGER/HR/SUPER (employee never fetches it).
+- `HolidayScreen` / `HolidayFormDialog` / `IcsImportDialog` / `MonthDetailModal` — _used by: **Holidays** page._ Modal CRUD gated by `canManage` (HR/SUPER) + server 403. `IcsImportDialog` → `holidaysApi.startImport` is a **multipart upload** → must send `Content-Type: undefined` (HD-1/CC-10 upload sub-case), else 406. The MSW `/holidays/import*` handler is **dead** (mocks off).
 
 _(Fill the "used by" lists during the sweep so a fix in one engine flags every dependent screen.)_
 
@@ -378,8 +386,11 @@ payroll create-path E2E). All committed to `main`, local:
 - **⚠️ Live/mock reality:** timesheets is **now LIVE on the backend** (not MSW as CLAUDE.md §27 says).
   Verified via direct BFF probe as priya: `GET /timesheets?week` returns real **cuid** ids + real
   entries; `POST /entries`, `/:id/submit`, `/approvals`, `/projects` all hit the backend. (`prj-seed-N`
-  project ids are **backend** seed data, not MSW.) Mocks are still ON in the env, but the backend now
-  answers first for these paths. **CLAUDE.md §27 "MSW-backed" is stale — flag for docs.**
+  project ids are **backend** seed data, not MSW.) **CLAUDE.md §27 "MSW-backed" is stale — flag for docs.**
+  _(Correction: `NEXT_PUBLIC_USE_MOCKS` is **OFF** for the whole sweep — MSW is **not running at all**.
+  Holidays confirmed this: `POST /holidays/import` returns a Fastify **406**, not the MSW mock — if MSW
+  were on it would have intercepted. So "the backend answers first" really means "MSW is off, everything
+  is live." Any endpoint still only in MSW will **fail** in this config — see HD-1.)_
 - **Per role:**
   - **SUPER_ADMIN / HR_ADMIN:** 3 tabs (My Timesheet, Approvals, Projects). Grid + projects load 200.
   - **MANAGER:** 2 tabs (My Timesheet, Approvals) — Projects correctly hidden. **Approve → POST
@@ -456,10 +467,39 @@ payroll create-path E2E). All committed to `main`, local:
 - **Test residue (harmless, test DB):** several `ZZZ E2E` leave requests for priya (far-future 2027
   dates) in various states (rejected/approved/withdrawn) from the API + UI probes. Seed accounts intact.
 
-### 7. Holidays `/holidays`
+### 7. Holidays `/holidays` — ✅ SWEPT, 1 issue fixed (2026-06-10)
 
-- **Sub-units:** year grid (`?year=`), create / edit / delete, `.ics` import (MSW: preview + commit).
-- **Findings:** _none yet_
+- **Sub-units (`HolidayScreen`, modal-based — no routes → CC-8 N/A):** year grid (`?year=` via local
+  state) + month-detail modal; All-holidays list + selected detail card; **Add Holiday** / **Edit** /
+  **Delete** (`HolidayFormDialog` + `ConfirmDialog`); **Import .ics** (`IcsImportDialog`: pick → preview
+  → commit). All **live** (CRUD + import); MSW handler for `/holidays/import*` exists but is **dead code
+  now** (mocks off — see below). Form fields: name, date (`type=date`), location, optional checkbox —
+  **no numeric inputs (CC-1 N/A)**.
+- **Per role:**
+  - **HR_ADMIN / SUPER_ADMIN** (`canManage`): Add + Import .ics buttons + per-row action menus. Full
+    CRUD verified — **create 201, edit 200, delete 200** (HR via UI; super_admin via API). `isOptional`
+    - `location` persist correctly (**no CC-9**). **SUPER_ADMIN works fine** here (holidays are
+      tenant-level, not employee-scoped — contrast Leave LV-2).
+  - **MANAGER / EMPLOYEE:** year grid renders (read), but **no Add / no Import / no row menus** (correct
+    `canManage` gating). Server also **enforces**: `POST /holidays` → **403**.
+- **Findings (FIXED):**
+  - **HD-1 (P1):** **`.ics` import was fully broken — `POST /holidays/import` 406
+    `FST_INVALID_MULTIPART_CONTENT_TYPE` "the request is not multipart".** The multipart `FormData`
+    upload was sent through the shared axios client, which carries the default
+    `Content-Type: application/json`, so the browser never set `multipart/form-data; boundary=…`. The
+    backend **does** implement import (proper multipart → 202 + jobId; preview 200; commit 200 — all
+    verified live), so this was purely the FE content-type. → **CC-10 (file-upload sub-case).** Fixed by
+    passing `headers: { 'Content-Type': undefined }` on `startImport`. Verified end-to-end in the
+    browser: **start 202 → preview 200 → commit 200**, preview table renders, no console errors.
+- **Observations (not bugs):** **this screen proved mocks are OFF** — the 406 is a Fastify error, not the
+  MSW mock (MSW would have intercepted `/holidays/import`). So MSW isn't running; **any endpoint still
+  only in MSW will fail** in this env. Create/update send `holidayDate` via `formatDateForApi`
+  (YYYY-MM-DD) — correct.
+- **Carry-forward:** **audit every other `FormData`/file upload** for the same content-type bug —
+  employee **document upload/presign** (`employees` module, multipart per CLAUDE.md §3), avatar, any
+  payroll import. The MSW `/holidays/import*` handler is now dead (mocks off) — could be deleted, or
+  kept for a mocks-on demo; left as-is.
+- **Test residue:** all `ZZZ E2E` holidays (created + imported, 2027) deleted at end of the run. Clean.
 
 ### 8. Payroll `/payroll`
 
@@ -504,18 +544,19 @@ payroll create-path E2E). All committed to `main`, local:
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                            | Status     | Commit |
-| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------- | ------ |
-| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                     | ✅ swept   | —      |
-| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                      | ✅ fixed   | `main` |
-| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                       | ✅ fixed   | `main` |
-| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                             | ⏳ backend | —      |
-| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                     | ✅ swept   | —      |
-| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                          | ✅ fixed   | `main` |
-| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11) | ✅ fixed   | `main` |
-| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)      | ✅ fixed   | `main` |
-| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                          | ✅ fixed   | `main` |
-| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                  | ⏳ backend | —      |
+| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                                    | Status     | Commit |
+| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------- | ------ |
+| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                             | ✅ swept   | —      |
+| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                              | ✅ fixed   | `main` |
+| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                               | ✅ fixed   | `main` |
+| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                                     | ⏳ backend | —      |
+| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                             | ✅ swept   | —      |
+| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                  | ✅ fixed   | `main` |
+| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)         | ✅ fixed   | `main` |
+| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)              | ✅ fixed   | `main` |
+| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                                  | ✅ fixed   | `main` |
+| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                          | ⏳ backend | —      |
+| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                  | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case) | ✅ fixed   | `main` |
 
 ---
 
