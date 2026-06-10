@@ -12,22 +12,42 @@
 
 ## Scorecard
 
-| ID    | Claim                                          | Live result                                                                                                                                                                       | Verdict                      |
-| ----- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| BE-1  | Expired JWT → 401 not 400                      | **2nd patch verified:** no-cookie → **401 UNAUTHORIZED**, garbage cookie/Bearer → **401 INVALID_TOKEN**, decodable bad JWT → **401** — all via BFF + direct; valid login → 200 ✅ | ✅ **FIXED**                 |
-| BE-2  | PayGroup null override no longer 500           | Full valid body + `null` override → **201** ✅; invalid (`"BOGUS"`) → **400 VALIDATION_ERROR** (not 500) ✅                                                                       | ✅ FIXED                     |
-| BE-3  | Terminated employee retrievable                | `DELETE` → 200; `GET /:id` → **404**; `GET /:id?includeTerminated=true` → **200 TERMINATED** ✅                                                                                   | ✅ FIXED                     |
-| BE-4  | Salary `effectiveFrom > effectiveTo` validated | valid dates → 201; `from>to` → **400 VALIDATION_ERROR** (not persisted) ✅                                                                                                        | ✅ FIXED                     |
-| BE-5  | SUPER_ADMIN leave-team org-wide                | SUPER `/leave/team/requests` → **200**, `/leave/team/calendar` → **200**; EMPLOYEE → **403** ✅                                                                                   | ✅ FIXED                     |
-| BE-6  | `approverComment` echoed in approve/reject     | reject response body now contains `approverComment` (verified value round-trips) ✅                                                                                               | ✅ FIXED                     |
-| BE-7  | HR_ADMIN can cancel non-PAID runs              | HR create run → 201; HR `…/cancel` → **200 CANCELLED** ✅                                                                                                                         | ✅ FIXED                     |
-| BE-8  | Payslip templates for self-service             | EMPLOYEE + MANAGER `GET /payroll/payslip-templates` → **200** ✅                                                                                                                  | ✅ FIXED                     |
-| BE-9  | Reports export status + download               | `POST` → 202 jobId → `GET /reports/export/:id` → **200 SUCCESS** → `…/download` → **200 `text/csv`** ✅                                                                           | ✅ **FIXED**                 |
-| BE-10 | createRole persists `permissions[]`            | `POST /settings/roles {permissions:[…]}` → `GET …/roles-permissions` `matrix[key]` has the perms ✅                                                                               | ✅ FIXED                     |
-| BE-11 | `customRoles[]` returned                       | `GET /settings/roles-permissions` now returns `customRoles:[{key,name}]` ✅                                                                                                       | ✅ FIXED                     |
-| ANA   | Analytics `departmentId`/`from`/`to`           | `departmentId` **changes data** on headcount, attendance, recent-activity, leave-summary ✅ (5 others ignore, by design)                                                          | ✅ FIXED (partial by design) |
+| ID    | Claim                                          | Live result                                                                                                                                                                                    | Verdict                      |
+| ----- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| BE-1  | Expired JWT → 401 not 400                      | **2nd patch verified:** no-cookie → **401 UNAUTHORIZED**, garbage cookie/Bearer → **401 INVALID_TOKEN**, decodable bad JWT → **401** — all via BFF + direct; valid login → 200 ✅              | ✅ **FIXED**                 |
+| BE-2  | PayGroup null override no longer 500           | Full valid body + `null` override → **201** ✅; invalid (`"BOGUS"`) → **400 VALIDATION_ERROR** (not 500) ✅                                                                                    | ✅ FIXED                     |
+| BE-3  | Terminated employee retrievable                | `DELETE` → 200; `GET /:id` → **404**; `GET /:id?includeTerminated=true` → **200 TERMINATED** ✅                                                                                                | ✅ FIXED                     |
+| BE-4  | Salary `effectiveFrom > effectiveTo` validated | valid dates → 201; `from>to` → **400 VALIDATION_ERROR** (not persisted) ✅                                                                                                                     | ✅ FIXED                     |
+| BE-5  | SUPER_ADMIN leave-team org-wide                | SUPER `/leave/team/requests` → **200**, `/leave/team/calendar` → **200**; EMPLOYEE → **403** ✅                                                                                                | ✅ FIXED                     |
+| BE-6  | `approverComment` echoed in approve/reject     | reject response body now contains `approverComment` (verified value round-trips) ✅                                                                                                            | ✅ FIXED                     |
+| BE-7  | HR_ADMIN can cancel non-PAID runs              | HR create run → 201; HR `…/cancel` → **200 CANCELLED** ✅                                                                                                                                      | ✅ FIXED                     |
+| BE-8  | Payslip templates for self-service             | EMPLOYEE + MANAGER `GET /payroll/payslip-templates` → **200** ✅                                                                                                                               | ✅ FIXED                     |
+| BE-9  | Reports export status + download               | `POST` → 202 jobId → `GET /reports/export/:id` → **200 SUCCESS** → `…/download` → **200 `text/csv`** ✅                                                                                        | ✅ **FIXED**                 |
+| BE-10 | createRole persists `permissions[]`            | `POST /settings/roles {permissions:[…]}` → `GET …/roles-permissions` `matrix[key]` has the perms ✅                                                                                            | ✅ FIXED                     |
+| BE-11 | `customRoles[]` returned                       | `GET /settings/roles-permissions` now returns `customRoles:[{key,name}]` ✅                                                                                                                    | ✅ FIXED                     |
+| ANA   | Analytics `departmentId`/`from`/`to`           | `departmentId` **changes data** on headcount, attendance, recent-activity, leave-summary ✅ (5 others ignore, by design)                                                                       | ✅ FIXED (partial by design) |
+| BE-12 | Logout fully ends the session                  | logout clears **both** cookies (`accessToken` + `refreshToken`, Expires=1970); reused token after logout → **401** (session revoked); `logout-all` → **401** immediately; fresh login → 200 ✅ | ✅ **FIXED**                 |
 
 **Headline wins:** BE-9 (reports export) now works **end-to-end** — it was completely unusable before. BE-10/BE-11 mean **custom roles work fully** now (create with permissions + they show as custom).
+
+### BE-12 — logout fully ends the session (verified 2026-06-11)
+
+The backend fix (clear both cookies on logout + check `payload.sessionId` against the
+session table in `authenticate()`) is **deployed and verified end-to-end**:
+
+```
+LOGOUT (200) → Set-Cookie: accessToken=;  Expires=1970   ← BOTH cookies cleared now
+             → Set-Cookie: refreshToken=; Expires=1970
+reuse original cookies after logout → /auth/me -> 401   ✅ session revoked server-side
+accessToken-only after logout       → /auth/me -> 401   ✅
+logout-all → reuse token            → /auth/me -> 401   ✅ revoked immediately
+fresh login                          → /auth/me -> 200   ✅ happy path intact
+```
+
+**Original symptom resolved (browser test):** Logout → press **Back** → app tries
+`/dashboard` → `/auth/me` 401 → `/auth/refresh` 401 (both cookies gone + session revoked)
+→ redirected to `/login?next=/dashboard`. **No dashboard is shown — the user is logged
+out.** **No FE change needed** — the existing AuthGuard + 401 interceptor handle it.
 
 ---
 
