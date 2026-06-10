@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Attendance swept — 1 issue found + fixed (deny was broken). Next: Timesheets.**_
+_Last updated: 2026-06-10 · Status: **Timesheets swept — 2 issues found + fixed (TimerBar infinite-loop crash; submit-week 400). Next: Leave.**_
 
 ---
 
@@ -103,8 +103,8 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Attendance — ✅ done (1 issue found + fixed)
-**Next action:** run the **Timesheets** sweep (weekly grid + timer, submit, approvals, projects/tasks, utilization report, settings), all roles, then pause for review.
+**Current screen:** Timesheets — ✅ done (2 issues found + fixed)
+**Next action:** run the **Leave** sweep (requests/create, balances, types, approvals approve/reject/withdraw, team calendar), all roles, then pause for review. **NB:** timesheets turned out to be **live on the backend now** (not MSW) — re-verify the live/mock state of each remaining screen rather than trusting CLAUDE.md.
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status      |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------- |
@@ -112,7 +112,7 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 | 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
 | 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
 | 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed       |
-| 5   | Timesheets  | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
+| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
 | 6   | Leave       | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 7   | Holidays    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
 | 8   | Payroll     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
@@ -169,6 +169,30 @@ screen uses one of these, check it against this list first.
   (optional) silently dropped the note. _Fix pattern: match the live request body field names exactly._
   **For every write, diff the FE request body keys against a real successful request** — don't trust
   the FE's own naming. _(First seen: attendance regularization approve/deny — fixed, commit on `main`.)_
+- **CC-10 · Bodyless `apiClient.post(url)` 400s against the LIVE backend.** The axios client
+  defaults `Content-Type: application/json` (`api-client.ts`), so a POST with **no body** still
+  sends that header with an empty payload — backend routes that JSON-parse a required body then
+  choke on `""` → **400 with an empty response body** (the empty body is the tell it's a real-backend
+  passthrough, not MSW, which always returns JSON). This was **invisible while the endpoint was
+  MSW-backed** (MSW ignores the empty body) and only appeared once the backend went live.
+  _Fix pattern: pass an explicit `{}` as the body for action POSTs._ **Audit every bodyless
+  `apiClient.post(`…`)`/`.patch(`…`)` for endpoints that are (or are about to go) live.** Known
+  remaining candidates to verify when their screens are swept: **`POST /payroll/runs/:id/inputs/from-timesheets`**
+  (`payroll-runs.api.ts:208`, bodyless — same risk) and **`PATCH /notifications/:id/read`**
+  (`notifications.api.ts`, bodyless — unverified). Auth `logout`/`refresh`/`logout-all` and
+  `PATCH /leave/requests/:id/withdraw` are also bodyless but **verified to tolerate** an empty body
+  live (200). _(First seen: timesheet **submit-week** — POST `/timesheets/:id/submit` 400'd every
+  time; fixed by sending `{}`, verified 200.)_
+- **CC-11 · `const { data: x = [] } = useQuery(...)` as a `useEffect` dep → infinite render loop.**
+  When a query's `data` is `undefined` (loading/disabled), the `= []` default mints a **new array
+  every render**; using it as a `useEffect` dependency makes the effect re-run each render, and if the
+  effect calls `setState`/`setValue`/`setDraft` **unconditionally** it re-renders → new `[]` → loops
+  until React throws **"Maximum update depth exceeded"** (caught by the error boundary → whole screen
+  crashes). _Fix pattern: `const x = useMemo(() => data ?? [], [data])` for a stable ref, **and** guard
+  the effect's writes to only fire when the value actually changed (and only act on the array once
+  `data` is defined, so a loading `[]` doesn't wipe valid state)._ **Grep every module for
+  `data: <name> = []`/`= {}` that feeds a `useEffect`/`useMemo` dep array.** _(First seen: timesheet
+  `TimerBar` + `TimeEntryDialog` — `useTasks` tasks array; crashed on project-select / timer-restore. Fixed.)_
 - **CC-8 · Write routes gated only by hiding the button, not the route.** `/employees/new` &
   `/employees/[id]/edit` rendered the full form to MANAGER/EMPLOYEE via direct URL (server
   enforces with 403 on submit, so not a security hole — but bad UX). _Fix pattern: wrap the page
@@ -191,6 +215,7 @@ screen uses one of these, check it against this list first.
 - `TodayAttendanceCard` (check-in/out) — _used by: **Dashboard** (Employee) + Attendance screen_ — check-in verified 201
 - `PendingApprovalsPanel` / `BulkApproveModal` / `TeamWeeklyAttendanceGrid` — _used by: **Dashboard** (HR/Manager) + Leave/Attendance approvals_ — **regularization approve/deny lives ONLY here** (no approval UI on the Attendance page)
 - `RegularizationDialog` / `CheckInOutCard` / `AttendanceCalendar` / `AttendanceTableView` — _used by: **Attendance** page_ (CheckInOutCard also on Dashboard)
+- `TimerBar` / `WeeklyGrid` / `TimeEntryDialog` / `TimesheetSubmitBar` / `ApprovalsTab` / `ProjectsPanel`+`ProjectDrawer` — _used by: **Timesheets** page only._ TimerBar timer state is the module's only Zustand slice (`store/timer.slice.ts`, sessionStorage-persisted, survives refresh). `useTasks` (`hooks/useProjects.ts`) feeds both TimerBar & TimeEntryDialog — the CC-11 loop source.
 
 _(Fill the "used by" lists during the sweep so a fix in one engine flags every dependent screen.)_
 
@@ -226,6 +251,14 @@ payroll create-path E2E). All committed to `main`, local:
 
 - **Leave actions are `PATCH`, not `POST`.** `PATCH /leave/requests/:id/{approve,reject,withdraw}` is
   what's live and correct; `CLAUDE.md §3` / `BACKEND_API_REQUESTS.md` list them as `POST`. Update the docs.
+- **Timesheets are LIVE on the backend now (CLAUDE.md §27 says "MSW-backed" — stale).** `GET /timesheets`,
+  `/timesheets/entries`, `/timesheets/:id/{submit,approve,reject}`, `/timesheets/approvals`,
+  `/timesheets/projects(/:id/tasks)`, `/timesheets/settings`, `/timesheets/summary` all answer from the
+  real backend (verified 2026-06-10). Move timesheets from "what still needs MSW" to the live list.
+- **`POST /timesheets/:id/submit` 400s on an empty body (minor backend inconsistency).** Other action
+  routes (`/auth/logout`, `PATCH …/withdraw`) tolerate an empty body and return 200; `submit` requires
+  a non-empty JSON body or it 400s. FE now always sends `{}` (TS-2 fix), but consider making action
+  endpoints tolerate empty bodies for consistency.
 - (Append other `API_MAPPING.md` / `CLAUDE.md §3` drifts here as the sweep finds them.)
 
 ---
@@ -326,11 +359,50 @@ payroll create-path E2E). All committed to `main`, local:
 - **Carry-forward:** the `comment` vs `reviewerComment` mismatch (CC-9) — audit other approve/deny/review
   payloads (Leave reject uses `comment` too — **verify it's the right key when sweeping Leave**).
 
-### 5. Timesheets `/timesheets`
+### 5. Timesheets `/timesheets` — ✅ SWEPT, 2 issues fixed (2026-06-10)
 
-- **Sub-units:** weekly grid (manual entry + **timer**, Zustand), submit week, approvals
-  (approve/reject), projects/tasks admin, utilization report, settings panel.
-- **Findings:** _none yet_
+- **Sub-units / tabs (role-gated in `TimesheetScreen`):** **My Timesheet** (`canWrite` = all roles)
+  — `TimerBar` (Zustand timer) + `WeeklyGrid` (`TimeEntryDialog`, submit bar); **Approvals**
+  (`canApprove` = MANAGER + elevated) — `ApprovalsTab` approve/return; **Projects** (`canAdmin` =
+  HR/SUPER only) — `ProjectsPanel` + `ProjectDrawer` CRUD. _(Utilization report lives in **Reports**;
+  the timesheet **settings** panel lives in **Settings** — both swept with those screens, not here.)_
+- **⚠️ Live/mock reality:** timesheets is **now LIVE on the backend** (not MSW as CLAUDE.md §27 says).
+  Verified via direct BFF probe as priya: `GET /timesheets?week` returns real **cuid** ids + real
+  entries; `POST /entries`, `/:id/submit`, `/approvals`, `/projects` all hit the backend. (`prj-seed-N`
+  project ids are **backend** seed data, not MSW.) Mocks are still ON in the env, but the backend now
+  answers first for these paths. **CLAUDE.md §27 "MSW-backed" is stale — flag for docs.**
+- **Per role:**
+  - **SUPER_ADMIN / HR_ADMIN:** 3 tabs (My Timesheet, Approvals, Projects). Grid + projects load 200.
+  - **MANAGER:** 2 tabs (My Timesheet, Approvals) — Projects correctly hidden. **Approve → POST
+    `/:id/approve` 200 ✓; Return(reject) → POST `/:id/reject` 200 ✓** (both send `{ comment }`; reject
+    requires it — no CC-9 mismatch). Seeded SUBMITTED week present in the approvals queue.
+  - **EMPLOYEE (priya):** 1 tab (My Timesheet only) — Approvals/Projects correctly hidden, **and server
+    enforces**: `GET /timesheets/approvals|settings|summary` → **403** for employee. Entry create →
+    **POST /entries 201 ✓**; submit week → **POST /:id/submit 200 ✓** (after TS-2 fix); timer
+    start/restore no longer crashes (after TS-1 fix).
+- **Findings (both FIXED):**
+  - **TS-1 (P1):** **`TimerBar` (and `TimeEntryDialog`) crashed with "Maximum update depth exceeded"**
+    → error boundary takes down the whole timesheet view. Triggered by **selecting a project in the
+    TimerBar** (or **restoring a running timer on refresh** — a documented feature of the timer slice).
+    Root cause: `const { data: tasks = [] } = useTasks(...)` mints a new `[]` each render while the
+    tasks query is loading, and that array is a `useEffect` dep whose body calls `setDraft`/`setValue`
+    unconditionally → infinite loop. → **CC-11.** Fixed: memoize the array (`useMemo(() => data ?? [])`)
+    - guard the writes + only clear a stale task once tasks are loaded. Verified no-crash on both paths.
+  - **TS-2 (P1):** **Submit-week 400'd every time** — `timesheetsApi.submit` did
+    `apiClient.post(`/timesheets/:id/submit`)` with **no body**; axios's default
+    `Content-Type: application/json` + empty body → backend JSON-parse fails → **400 (empty body)**. The
+    employee's core "submit my week" action was fully broken against the live backend (showed a "Failed
+    to submit" toast). → **CC-10.** Fixed: send `{}`. Verified **200** end-to-end via the browser (was
+    invisible while MSW-backed; only surfaced once timesheets went live).
+- **Observations (not bugs):** no other console errors / 4xx-5xx for any role beyond the known
+  CC-3 auth-boot 400/401 noise; role gating is correct in UI **and** enforced server-side (403s).
+  `nuqs` `?tab=` state drives the right tab. Reject requires a comment (zod + backend 422) — correct.
+- **Carry-forward:** CC-10 (bodyless POST) + CC-11 (loading-`[]` effect-dep loop) are now general
+  patterns — apply on every remaining screen. **Verify the live/mock state of each remaining screen**
+  (timesheets being live was a surprise). Next bodyless-POST to verify when swept: payroll
+  `POST /runs/:id/inputs/from-timesheets`, `PATCH /notifications/:id/read`.
+- **Test residue (harmless, test DB):** priya's current week + a future week were submitted; the
+  seeded approvals week was approved + another returned. Seed accounts remain usable.
 
 ### 6. Leave `/leave`
 
@@ -386,14 +458,16 @@ payroll create-path E2E). All committed to `main`, local:
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID    | Screen / panel                   | Sev | Summary                                                              | Root cause                                                       | Status     | Commit |
-| ----- | -------------------------------- | --- | -------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------- | ------ |
-| —     | Dashboard (all roles)            | —   | **0 issues** — load + all interactions clean                         | —                                                                | ✅ swept   | —      |
-| EMP-1 | Employees / profile Overview     | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7) | ✅ fixed   | `main` |
-| EMP-2 | Employees / new + edit routes    | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                  | ✅ fixed   | `main` |
-| EMP-3 | Employees / terminate            | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                        | ⏳ backend | —      |
-| —     | Departments (all roles)          | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                | ✅ swept   | —      |
-| ATT-1 | Attendance / regularization deny | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)     | ✅ fixed   | `main` |
+| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                            | Status     | Commit |
+| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------- | ------ |
+| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                     | ✅ swept   | —      |
+| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                      | ✅ fixed   | `main` |
+| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                       | ✅ fixed   | `main` |
+| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                             | ⏳ backend | —      |
+| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                     | ✅ swept   | —      |
+| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                          | ✅ fixed   | `main` |
+| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11) | ✅ fixed   | `main` |
+| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)      | ✅ fixed   | `main` |
 
 ---
 
