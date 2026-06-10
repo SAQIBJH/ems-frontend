@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Holidays swept — 1 issue fixed (.ics import was fully broken: 406, multipart upload sent as application/json). Next: Payroll.**_
+_Last updated: 2026-06-10 · Status: **Payroll swept (core run lifecycle) — 1 FE fix (from-timesheets import was 400) + 2 gating mismatches logged. Next: finish Payroll sub-panels OR Reports (your call).**_
 
 ---
 
@@ -103,23 +103,29 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Holidays — ✅ done (1 issue fixed)
-**Next action:** run the **Payroll** sweep — the biggest screen (runs + InitiateRunDialog, run-detail panels: calculate/dry-run/approve/mark-paid/publish/cancel, adjustments, run inputs, disbursement, journal, statutory, payslip drawer; `/payroll/global`, `/payroll/migration`, `/payroll/my-payslips`), all roles. **Mocks are OFF** — much of payroll is live (CLAUDE.md §26 live note), but `migration`/`payment-batches`/`reports`/`settings`/`employees` sub-paths **404** live; probe each before trusting. Watch CC-9 (run approve field), CC-10 (bodyless action POSTs like `inputs/from-timesheets`), and CC-11.
+**Current screen:** Payroll — ✅ core swept (run lifecycle), 1 fix + 2 gating issues logged. **Partial:** the
+deep per-panel sweep of `/payroll/global`, `/payroll/migration` (5 sub-panels), and the run-detail panels
+(disbursement/journal/statutory/audit-pack/adjustments) was **not** exhaustively driven — flagged as
+follow-up.
+**Next action:** decide with the user — either (a) finish the remaining **Payroll sub-panels**, or
+(b) move to **Reports** (15 report types). Whole-payroll API health: **ALL top-level GETs now 200** (the
+§26 404s — migration/reports/settings/employees/payment-batches — have since shipped). Run lifecycle
+verified live: initiate 201 → calculate 202→REVIEW → approve 200 → mark-paid 200 → publish 200.
 
-| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status            |
-| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------------- |
-| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean       |
-| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed             |
-| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean       |
-| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed             |
-| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed             |
-| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open) |
-| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed             |
-| 8   | Payroll     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
-| 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
-| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
-| 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
-| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                              |
+| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------------------------------- |
+| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                         |
+| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                               |
+| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                         |
+| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed                               |
+| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed                               |
+| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                   |
+| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed                               |
+| 8   | Payroll     | 🐞          | ✅       | ✅      | ✅       | 1          | core fixed (2 gating + panels open) |
+| 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
+| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
+| 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
+| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                         |
 
 Legend: ⬜ pending · 🔄 in progress · ✅ swept+clean · 🐞 swept, issues open · 🔧 issues fixed
 
@@ -188,7 +194,8 @@ screen uses one of these, check it against this list first.
   (`notifications.api.ts`, bodyless — unverified). Auth `logout`/`refresh`/`logout-all` and
   `PATCH /leave/requests/:id/withdraw` are also bodyless but **verified to tolerate** an empty body
   live (200). _(First seen: timesheet **submit-week** — POST `/timesheets/:id/submit` 400'd every
-  time; fixed by sending `{}`, verified 200.)_
+  time; fixed by sending `{}`, verified 200.)_ _(Seen again: payroll **`POST /payroll/runs/:id/inputs/from-timesheets`**
+  — bodyless → 400 `VALIDATION_ERROR {field:"unknown","must be object"}`; with `{}` → 200. Fixed. PR-1.)_
   - **Same default-header trap bites FILE UPLOADS.** A `FormData` (multipart) upload posted through the
     shared client carries the default `Content-Type: application/json`, so the browser never sets
     `multipart/form-data; boundary=…` → backend rejects it (**406 `FST_INVALID_MULTIPART_CONTENT_TYPE`**).
@@ -263,6 +270,8 @@ payroll create-path E2E). All committed to `main`, local:
 | BE-4 | Payroll salary history / effective-dating              | P2  | Salary history rows come back with **`effectiveTo` _before_ `effectiveFrom`** and **duplicate same-day records** after re-assignments. Suggests effective-dating/overlap handling is off — payroll date math can't be trusted until verified.                                                                                                                                | Effective ranges should be ordered (`effectiveFrom ≤ effectiveTo`); superseding an assignment should close the prior range correctly without dupes.                                         | Re-assign an employee's pay group on the same day; inspect `GET /payroll/employees/:id/salary` → `history[]`.                                      | N/A — observation; verify before relying on payroll figures.                                                                           |
 | BE-5 | `GET /leave/team/requests`, `GET /leave/team/calendar` | P2  | Return **`400 NO_EMPLOYEE_ID`** ("User does not have an employee profile") for **SUPER_ADMIN**, because these endpoints are employee-scoped and super_admin has **no** employee profile (`employeeId: null`). So super_admin's Leave **Approvals + Team Calendar** tabs show an error state. **Inconsistent**: `GET /manager/approvals` **does** work for super_admin (200). | Support a profile-less SUPER_ADMIN on the team endpoints (return all/empty like `/manager/approvals`), **or** confirm super_admin isn't meant to use them (then the FE will hide the tabs). | As super_admin: `GET /leave/team/requests` → `400 {code:NO_EMPLOYEE_ID}`; `GET /leave/team/calendar` → same. As HR/MANAGER (have a profile) → 200. | Partial — error state renders (no crash). FE could hide team tabs for users without an `employeeId`, pending the product call (LV-2).  |
 | BE-6 | `PATCH /leave/requests/:id/{approve,reject}` response  | P3  | The approve/reject **response body omits `approverComment`** even when the value was accepted and **persisted** (a follow-up `GET /leave/requests` shows it). Misleading — looks like the comment was dropped.                                                                                                                                                               | Echo the saved `approverComment` in the approve/reject response, matching the `LeaveRequest` shape returned by `GET`.                                                                       | Reject with `{approverComment:"X"}` → 200, response `approverComment: undefined`; then `GET /leave/requests` → `approverComment: "X"`.             | N/A — cosmetic/response-shape; the write itself works (LV-1 fixed).                                                                    |
+| BE-7 | `POST /payroll/runs/:id/cancel`                        | P2  | Requires **SUPER_ADMIN** while the rest of the run lifecycle (initiate/approve/mark-paid/publish) is allowed for **HR_ADMIN**. The FE shows HR a "Cancel Run" button (dialog defaults reason to "Cancelled by HR") → HR gets **403**. FE intent ≠ backend rule.                                                                                                              | Decide the intended role: if HR may cancel before approval, relax to HR_ADMIN; else confirm super_admin-only so the FE gates to match.                                                      | As HR: `POST /payroll/runs/:id/cancel {reason}` → `403 {requiredRoles:["SUPER_ADMIN"], userRole:"HR_ADMIN"}`.                                      | Pending decision (PR-2); FE could gate Cancel to super_admin.                                                                          |
+| BE-8 | `GET /payroll/payslip-templates`                       | P3  | HR-only, but the **self-service my-payslips** page (PayslipDrawer) needs the template to render an employee's own payslip → **403** for MANAGER/EMPLOYEE, fired ×2 per load. Page still renders (handled).                                                                                                                                                                   | Expose a read-only payslip template to self-service users (or a dedicated `…/self` endpoint) so payslips render with the configured layout.                                                 | As priya/aman on `/payroll/my-payslips`: 2× `GET /payroll/payslip-templates` → 403.                                                                | Pending decision (PR-3); FE could skip/guard the fetch for self-service.                                                               |
 
 ### Contract / docs to update (not code bugs — backend **docs** are stale)
 
@@ -501,15 +510,47 @@ payroll create-path E2E). All committed to `main`, local:
   kept for a mocks-on demo; left as-is.
 - **Test residue:** all `ZZZ E2E` holidays (created + imported, 2027) deleted at end of the run. Clean.
 
-### 8. Payroll `/payroll`
+### 8. Payroll `/payroll` — 🐞 CORE SWEPT, 1 fix + 2 gating issues (2026-06-10) · panels partial
 
-- **Sub-units:** Runs tab + stats, **InitiateRunDialog** (Regular / Off-cycle / Bonus / Arrears /
-  FnF / Reversal), **run-detail** `/payroll/[runId]` (approval chain, variance, audit, events,
-  department summary, disbursement, journal, statutory filing, audit pack, payslip drawer,
-  adjustments, run inputs, calculate/dry-run/approve/mark-paid/publish/cancel), `/payroll/global`,
-  `/payroll/migration` (opening balances, historical payslips, parallel reconcile, go-live, pay
-  calendar), `/payroll/my-payslips`.
-- **Findings:** _none yet_ (create-path E2E already partly covered — see §6; CC-4/CC-5 apply)
+- **Live state (mocks OFF):** **every top-level payroll GET now returns 200** — `runs, roster, components,
+groups, schedules, countries, legal-entities, statutory-packs, pay-calendars, payslip-templates,
+event-catalogue, events, cost-summary, workers, contractor-invoices, opening-balances,
+reimbursement-categories/-claims, migration, reports, settings, employees, payment-batches`. The §26
+  "404s" (migration/reports/settings/employees/payment-batches) **have since shipped.** Runs page shape is
+  **`{ items[], pagination }`** (FE type matches — `items`, not `runs`).
+- **Gating:** HR_ADMIN / SUPER_ADMIN → runs screen ("Run Payroll" button). **MANAGER / EMPLOYEE →
+  redirected to `/payroll/my-payslips`** (self-service). Server enforces: employee `GET /payroll/roster|runs`
+  → **403**.
+- **Run lifecycle (verified live, throwaway 2025 runs):** initiate `POST /runs` **201** → calculate
+  `POST /runs/:id/calculate {}` **202 → REVIEW** → approve `POST /runs/:id/approve {notes}` **200 (APPROVED)**
+  → mark-paid `PATCH /runs/:id/mark-paid {paidAt,paymentReference}` **200 (PAID)** → publish `POST .../publish {}`
+  **200 (published)**. All these send a body and work.
+- **Findings:**
+  - **PR-1 (P1, FIXED):** **"Import from timesheets" was fully broken** —
+    `POST /payroll/runs/:id/inputs/from-timesheets` was a **bodyless** POST → **400
+    `VALIDATION_ERROR {field:"unknown","must be object"}`**; with `{}` → **200**. → **CC-10.** Fixed
+    (`payroll-runs.api.ts` `importInputsFromTimesheets` now sends `{}`); API-verified 200 (one-line body
+    add, same pattern as TS-2/HD-1).
+  - **PR-2 (P2, gating — logged §6B BE-7):** the run-detail **"Cancel Run" button is shown to HR_ADMIN**
+    (gated on `perms.canInitiate`), but the backend **requires SUPER_ADMIN** to cancel → HR clicking Cancel
+    gets **403 FORBIDDEN** (`requiredRoles:["SUPER_ADMIN"]`). The cancel dialog even defaults the reason to
+    "Cancelled by HR", so FE intent ≠ backend rule. **Not fixed pending your call** (gate FE to super_admin,
+    or backend should allow HR) — like LV-2.
+  - **PR-3 (P2/P3, gating — logged §6B BE-8):** the **self-service my-payslips page** (PayslipDrawer →
+    `usePayslipTemplate`) fires **`GET /payroll/payslip-templates` → 403** for MANAGER/EMPLOYEE (the
+    template endpoint is HR-only). Fires **2× on every load**; the page still renders (handled, no console
+    error) but it's noisy and the self-service payslip can't use the configured template. **Not fixed
+    pending your call** (FE skip/guard the template fetch for self-service, or backend allow read).
+- **Observations:** `approve` sends `{notes}` — accepted (200), though the run's `approvals[]` came back
+  empty (note may persist elsewhere; not blocking). No other bodyless payroll writes (the rest send `{}`/a
+  body). FnF number inputs have no `step` (CC-1 N/A).
+- **NOT exhaustively swept (follow-up):** `/payroll/global` (Salary Components / Pay Groups / Statutory
+  Packs / Legal Entities / Payslip Template / Data Policy editors), `/payroll/migration` (opening balances,
+  historical payslips, parallel reconcile, go-live, pay calendar), and the run-detail panels
+  (disbursement / journal / statutory filing / audit pack / adjustments / payslip drawer write actions).
+  Their **GETs are 200**; their **write actions** were not all driven. Recommend a focused follow-up pass.
+- **Test residue (test DB, harmless):** throwaway 2025 runs left — `2025-01` PAID+published, `2025-02`
+  DRAFT (cancel 403'd), `2025-03` REVIEW. All 2025 periods, won't affect seed accounts.
 
 ### 9. Reports `/reports`
 
@@ -544,19 +585,22 @@ payroll create-path E2E). All committed to `main`, local:
 
 All issues across all screens. Fix status drives the per-screen cadence.
 
-| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                                    | Status     | Commit |
-| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------- | ------ |
-| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                             | ✅ swept   | —      |
-| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                              | ✅ fixed   | `main` |
-| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                               | ✅ fixed   | `main` |
-| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                                     | ⏳ backend | —      |
-| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                             | ✅ swept   | —      |
-| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                  | ✅ fixed   | `main` |
-| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)         | ✅ fixed   | `main` |
-| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)              | ✅ fixed   | `main` |
-| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                                  | ✅ fixed   | `main` |
-| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                          | ⏳ backend | —      |
-| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                  | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case) | ✅ fixed   | `main` |
+| ID    | Screen / panel                       | Sev | Summary                                                              | Root cause                                                                                    | Status      | Commit |
+| ----- | ------------------------------------ | --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- | ------ |
+| —     | Dashboard (all roles)                | —   | **0 issues** — load + all interactions clean                         | —                                                                                             | ✅ swept    | —      |
+| EMP-1 | Employees / profile Overview         | P1  | OverviewTab crash on new employee (`undefined.length`)               | API omits `documents`/`leaveBalances`; type said required (CC-7)                              | ✅ fixed    | `main` |
+| EMP-2 | Employees / new + edit routes        | P2  | create/edit form shown to MANAGER/EMPLOYEE via URL                   | routes unguarded; only list button gated (CC-8)                                               | ✅ fixed    | `main` |
+| EMP-3 | Employees / terminate                | P3  | terminated employee `GET /employees/:id` → 404, profile inaccessible | **backend** soft-delete excludes from GET                                                     | ⏳ backend  | —      |
+| —     | Departments (all roles)              | —   | **0 issues** — load + gating + create/edit/sub/delete all clean      | —                                                                                             | ✅ swept    | —      |
+| ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                                  | ✅ fixed    | `main` |
+| TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11)         | ✅ fixed    | `main` |
+| TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)              | ✅ fixed    | `main` |
+| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                                  | ✅ fixed    | `main` |
+| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                          | ⏳ backend  | —      |
+| HD-1  | Holidays / .ics import               | P1  | `.ics` import 406 every time (feature fully broken)                  | multipart FormData sent with default `Content-Type: application/json` (CC-10 upload sub-case) | ✅ fixed    | `main` |
+| PR-1  | Payroll / inputs from timesheets     | P1  | "Import from timesheets" 400'd every time (broken)                   | bodyless `apiClient.post` → backend "must be object" (CC-10)                                  | ✅ fixed    | `main` |
+| PR-2  | Payroll / run-detail Cancel Run      | P2  | HR sees Cancel Run; backend requires SUPER_ADMIN → 403               | FE gates on `canInitiate`; cancel is super_admin-only server-side                             | ⏳ decision | —      |
+| PR-3  | Payroll / self-service my-payslips   | P2  | manager/employee load fires `payslip-templates` → 403 (×2)           | PayslipDrawer fetches HR-only template endpoint for self-service users                        | ⏳ decision | —      |
 
 ---
 
