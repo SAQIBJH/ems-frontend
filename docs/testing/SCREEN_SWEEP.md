@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Timesheets swept — 2 issues found + fixed (TimerBar infinite-loop crash; submit-week 400). Next: Leave.**_
+_Last updated: 2026-06-10 · Status: **Leave swept — 1 FE issue fixed (reject sent wrong field, was fully broken) + 1 backend issue logged (super_admin team 400). Next: Holidays.**_
 
 ---
 
@@ -103,23 +103,23 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Timesheets — ✅ done (2 issues found + fixed)
-**Next action:** run the **Leave** sweep (requests/create, balances, types, approvals approve/reject/withdraw, team calendar), all roles, then pause for review. **NB:** timesheets turned out to be **live on the backend now** (not MSW) — re-verify the live/mock state of each remaining screen rather than trusting CLAUDE.md.
+**Current screen:** Leave — ✅ done (1 FE fix + 1 backend issue logged)
+**Next action:** run the **Holidays** sweep (year grid `?year=`, create/edit/delete, `.ics` import — MSW preview+commit), all roles, then pause for review. **NB:** verify Holidays' live/mock state first (CLAUDE.md lists holidays CRUD as live, `.ics` import as MSW) — don't trust the doc, probe it.
 
-| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status      |
-| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------- |
-| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
-| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
-| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean |
-| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed       |
-| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed       |
-| 6   | Leave       | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
-| 7   | Holidays    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
-| 8   | Payroll     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
-| 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
-| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
-| 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
-| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started |
+| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status            |
+| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ----------------- |
+| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean       |
+| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed             |
+| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean       |
+| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed             |
+| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed             |
+| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open) |
+| 7   | Holidays    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| 8   | Payroll     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| 9   | Reports     | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| 10  | Analytics   | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| 11  | Permissions | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
+| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started       |
 
 Legend: ⬜ pending · 🔄 in progress · ✅ swept+clean · 🐞 swept, issues open · 🔧 issues fixed
 
@@ -168,7 +168,13 @@ screen uses one of these, check it against this list first.
   **`reviewerComment`** — **deny** (where it's required) 400'd every time = fully broken; **approve**
   (optional) silently dropped the note. _Fix pattern: match the live request body field names exactly._
   **For every write, diff the FE request body keys against a real successful request** — don't trust
-  the FE's own naming. _(First seen: attendance regularization approve/deny — fixed, commit on `main`.)_
+  the FE's own naming. _(First seen: attendance regularization approve/deny — fixed, commit on `main`.
+  **Seen again: Leave approve/reject** — FE sent `comment`, backend requires **`approverComment`**;
+  reject 400'd every time (required field) = fully broken, approve silently dropped the note. Fixed,
+  verified live 200 + the reason persists on a follow-up GET.)_ **This is now the #1 recurring bug
+  class — the `approverComment` vs `comment` split specifically.** On any approve/reject/deny/review
+  write, POST a real request and confirm the field name **and** that the value persists (the
+  approve/reject _response_ may omit `approverComment` even when it saved — check via a follow-up GET).
 - **CC-10 · Bodyless `apiClient.post(url)` 400s against the LIVE backend.** The axios client
   defaults `Content-Type: application/json` (`api-client.ts`), so a POST with **no body** still
   sends that header with an empty payload — backend routes that JSON-parse a required body then
@@ -216,6 +222,7 @@ screen uses one of these, check it against this list first.
 - `PendingApprovalsPanel` / `BulkApproveModal` / `TeamWeeklyAttendanceGrid` — _used by: **Dashboard** (HR/Manager) + Leave/Attendance approvals_ — **regularization approve/deny lives ONLY here** (no approval UI on the Attendance page)
 - `RegularizationDialog` / `CheckInOutCard` / `AttendanceCalendar` / `AttendanceTableView` — _used by: **Attendance** page_ (CheckInOutCard also on Dashboard)
 - `TimerBar` / `WeeklyGrid` / `TimeEntryDialog` / `TimesheetSubmitBar` / `ApprovalsTab` / `ProjectsPanel`+`ProjectDrawer` — _used by: **Timesheets** page only._ TimerBar timer state is the module's only Zustand slice (`store/timer.slice.ts`, sessionStorage-persisted, survives refresh). `useTasks` (`hooks/useProjects.ts`) feeds both TimerBar & TimeEntryDialog — the CC-11 loop source.
+- `LeaveRequestsTable` / `LeaveApprovalsTable` (+ Deny/Bulk dialogs) / `LeaveTeamCalendar` / `NewLeaveRequestDialog` — _used by: **Leave** page._ Approve/reject go through `leave.api.ts` → backend wants **`approverComment`** (LV-1/CC-9). Team views (`useTeamLeaveRequests`/`useTeamLeaveCalendar`) are employee-scoped → 400 for profile-less SUPER_ADMIN (LV-2); the calendar query is `enabled` only for MANAGER/HR/SUPER (employee never fetches it).
 
 _(Fill the "used by" lists during the sweep so a fix in one engine flags every dependent screen.)_
 
@@ -240,12 +247,14 @@ payroll create-path E2E). All committed to `main`, local:
 > **backend**, not this frontend. Where the frontend has a workaround it is noted, but the proper
 > fix is backend-side. Keep appending as the sweep continues. (FE-side bugs are tracked in §8.)
 
-| ID   | Endpoint / area                           | Sev | Problem                                                                                                                                                                                                                                       | Expected                                                                                                                                            | Evidence / repro                                                                                                                 | FE workaround?                                                                                                                         |
-| ---- | ----------------------------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| BE-1 | `GET /auth/me` (and tenant-scoped routes) | P2  | Returns **`400 INVALID_TENANT`** when the access token is **missing or expired**, instead of `401`. Causes a red console error on **every** page load, and would break silent token-refresh.                                                  | Return **`401 Unauthorized`** for absent/expired/invalid tokens; reserve `400 INVALID_TENANT` for a genuinely bad tenant.                           | `GET /auth/me` with no cookie → `400 {code:INVALID_TENANT}`; with a garbage token → same `400`; with valid cookie → `200`.       | Yes — axios interceptor treats `400 INVALID_TENANT` like `401` (`6640cbb`). Still noisy; please fix server-side.                       |
-| BE-2 | `POST` / `PATCH /payroll/groups`          | P1  | **500 `INTERNAL_ERROR`** (`prisma.payGroup.create()` invalid invocation) when a component override is `null` — backend coerces `null → ""`/`0` and feeds it to a Prisma **enum** column **without input validation**.                         | Validate/normalise the request body; accept omitted/`null` override fields and store `NULL`, don't 500.                                             | `POST /payroll/groups` with `components:[{componentId, overrideCalculationType:null,…}]` → 500; with `{componentId}` only → 201. | Yes — FE omits null override fields (`f9d42c9`). Backend still lacks input validation here (likely affects other write endpoints too). |
-| BE-3 | `GET /employees/:id` after Terminate      | P3  | A **terminated** (soft-deleted) employee returns **`404 NOT_FOUND`**, so their profile is **inaccessible** — HR cannot view or **reverse** a termination from the UI, despite the dialog promising "can be reversed by an administrator".     | Either keep terminated employees retrievable via `GET /employees/:id`, or expose a documented param (e.g. `?includeTerminated=true`).               | Create → `DELETE /employees/:id` (200, status→TERMINATED) → `GET /employees/:id` → **404**.                                      | None — needs backend.                                                                                                                  |
-| BE-4 | Payroll salary history / effective-dating | P2  | Salary history rows come back with **`effectiveTo` _before_ `effectiveFrom`** and **duplicate same-day records** after re-assignments. Suggests effective-dating/overlap handling is off — payroll date math can't be trusted until verified. | Effective ranges should be ordered (`effectiveFrom ≤ effectiveTo`); superseding an assignment should close the prior range correctly without dupes. | Re-assign an employee's pay group on the same day; inspect `GET /payroll/employees/:id/salary` → `history[]`.                    | N/A — observation; verify before relying on payroll figures.                                                                           |
+| ID   | Endpoint / area                                        | Sev | Problem                                                                                                                                                                                                                                                                                                                                                                      | Expected                                                                                                                                                                                    | Evidence / repro                                                                                                                                   | FE workaround?                                                                                                                         |
+| ---- | ------------------------------------------------------ | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| BE-1 | `GET /auth/me` (and tenant-scoped routes)              | P2  | Returns **`400 INVALID_TENANT`** when the access token is **missing or expired**, instead of `401`. Causes a red console error on **every** page load, and would break silent token-refresh.                                                                                                                                                                                 | Return **`401 Unauthorized`** for absent/expired/invalid tokens; reserve `400 INVALID_TENANT` for a genuinely bad tenant.                                                                   | `GET /auth/me` with no cookie → `400 {code:INVALID_TENANT}`; with a garbage token → same `400`; with valid cookie → `200`.                         | Yes — axios interceptor treats `400 INVALID_TENANT` like `401` (`6640cbb`). Still noisy; please fix server-side.                       |
+| BE-2 | `POST` / `PATCH /payroll/groups`                       | P1  | **500 `INTERNAL_ERROR`** (`prisma.payGroup.create()` invalid invocation) when a component override is `null` — backend coerces `null → ""`/`0` and feeds it to a Prisma **enum** column **without input validation**.                                                                                                                                                        | Validate/normalise the request body; accept omitted/`null` override fields and store `NULL`, don't 500.                                                                                     | `POST /payroll/groups` with `components:[{componentId, overrideCalculationType:null,…}]` → 500; with `{componentId}` only → 201.                   | Yes — FE omits null override fields (`f9d42c9`). Backend still lacks input validation here (likely affects other write endpoints too). |
+| BE-3 | `GET /employees/:id` after Terminate                   | P3  | A **terminated** (soft-deleted) employee returns **`404 NOT_FOUND`**, so their profile is **inaccessible** — HR cannot view or **reverse** a termination from the UI, despite the dialog promising "can be reversed by an administrator".                                                                                                                                    | Either keep terminated employees retrievable via `GET /employees/:id`, or expose a documented param (e.g. `?includeTerminated=true`).                                                       | Create → `DELETE /employees/:id` (200, status→TERMINATED) → `GET /employees/:id` → **404**.                                                        | None — needs backend.                                                                                                                  |
+| BE-4 | Payroll salary history / effective-dating              | P2  | Salary history rows come back with **`effectiveTo` _before_ `effectiveFrom`** and **duplicate same-day records** after re-assignments. Suggests effective-dating/overlap handling is off — payroll date math can't be trusted until verified.                                                                                                                                | Effective ranges should be ordered (`effectiveFrom ≤ effectiveTo`); superseding an assignment should close the prior range correctly without dupes.                                         | Re-assign an employee's pay group on the same day; inspect `GET /payroll/employees/:id/salary` → `history[]`.                                      | N/A — observation; verify before relying on payroll figures.                                                                           |
+| BE-5 | `GET /leave/team/requests`, `GET /leave/team/calendar` | P2  | Return **`400 NO_EMPLOYEE_ID`** ("User does not have an employee profile") for **SUPER_ADMIN**, because these endpoints are employee-scoped and super_admin has **no** employee profile (`employeeId: null`). So super_admin's Leave **Approvals + Team Calendar** tabs show an error state. **Inconsistent**: `GET /manager/approvals` **does** work for super_admin (200). | Support a profile-less SUPER_ADMIN on the team endpoints (return all/empty like `/manager/approvals`), **or** confirm super_admin isn't meant to use them (then the FE will hide the tabs). | As super_admin: `GET /leave/team/requests` → `400 {code:NO_EMPLOYEE_ID}`; `GET /leave/team/calendar` → same. As HR/MANAGER (have a profile) → 200. | Partial — error state renders (no crash). FE could hide team tabs for users without an `employeeId`, pending the product call (LV-2).  |
+| BE-6 | `PATCH /leave/requests/:id/{approve,reject}` response  | P3  | The approve/reject **response body omits `approverComment`** even when the value was accepted and **persisted** (a follow-up `GET /leave/requests` shows it). Misleading — looks like the comment was dropped.                                                                                                                                                               | Echo the saved `approverComment` in the approve/reject response, matching the `LeaveRequest` shape returned by `GET`.                                                                       | Reject with `{approverComment:"X"}` → 200, response `approverComment: undefined`; then `GET /leave/requests` → `approverComment: "X"`.             | N/A — cosmetic/response-shape; the write itself works (LV-1 fixed).                                                                    |
 
 ### Contract / docs to update (not code bugs — backend **docs** are stale)
 
@@ -404,11 +413,48 @@ payroll create-path E2E). All committed to `main`, local:
 - **Test residue (harmless, test DB):** priya's current week + a future week were submitted; the
   seeded approvals week was approved + another returned. Seed accounts remain usable.
 
-### 6. Leave `/leave`
+### 6. Leave `/leave` — ✅ SWEPT, 1 FE fix + 1 backend issue logged (2026-06-10)
 
-- **Sub-units:** requests (create), balances, types, approvals (approve/reject/withdraw),
-  team calendar.
-- **Findings:** _none yet_
+- **Sub-units / tabs (`LeaveScreen`):** **My Requests** (all roles) — `LeaveRequestsTable` +
+  `NewLeaveRequestDialog` (create) + inline **Withdraw** (confirm dialog); **Team Calendar** (all
+  roles, but query `enabled` only for MANAGER/HR/SUPER); **Approvals** (`canApprove` = MANAGER/HR/SUPER)
+  — `LeaveApprovalsTable` inline Approve / Deny-dialog / bulk approve+reject + coverage chip.
+  **Live, not MSW** (no `mocks/handlers/leave.ts`; real cuid ids + real validation).
+- **Per role:**
+  - **HR_ADMIN:** 3 tabs, all load clean (approval queue happened to be empty at sweep time; the
+    MANAGER run exercised the same shared approve/deny path → 200).
+  - **MANAGER (aman):** 3 tabs. **Approve → PATCH `/approve` 200 ✓; Deny → dialog → PATCH `/reject`
+    200 ✓** (after LV-1 fix). Team Calendar loads.
+  - **EMPLOYEE (priya):** **2 tabs (no Approvals)** ✓. **Create → POST `/leave/requests` 201 ✓;
+    Withdraw → PATCH `/withdraw` 200 ✓** (bodyless PATCH — CC-10 tolerated, re-confirms CC-6).
+    Team Calendar tab fires **no** `/team/calendar` call (query disabled for employee → gated
+    empty state, no 403 spam). Server also enforces: priya hitting `/leave/team/{requests,calendar}`
+    directly → **403**.
+  - **SUPER_ADMIN:** 3 tabs, but **Approvals + Team Calendar 400** — see LV-2.
+- **Findings:**
+  - **LV-1 (P1, FIXED):** **Leave reject was fully broken** — `leave.api.ts` sent `{ comment }` but
+    the live backend requires **`approverComment`** → `PATCH /reject` **400 (VALIDATION_ERROR:
+    approverComment required)** every time. **Approve** had the same wrong key → 200 but the note was
+    **silently dropped**. → **CC-9** (same class as attendance ATT-1). Fixed both to send
+    `approverComment`; verified live **200** + the reason **persists** on a follow-up GET, and via the
+    UI (MANAGER approve+deny 200). _(Bulk approve/reject were fine — backend accepts any/no comment, 200.)_
+  - **LV-2 (P2, backend — logged in §6B):** **SUPER_ADMIN's Approvals + Team Calendar tabs 400 with
+    `NO_EMPLOYEE_ID` "User does not have an employee profile."** The `/leave/team/*` endpoints are
+    employee-scoped and SUPER_ADMIN has **no employee profile** (employeeId null), so the tabs render an
+    **error state** for super_admin only. Inconsistent with `/manager/approvals`, which **does** work
+    for super_admin (200). FE shows the tabs to super_admin (`canApprove`/`canViewTeam` include
+    SUPER_ADMIN). **Not FE-fixed** — it's a product/backend call (should super_admin approve leave? then
+    backend must support profile-less super_admin on team endpoints; if not, FE should hide those tabs
+    for users without an employeeId). Flagged for the user + backend.
+- **Observations (not bugs):** withdraw/approve/reject are **PATCH** (CC-6, FE correct, docs stale);
+  no console errors / no other 4xx-5xx for HR/MANAGER/EMPLOYEE; create maps date fields via
+  `formatDateForApi` (YYYY-MM-DD) correctly.
+- **Carry-forward:** the `approverComment` field is now the **#1 recurring bug** (attendance + leave) —
+  audit every remaining approve/reject/deny/review write (Payroll run approve, Timesheets already
+  checked — uses `comment` and that's what its backend wants). Verify field name **and** value
+  persistence each time.
+- **Test residue (harmless, test DB):** several `ZZZ E2E` leave requests for priya (far-future 2027
+  dates) in various states (rejected/approved/withdrawn) from the API + UI probes. Seed accounts intact.
 
 ### 7. Holidays `/holidays`
 
@@ -468,6 +514,8 @@ All issues across all screens. Fix status drives the per-screen cadence.
 | ATT-1 | Attendance / regularization deny     | P1  | denying a regularization 400'd every time (deny fully broken)        | FE sent `comment`; backend requires `reviewerComment` (CC-9)                          | ✅ fixed   | `main` |
 | TS-1  | Timesheets / TimerBar + entry dialog | P1  | "Maximum update depth" crash on project-select / timer-restore       | loading-`[]` from `useTasks` used as `useEffect` dep + unconditional setState (CC-11) | ✅ fixed   | `main` |
 | TS-2  | Timesheets / submit week             | P1  | submitting a week 400'd every time (core employee action broken)     | bodyless `apiClient.post` + default json content-type → live backend 400 (CC-10)      | ✅ fixed   | `main` |
+| LV-1  | Leave / approve + reject             | P1  | reject 400'd every time (fully broken); approve dropped the note     | FE sent `comment`; backend requires `approverComment` (CC-9)                          | ✅ fixed   | `main` |
+| LV-2  | Leave / super_admin team tabs        | P2  | super_admin Approvals + Team Calendar 400 (NO_EMPLOYEE_ID)           | `/leave/team/*` employee-scoped; super_admin has no employee profile                  | ⏳ backend | —      |
 
 ---
 
