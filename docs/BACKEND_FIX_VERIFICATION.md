@@ -57,19 +57,19 @@ remaining FE cleanup from the whole initiative.)_
 
 Frontend changes that were **waiting** on the backend, now applied & verified:
 
-| Backend fix | FE follow-up                                                                                                                                                                                         | Status               |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| **BE-7**    | Run-detail **Cancel** gate relaxed (`usePayrollPermissions.canCancel` → `payroll:initiate` = HR_ADMIN + SUPER_ADMIN). Verified: HR sees "Cancel Run".                                                | ✅ **DONE**          |
-| **BE-8**    | `usePayslipTemplate` un-gated (was HR/SUPER-only). Verified: employee my-payslips fetches `payslip-templates` → 200.                                                                                 | ✅ **DONE**          |
-| **BE-3**    | Employee profile fetch passes `?includeTerminated=true`. Verified: HR opens a terminated profile → renders (TERMINATED), no 404 wall.                                                                | ✅ **DONE**          |
-| **BE-9**    | None — reports export auto-works now (FE already polls the download route).                                                                                                                          | AUTO                 |
-| **BE-10**   | None — Add Role now persists permissions in one call (FE already sends them).                                                                                                                        | AUTO                 |
-| **BE-11**   | None — keep `isCustom` from the built-in set; custom-role **friendly names** now populate after refresh.                                                                                             | KEEP                 |
-| **BE-1**    | **Now removable** — BE-1 fully fixed (returns `401`). The `400 INVALID_TENANT`→401 interceptor special case (`api-client.ts:48`) is dead code; drop it so `status === 401` alone drives the refresh. | **REMOVE (pending)** |
-| **ANA**     | None — department filter now returns filtered data on 4 endpoints.                                                                                                                                   | AUTO                 |
+| Backend fix | FE follow-up                                                                                                                                                                                                  | Status      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **BE-7**    | Run-detail **Cancel** gate relaxed (`usePayrollPermissions.canCancel` → `payroll:initiate` = HR_ADMIN + SUPER_ADMIN). Verified: HR sees "Cancel Run".                                                         | ✅ **DONE** |
+| **BE-8**    | `usePayslipTemplate` un-gated (was HR/SUPER-only). Verified: employee my-payslips fetches `payslip-templates` → 200.                                                                                          | ✅ **DONE** |
+| **BE-3**    | Employee profile fetch passes `?includeTerminated=true`. Verified: HR opens a terminated profile → renders (TERMINATED), no 404 wall.                                                                         | ✅ **DONE** |
+| **BE-9**    | None — reports export auto-works now (FE already polls the download route).                                                                                                                                   | AUTO        |
+| **BE-10**   | None — Add Role now persists permissions in one call (FE already sends them).                                                                                                                                 | AUTO        |
+| **BE-11**   | None — keep `isCustom` from the built-in set; custom-role **friendly names** now populate after refresh.                                                                                                      | KEEP        |
+| **BE-1**    | **Done** (commit `e7f29a2`) — removed the `400 INVALID_TENANT`→401 interceptor special case; auth-failure is now `status === 401`. Verified: login + silent refresh on expiry + no-session redirect all work. | ✅ **DONE** |
+| **ANA**     | None — department filter now returns filtered data on 4 endpoints.                                                                                                                                            | AUTO        |
 
-> **Last remaining FE cleanup:** BE-1 is fixed → remove the `400 INVALID_TENANT`→401
-> interceptor special case (`api-client.ts`). After that, nothing is pending on the FE.
+> **All FE cleanup complete.** Every backend fix is now either consumed by the FE or
+> confirmed needs-nothing. Nothing is pending on the FE side.
 
 ---
 
