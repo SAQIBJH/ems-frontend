@@ -32,8 +32,10 @@ export const permissionsApi = {
 
   /**
    * POST /settings/roles — LIVE (verified 2026-06-10; 201)
-   * NOTE: the backend creates the role but DROPS the `permissions` field (lands
-   * with []); callers persist permissions with a follow-up PATCH (see useCreateRole).
+   * KNOWN BACKEND BUG (BE-10): the backend creates the role but DROPS the
+   * `permissions` field (the role lands with []). We still send `permissions`
+   * so it works once the backend persists them; until then, grant access by
+   * editing the role in the matrix + Save (PATCH does persist).
    * Error: DUPLICATE_ROLE_KEY (409)
    */
   createRole: async (
