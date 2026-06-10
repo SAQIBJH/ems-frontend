@@ -106,16 +106,18 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 **Current screen:** Permissions — ✅ done (2 FE fixes, PERM-1 + PERM-2; 2 BE issues logged). Super-only
 gating correct (HR/MANAGER/EMPLOYEE → access-denied, 0 calls; server 403). Built-in matrix save fires
 `PATCH` (200). Custom-role create + edit now persist to the backend (were silently dropped/cache-only).
-**Next action:** run the **Settings** sweep (`/settings` — ~24 sub-panels incl. company-profile, branding,
-locale, working-hours, attendance-rules, leave-types, notifications, email-templates, authentication,
-sessions, audit-log, integration-email/-storage/-webhooks, billing-plan/-invoices, and the **Pay &
-Compliance** group: pay/components, pay/groups, pay/schedules, pay/statutory-packs, pay/legal-entities,
-pay/payslip-template, pay/data-policy, timesheets). All roles. **This is the biggest screen** — enumerate
-the live SettingsNav panels on entry, sweep each: role gating (many are HR/SUPER-only → reuse the
-RoleGate/redirect pattern; watch **CC-12** unguarded-screen 403-walls), four states, and **every form Save
-fires a real PATCH/POST** (silent-failure catch — **CC-9** field names, **CC-10** bodyless writes, **CC-14**
-cache-only "saves" that never hit the API). Integrations/billing may be **MSW-only → 404 with mocks off**
-(CLAUDE.md §24) — probe each.
+**Next action:** run the **Settings** sweep (`/settings`) — **SCOPED DOWN per user (2026-06-10): DEFER
+Notifications, the 3 Integration panels (email / storage / webhooks), and the 2 Billing panels (plan /
+invoices) — "we will do it later."** Sweep the **remaining** panels this pass: company-profile, branding,
+locale, working-hours, attendance-rules, leave-types, email-templates, authentication, sessions, audit-log,
+and the **Pay & Compliance** group (pay/components, pay/groups, pay/schedules, pay/statutory-packs,
+pay/legal-entities, pay/payslip-template, pay/data-policy, timesheets). All roles. **This is the biggest
+screen** — enumerate the live SettingsNav panels on entry, sweep each: role gating (many are HR/SUPER-only →
+reuse the RoleGate/redirect pattern; watch **CC-12** unguarded-screen 403-walls), four states, and **every
+form Save fires a real PATCH/POST** (silent-failure catch — **CC-9** field names, **CC-10** bodyless writes,
+**CC-14** cache-only "saves" that never hit the API). _(The deferred Integrations/Billing panels are likely
+**MSW-only → 404 with mocks off** per CLAUDE.md §24 — that's part of why they're deferred; revisit when the
+user picks them up.)_
 
 | #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                             |
 | --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ---------------------------------- |
@@ -803,9 +805,13 @@ reimbursement-categories/-claims, migration, reports, settings, employees, payme
 
 ### 12. Settings `/settings`
 
-- **Sub-units (~24 panels):** company-profile, branding, locale, working-hours, attendance-rules,
-  leave-types, notifications, email-templates, authentication, sessions, audit-log,
-  integration-email, integration-storage, integration-webhooks, billing-plan, billing-invoices,
+- **⏸️ SCOPE (user's call, 2026-06-10): the following panels are DEFERRED — "we will do it later":**
+  - **Notifications**
+  - **Integrations:** integration-email, integration-storage, integration-webhooks
+  - **Billing:** billing-plan, billing-invoices
+  - _(These are likely MSW-only → 404 with mocks off, per CLAUDE.md §24 — revisit when picked up.)_
+- **Sub-units to sweep this pass:** company-profile, branding, locale, working-hours, attendance-rules,
+  leave-types, email-templates, authentication, sessions, audit-log, **+ Pay & Compliance group:**
   pay/components, pay/groups, pay/schedules, pay/statutory-packs, pay/legal-entities,
   pay/payslip-template, pay/data-policy, timesheets.
 - **Findings:** _none yet_
