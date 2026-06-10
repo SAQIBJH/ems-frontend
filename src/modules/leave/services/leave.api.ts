@@ -69,23 +69,26 @@ export const leaveApi = {
 
   /**
    * PATCH /leave/requests/:id/approve — MANAGER, HR_ADMIN
-   * comment is optional.
+   * comment is optional. The live backend's body field is `approverComment` (NOT
+   * `comment`); sending `comment` is silently dropped. Verified live 2026-06-10.
    */
   approve: async ({ id, comment }: { id: string; comment?: string }): Promise<LeaveRequest> => {
     const { data } = await apiClient.patch<{ data: LeaveRequest }>(
       `/leave/requests/${id}/approve`,
-      { comment },
+      { approverComment: comment },
     );
     return data.data;
   },
 
   /**
    * PATCH /leave/requests/:id/reject — MANAGER, HR_ADMIN
-   * comment is required.
+   * comment is required. The live backend's body field is `approverComment` (NOT
+   * `comment`) — sending `comment` 400s every time (VALIDATION_ERROR: approverComment
+   * required). Verified live 2026-06-10.
    */
   reject: async ({ id, comment }: { id: string; comment: string }): Promise<LeaveRequest> => {
     const { data } = await apiClient.patch<{ data: LeaveRequest }>(`/leave/requests/${id}/reject`, {
-      comment,
+      approverComment: comment,
     });
     return data.data;
   },
