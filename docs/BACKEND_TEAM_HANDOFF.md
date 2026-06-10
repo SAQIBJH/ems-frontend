@@ -120,9 +120,44 @@ The Analytics screen's filter bar (department dropdown + custom date range) now 
 **accepts and ignores** them (verified — still `200`), so the FE ships with no risk; the
 filters start working the moment you honour the params, with **zero FE change**.
 
-**Full contract** (which endpoint takes which param, examples, backward-compat requirements):
-see **`docs/BACKEND_API_REQUESTS.md` → "Analytics filter parameters — enhancement to existing
-LIVE endpoints"**.
+**Two optional params** (both omittable; omitting yields today's unfiltered result):
+
+| Param          | Type                    | Meaning                                                                                     |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------------------- |
+| `departmentId` | `string`                | Scope the metric to a single department (the `id` from `GET /departments`).                 |
+| `from` + `to`  | `string` (`YYYY-MM-DD`) | Custom date window. When **both** are present they take precedence over any preset `range`. |
+
+**Which endpoint receives which param (exactly what the FE sends today):**
+
+| Endpoint                                 | `departmentId` | date window                                  |
+| ---------------------------------------- | :------------: | -------------------------------------------- |
+| `GET /analytics/summary`                 |       ✅       | `range` **or** `from`+`to`                   |
+| `GET /analytics/attendance`              |       ✅       | `range` **or** `from`+`to` (overrides range) |
+| `GET /analytics/leave-summary`           |       ✅       | `range` (default `30d`) **or** `from`+`to`   |
+| `GET /analytics/headcount-by-department` |       ✅       | — (point-in-time; no date window)            |
+| `GET /analytics/recent-activity`         |       ✅       | — (uses `limit` only)                        |
+| `GET /analytics/workforce-trend`         |       ✅       | own `range` (`6m\|12m\|2y`) — unchanged      |
+| `GET /analytics/attrition`               |       ✅       | own `range` (`6m\|12m\|2y`) — unchanged      |
+| `GET /analytics/payroll-cost`            |       ✅       | own `range` (`6m\|12m`) — unchanged          |
+| `GET /analytics/department-performance`  |       ✅       | own `range` (`30d\|90d`) — unchanged         |
+
+**Contract requirements:**
+
+1. **Response shape is unchanged** — same envelope/fields as today; only the rows are filtered to the requested department / window.
+2. **Backward compatible** — when `departmentId`/`from`/`to` are absent, return the current org-wide result (the Dashboard widgets call these with no filters and must keep working).
+3. **Do not 400 on these params** (you don't today — please keep it that way).
+4. `departmentId` should match the department `id` issued by `GET /departments`.
+5. Filtering `headcount-by-department` by `departmentId` should return just that department's row(s) (a single-slice breakdown is acceptable).
+
+Examples the FE issues:
+
+```
+GET /analytics/summary?range=30d&departmentId=cmq6w2fct001g19wgvelknhcm
+GET /analytics/attendance?from=2026-03-01&to=2026-05-31&departmentId=cmq6w2...
+GET /analytics/workforce-trend?range=6m&departmentId=cmq6w2...
+```
+
+_(This same contract also lives in `docs/BACKEND_API_REQUESTS.md` — keep the two in sync.)_
 
 ---
 
