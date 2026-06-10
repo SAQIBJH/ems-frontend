@@ -59,12 +59,17 @@ export const holidaysApi = {
 
   /**
    * POST /holidays/import (multipart) → 202, data = { jobId, previewUrl }
-   * MSW-backed — backend not yet built.
+   * Live backend (Fastify multipart). The axios client defaults to
+   * `Content-Type: application/json`; for a FormData body that default makes the
+   * backend reject the request as non-multipart (406 FST_INVALID_MULTIPART_CONTENT_TYPE).
+   * Set Content-Type to undefined so the browser sets `multipart/form-data` + boundary.
    */
   startImport: async (file: File): Promise<IcsImportJob> => {
     const form = new FormData();
     form.append('file', file);
-    const { data } = await apiClient.post<{ data: IcsImportJob }>('/holidays/import', form);
+    const { data } = await apiClient.post<{ data: IcsImportJob }>('/holidays/import', form, {
+      headers: { 'Content-Type': undefined },
+    });
     return data.data;
   },
 
