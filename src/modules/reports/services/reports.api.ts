@@ -10,6 +10,7 @@ import type {
   PayrollSummaryReport,
   CtcAnalysisData,
   ReportExportRequest,
+  ReportExportJob,
   ReportCommonParams,
   AttendanceSummaryParams,
   LeaveUtilizationParams,
@@ -92,8 +93,32 @@ export const reportsApi = {
     return data.data;
   },
 
-  exportReport: async (req: ReportExportRequest): Promise<Blob> => {
-    const response = await apiClient.post('/reports/export', req, { responseType: 'blob' });
-    return response.data as Blob;
+  /**
+   * Queue a server-side export. Returns a job descriptor; the actual CSV is generated
+   * and stored on the server and fetched with `downloadExport`. We deliberately do NOT
+   * build the CSV from the client's already-loaded data — a server-generated file can't
+   * be altered from the browser (devtools) before it's downloaded.
+   */
+  requestExport: async (req: ReportExportRequest): Promise<ReportExportJob> => {
+    const { data } = await apiClient.post<{ data: ReportExportJob }>('/reports/export', req);
+    return data.data;
+  },
+
+  /**
+   * Fetch the server-generated export file for a queued job. Returns the Blob once the
+   * server has produced the CSV, or `null` while it's still being prepared (the server
+   * replies with JSON / 404 until the file is ready).
+   */
+  downloadExport: async (jobId: string): Promise<Blob | null> => {
+    const res = await apiClient.get(`/reports/export/${jobId}/download`, {
+      responseType: 'blob',
+      validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
+    });
+    const contentType = String(res.headers['content-type'] ?? '');
+    // A real file comes back as text/csv (or octet-stream); JSON means "not ready"/404.
+    if (res.status >= 200 && res.status < 300 && !contentType.includes('application/json')) {
+      return res.data as Blob;
+    }
+    return null;
   },
 };

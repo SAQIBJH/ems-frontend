@@ -28,8 +28,28 @@ export function useDemographicsReport(params?: Pick<ReportCommonParams, 'departm
 
 export function useExportReport() {
   return useMutation({
-    mutationFn: (req: ReportExportRequest) => reportsApi.exportReport(req),
-    onSuccess: (blob, req) => {
+    // The export is a server-side job: queue it, then poll for the server-generated
+    // file. We download only a real file produced by the backend — never a CSV built
+    // from client data (which a user could tamper with via devtools before saving).
+    mutationFn: async (
+      req: ReportExportRequest,
+    ): Promise<{ blob: Blob | null; req: ReportExportRequest }> => {
+      const job = await reportsApi.requestExport(req);
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const blob = await reportsApi.downloadExport(job.jobId);
+        if (blob) return { blob, req };
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      // Still preparing after the poll window — don't fake a download or success.
+      return { blob: null, req };
+    },
+    onSuccess: ({ blob, req }) => {
+      if (!blob) {
+        toast.info(
+          'Your export is being prepared on the server. Please try again in a moment to download it.',
+        );
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

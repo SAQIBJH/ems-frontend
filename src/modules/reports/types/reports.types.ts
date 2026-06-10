@@ -293,6 +293,18 @@ export interface ReportExportRequest {
   filters?: Record<string, unknown>;
 }
 
+/**
+ * `POST /reports/export` queues a server-side export and returns this job. The CSV is
+ * generated and stored on the **server** (never built in the browser), then retrieved
+ * via `GET /reports/export/:jobId/download` — so the exported data can't be tampered
+ * with from devtools before download.
+ */
+export interface ReportExportJob {
+  jobId: string;
+  status: string;
+  message?: string;
+}
+
 // ── Common query params ──────────────────────────────────────────────────────
 
 export interface ReportCommonParams {
