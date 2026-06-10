@@ -235,6 +235,33 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/**
+ * Roles allowed to view the settings panel at `pathname` (e.g. `/settings/branding`).
+ * Returns `undefined` for unknown paths (no restriction) so we never accidentally
+ * lock a page the nav config doesn't describe. Single source of truth = NAV_GROUPS,
+ * shared by the nav (visibility), the route guard, and the index redirect.
+ */
+export function settingsPanelRoles(pathname: string): string[] | undefined {
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (item.slug && pathname === `/settings/${item.slug}`) return item.roles;
+    }
+  }
+  return undefined;
+}
+
+/** First settings panel the given role may access — used by the `/settings` redirect. */
+export function firstAccessibleSettingsPath(role: string): string {
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (item.slug && (!item.roles || item.roles.includes(role))) {
+        return `/settings/${item.slug}`;
+      }
+    }
+  }
+  return '/settings/sessions'; // Sessions is ALL_ROLES — safe fallback
+}
+
 export function SettingsNav() {
   const pathname = usePathname();
   const { user } = useAuth();

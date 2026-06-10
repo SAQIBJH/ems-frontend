@@ -1,5 +1,6 @@
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { SettingsNav } from '@/modules/settings/components/SettingsNav';
+import { SettingsAccessGuard } from '@/modules/settings/components/SettingsAccessGuard';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +18,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <SettingsNav />
           </aside>
           {/* Content card */}
-          <div className="rounded-xl border border-subtle bg-surface p-7">{children}</div>
+          <div className="rounded-xl border border-subtle bg-surface p-7">
+            <SettingsAccessGuard>{children}</SettingsAccessGuard>
+          </div>
         </div>
       </div>
     </div>
