@@ -4,7 +4,7 @@
 > file top to bottom before doing anything. §4 (Progress) tells you exactly where to
 > pick up. §5 (Cross-cutting memory) is the accumulated knowledge that links screens.
 
-_Last updated: 2026-06-10 · Status: **Permissions swept — super-only gating correct (non-super → access-denied, 0 calls; server 403); built-in matrix save fires PATCH (200). 1 FE fix (PERM-2: custom-role matrix edits were cache-only/no API call → now PATCH all roles) + PERM-3 FE-hardening. PERM-1 (custom-role create drops perms) left to the backend per user's call (BE-10) — NO FE workaround; set perms via the matrix + Save meanwhile. 2 BE issues logged (BE-10, BE-11 GET omits customRoles[]). Next: Settings (~24 panels).**_
+_Last updated: 2026-06-10 · Status: **Settings swept (scoped — Notifications/Integrations/Billing deferred per user). All in-scope panels load clean for HR/SUPER; company-profile + leave-types saves fire (PATCH/POST 200); no CC-1/CC-9/CC-10 in saves. 1 FE fix (SET-1+SET-2 in one: /settings redirected everyone to an HR/SUPER-only panel + panel routes were unguarded → manager/employee hit 403 walls; added a layout SettingsAccessGuard + role-aware redirect, both driven by the nav role config). ALL 12 SWEEP SCREENS DONE.**_
 
 ---
 
@@ -103,36 +103,30 @@ or for API verification log in via `POST /auth/login` and reuse the `set-cookie`
 
 ## 4. Progress (THE resume pointer)
 
-**Current screen:** Permissions — ✅ done (2 FE fixes, PERM-1 + PERM-2; 2 BE issues logged). Super-only
-gating correct (HR/MANAGER/EMPLOYEE → access-denied, 0 calls; server 403). Built-in matrix save fires
-`PATCH` (200). Custom-role create + edit now persist to the backend (were silently dropped/cache-only).
-**Next action:** run the **Settings** sweep (`/settings`) — **SCOPED DOWN per user (2026-06-10): DEFER
-Notifications, the 3 Integration panels (email / storage / webhooks), and the 2 Billing panels (plan /
-invoices) — "we will do it later."** Sweep the **remaining** panels this pass: company-profile, branding,
-locale, working-hours, attendance-rules, leave-types, email-templates, authentication, sessions, audit-log,
-and the **Pay & Compliance** group (pay/components, pay/groups, pay/schedules, pay/statutory-packs,
-pay/legal-entities, pay/payslip-template, pay/data-policy, timesheets). All roles. **This is the biggest
-screen** — enumerate the live SettingsNav panels on entry, sweep each: role gating (many are HR/SUPER-only →
-reuse the RoleGate/redirect pattern; watch **CC-12** unguarded-screen 403-walls), four states, and **every
-form Save fires a real PATCH/POST** (silent-failure catch — **CC-9** field names, **CC-10** bodyless writes,
-**CC-14** cache-only "saves" that never hit the API). _(The deferred Integrations/Billing panels are likely
-**MSW-only → 404 with mocks off** per CLAUDE.md §24 — that's part of why they're deferred; revisit when the
-user picks them up.)_
+**Current screen:** Settings — ✅ done (scoped). In-scope panels swept all roles; SET-1+SET-2 fixed (one
+layout guard + role-aware redirect). **The 12-screen sweep is now COMPLETE.**
+**Next action:** **Remaining work = the DEFERRED Settings panels only** (user's call, "do it later"):
+**Notifications** (in-app prefs), **Integrations** (email / storage / webhooks), **Billing** (plan /
+invoices). These are likely **MSW-only → 404 with mocks off** (CLAUDE.md §24) — when picked up, probe each
+endpoint first (they may need MSW on, or the backend to ship them). They're already route-gated by the new
+`SettingsAccessGuard` (SUPER-only per nav config), so direct-URL access is safe. Otherwise: optional deeper
+write-pass on payroll run-detail / migration forms (Payroll §8 "still not driven"), and clear the BE-team
+handoff (§6B / §6C) with the backend dev.
 
-| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                             |
-| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | ---------------------------------- |
-| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                        |
-| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                              |
-| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                        |
-| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed                              |
-| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed                              |
-| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                  |
-| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed                              |
-| 8   | Payroll     | ✅          | ✅       | ✅      | ✅       | 4          | fixed (writes: deep pass deferred) |
-| 9   | Reports     | ✅          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                  |
-| 10  | Analytics   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                              |
-| 11  | Permissions | ✅          | ✅       | ✅      | ✅       | 2          | fixed (2 BE open)                  |
-| 12  | Settings    | ⬜          | ⬜       | ⬜      | ⬜       | —          | not started                        |
+| #   | Screen      | SUPER_ADMIN | HR_ADMIN | MANAGER | EMPLOYEE | Fixes done | Status                                       |
+| --- | ----------- | ----------- | -------- | ------- | -------- | ---------- | -------------------------------------------- |
+| 1   | Dashboard   | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                                  |
+| 2   | Employees   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                                        |
+| 3   | Departments | ✅          | ✅       | ✅      | ✅       | 0          | swept+clean                                  |
+| 4   | Attendance  | ✅          | ✅       | ✅      | ✅       | 1          | fixed                                        |
+| 5   | Timesheets  | ✅          | ✅       | ✅      | ✅       | 2          | fixed                                        |
+| 6   | Leave       | 🐞          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                            |
+| 7   | Holidays    | ✅          | ✅       | ✅      | ✅       | 1          | fixed                                        |
+| 8   | Payroll     | ✅          | ✅       | ✅      | ✅       | 4          | fixed (writes: deep pass deferred)           |
+| 9   | Reports     | ✅          | ✅       | ✅      | ✅       | 1          | fixed (1 BE open)                            |
+| 10  | Analytics   | ✅          | ✅       | ✅      | ✅       | 2          | fixed                                        |
+| 11  | Permissions | ✅          | ✅       | ✅      | ✅       | 2          | fixed (2 BE open)                            |
+| 12  | Settings    | ✅          | ✅       | ✅      | ✅       | 1          | fixed (scoped: Notif/Integ/Billing deferred) |
 
 Legend: ⬜ pending · 🔄 in progress · ✅ swept+clean · 🐞 swept, issues open · 🔧 issues fixed
 
@@ -295,6 +289,11 @@ screen uses one of these, check it against this list first.
 - `HolidayScreen` / `HolidayFormDialog` / `IcsImportDialog` / `MonthDetailModal` — _used by: **Holidays** page._ Modal CRUD gated by `canManage` (HR/SUPER) + server 403. `IcsImportDialog` → `holidaysApi.startImport` is a **multipart upload** → must send `Content-Type: undefined` (HD-1/CC-10 upload sub-case), else 406. The MSW `/holidays/import*` handler is **dead** (mocks off).
 - `ReportShell` / `ReportsNav` / 15 lazy report panels / `ChartEngine` — _used by: **Reports** page._ All 15 GETs live (200); HR/SUPER only (manager/employee → access-denied + 403). `useExportReport` (`hooks/useWorkforceReports.ts`) drives the **secure async server-export** (RP-1: request job → poll `GET /reports/export/:jobId/download` → download the server file; never client-built CSV). 4 register panels export via the separate `payrollRunsApi.exportRegister` blob path.
 - `AnalyticsPage` (single screen) — _used by: **Analytics** page._ Reuses the **dashboard** analytics hooks (`useAnalyticsSummary`/`useAttendanceAnalytics`/`useHeadcountByDepartment`/`useLeaveSummaryAnalytics`/`useRecentActivity`) + 4 analytics-module hooks. All hooks now take an optional `AnalyticsFilters` (AN-2) — **keep params optional** so the Dashboard (which passes none) is unaffected. Route gated by `RoleGate` HR/SUPER (AN-1, CC-12).
+- `SettingsAccessGuard` (NEW, `modules/settings/components`) — _used by: **Settings** `layout.tsx`._ Route-level
+  config-driven gate: looks up the current `/settings/<slug>` path's allowed roles in `NAV_GROUPS` (the same
+  source that hides nav items) via `settingsPanelRoles()` and renders a clean access-denied before the panel
+  (and its queries) mount. Reusable CC-12 pattern for any nav-hidden-but-route-reachable multi-panel screen.
+  Pairs with `firstAccessibleSettingsPath(role)` (the `/settings` redirect target). SET-1/SET-2.
 - `PermissionsMatrix` / `AddRoleDialog` — _used by: **Permissions** page only._ Route gated `RoleGate roles={['SUPER_ADMIN']}` (server also 403s GET for non-super). `GET/PATCH /settings/roles-permissions` + `POST/DELETE /settings/roles` all **live**. PATCH persists **built-in AND custom** role keys (PERM-2). `POST /settings/roles` **drops `permissions`** (BE-10) → left to the backend (no FE workaround); FE still sends the field, set perms via the matrix + Save meanwhile (PERM-1). GET **omits created roles from `customRoles[]`** → `isCustom` is derived from the built-in label set, not the server array (PERM-3/BE-11). `SUPER_ADMIN` column locked in UI + backend `CANNOT_LOCK_OUT_SUPER_ADMIN` (403).
 
 _(Fill the "used by" lists during the sweep so a fix in one engine flags every dependent screen.)_
@@ -803,18 +802,56 @@ reimbursement-categories/-claims, migration, reports, settings, employees, payme
   accepted field) are now general patterns — on every Settings panel Save, assert a real PATCH/POST fires
   **and** GET the record back to confirm **every** sent field persisted.
 
-### 12. Settings `/settings`
+### 12. Settings `/settings` — ✅ SWEPT (scoped), 1 FE fix (SET-1+SET-2) (2026-06-10)
 
-- **⏸️ SCOPE (user's call, 2026-06-10): the following panels are DEFERRED — "we will do it later":**
-  - **Notifications**
-  - **Integrations:** integration-email, integration-storage, integration-webhooks
-  - **Billing:** billing-plan, billing-invoices
-  - _(These are likely MSW-only → 404 with mocks off, per CLAUDE.md §24 — revisit when picked up.)_
-- **Sub-units to sweep this pass:** company-profile, branding, locale, working-hours, attendance-rules,
-  leave-types, email-templates, authentication, sessions, audit-log, **+ Pay & Compliance group:**
-  pay/components, pay/groups, pay/schedules, pay/statutory-packs, pay/legal-entities,
-  pay/payslip-template, pay/data-policy, timesheets.
-- **Findings:** _none yet_
+- **⏸️ SCOPE (user's call, 2026-06-10): DEFERRED — "do it later":** Notifications (in-app prefs),
+  Integrations (email/storage/webhooks), Billing (plan/invoices). _(Likely MSW-only → 404 with mocks off,
+  §24 — probe when picked up.)_ These are now route-gated by the new guard (SUPER-only per nav), so safe.
+- **Architecture:** `settings/layout.tsx` = two-pane sticky nav-card (`SettingsNav`) + content card. Routes
+  are **thin** (`page.tsx` → `<XPanel/>`, no per-route guard). `SettingsNav` (`NAV_GROUPS`) hides items by
+  role. `/settings` index **redirected** to a panel. ~24 panels in 7 nav groups; pay/\* panels live in the
+  **payroll** module, timesheet settings in the **timesheets** module.
+- **In-scope panels swept (18):** company-profile, branding, locale, working-hours, leave-types,
+  attendance-rules, timesheets(settings), authentication, sessions, audit-log, email-templates, + Pay &
+  Compliance (pay/legal-entities, pay/statutory-packs, pay/components, pay/groups, pay/schedules,
+  pay/payslip-template, pay/data-policy).
+- **Live state (mocks OFF):** **every in-scope GET is live + 200 for SUPER/HR** (incl.
+  `/payroll/settings/data-policy` — note the path is `/payroll/settings/data-policy`, not `/payroll/data-policy`).
+  **Gating per endpoint:** tenant (company-profile/locale/working-hours), attendance-rules, timesheets/settings,
+  email-templates, all payroll/\* + data-policy → **403 for MANAGER/EMPLOYEE**; `security/auth` (authentication)
+  → **403 for HR too** (SUPER-only). **`/settings/branding` + `/audit-logs` return 200 for ALL roles** (no
+  server enforcement — but `audit:read` is granted to all roles in the matrix, and branding read is
+  non-sensitive; the new guard still gates these panels to the nav's roles).
+- **Per role:**
+  - **SUPER_ADMIN / HR_ADMIN:** all in-scope panels load **clean** — no 4xx/5xx, no console errors (HR's only
+    miss was `authentication`, which is SUPER-only → now guarded). **Saves fire:** company-profile edit → Save
+    → **PATCH /settings/tenant 200** (verified end-to-end + restored to "Acme Corp"); leave-type create →
+    **POST /leave/types 201** (ZZZ throwaway, deleted). Save buttons are **disabled-until-dirty** (correct).
+  - **MANAGER / EMPLOYEE:** nav shows only **Sessions & Devices** + **In-app Preferences** (+ Holidays
+    external) — correct. **Before fix:** `/settings` → redirect to `company-profile` → `/settings/tenant`
+    **403** + console error (a wall, reachable by just clicking Settings); direct URL to any HR/SUPER panel →
+    same. **After fix:** `/settings` → `/settings/sessions`; direct URLs → clean **access-denied, 0 calls fired**.
+- **Findings (FIXED in one change):**
+  - **SET-1 (P2):** **`/settings` redirected ALL roles to `company-profile`** (HR/SUPER-only) → manager/
+    employee landed on a panel whose `/settings/tenant` 403'd (console error), via a normal Settings click
+    (AppShell nav is role-unfiltered). Fixed: `/settings` now redirects to `firstAccessibleSettingsPath(role)`
+    — managers/employees → Sessions, admins → Company Profile.
+  - **SET-2 (P2, CC-12):** **Settings panel routes were unguarded** — only `LeaveTypesPanel` +
+    `AuthSettingsPanel` self-gated (and AuthSettingsPanel's query fired **before** its RoleGate → 403 console
+    noise even for HR). All other HR/SUPER-only panels rendered + 403'd their endpoint for lower roles on
+    direct URL. Fixed: new **`SettingsAccessGuard`** wraps the layout content and denies access cleanly
+    **before** the panel (and its queries) mount, using the **same `NAV_GROUPS` role config** as the nav
+    (single source of truth). Verified: 0 stray 403s for any role now. → **CC-12.**
+- **Observations (not bugs):** number inputs (attendance-rules thresholds, auth password-length/timeout,
+  data-policy retention) have **no `step`** (default integer step) → **CC-1 N/A**. Settings saves are
+  standard RHF + mutation **with a body** (PATCH/POST) → **CC-10 N/A**; no cache-only saves seen (CC-14 N/A);
+  field names matched live (CC-9 N/A on the panels driven). pay/\* panels were already swept under Payroll.
+- **Test residue (test DB, harmless):** company-profile name restored to "Acme Corp"; the `ZZZ E2E` leave
+  type created during the save test was deleted (8 standard leave types remain). Seed accounts intact.
+- **Carry-forward:** the **`SettingsAccessGuard`** (config-driven route gate) is the clean pattern for any
+  multi-panel screen where the nav hides items but routes stay reachable — reuse it if the deferred
+  Notifications/Integrations/Billing panels are picked up (they're already covered by it). **CC-12** now has
+  a reusable, DRY implementation (gate from the same role config that drives nav visibility).
 
 ---
 
@@ -845,6 +882,8 @@ All issues across all screens. Fix status drives the per-screen cadence.
 | PERM-1 | Permissions / Add Role               | P2  | creating a custom role with selected perms → role lands with `[]` (perms dropped)                     | backend `POST /settings/roles` ignores `permissions` (BE-10, CC-9 ext). **Per user's call: no FE workaround** — wait for backend; FE still sends perms + set them via matrix + Save meanwhile | ⏳ backend | —         |
 | PERM-2 | Permissions / matrix Save            | P1  | custom-role permission edits "saved" (toast) but vanished on refresh                                  | `handleConfirmSave` wrote custom roles to RQ cache only, no API call (CC-14). Now PATCHes all non-super roles                                                                                 | ✅ fixed   | `9d559cf` |
 | PERM-3 | Permissions / custom role render     | P3  | after refresh a custom role shows as built-in (no Delete button / friendly name)                      | backend `GET …/roles-permissions` omits created roles from `customRoles[]` (BE-11). FE derives `isCustom` from built-ins                                                                      | ✅ fixed\* | `9d559cf` |
+| SET-1  | Settings / `/settings` index         | P2  | manager/employee clicking Settings → land on company-profile → `/settings/tenant` 403 + console error | `/settings` statically redirected ALL roles to an HR/SUPER-only panel. Now redirects to `firstAccessibleSettingsPath(role)`                                                                   | ✅ fixed   | `9f21415` |
+| SET-2  | Settings / panel routes (CC-12)      | P2  | direct URL to an HR/SUPER panel by a lower role → panel renders + endpoint 403s (wall/console noise)  | routes unguarded (only 2 of ~18 self-gated); nav only hid items. Added `SettingsAccessGuard` (layout-level, nav-config-driven)                                                                | ✅ fixed   | `9f21415` |
 
 ---
 
