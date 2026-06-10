@@ -54,7 +54,10 @@ export const timesheetsApi = {
 
   /** Submit a DRAFT/REJECTED week for approval → SUBMITTED. */
   submit: async (id: string): Promise<Timesheet> => {
-    const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/submit`);
+    // Send an explicit empty-object body: the axios client defaults to
+    // `Content-Type: application/json`, and the live backend 400s on an empty
+    // body with that header (it tries to JSON-parse `""`). `{}` parses cleanly.
+    const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/submit`, {});
     return data.data;
   },
 
