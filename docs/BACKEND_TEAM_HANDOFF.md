@@ -5,14 +5,13 @@
 > production backend** (`https://employee-management-system-2b9q.onrender.com/api/v1`)
 > with **mocks OFF**, as all four seed roles (SUPER_ADMIN / HR_ADMIN / MANAGER / EMPLOYEE).
 > Every item below is a **backend-side** issue (or a docs drift). Frontend-side bugs found
-> in the same sweep are already fixed and are **not** in this list.
->
-> Full QA log (for context): `docs/testing/SCREEN_SWEEP.md` §6B/§6C.
-> Frontend→backend endpoint requests & shapes: `docs/BACKEND_API_REQUESTS.md`.
+> in the same sweep are already fixed and are **not** in this list. This document is
+> **self-contained** — everything you need to act on each item is here.
 
-Each row says whether the frontend has a **workaround** in place. "Yes" means the feature
-works today despite the bug; "No / needs backend" means the feature is **blocked or
-degraded** until you fix it.
+Each item says whether the frontend has a **workaround** in place. A workaround means the
+feature works today despite the bug; "no workaround / needs backend" means the feature is
+**blocked or degraded** until you fix it. The IDs (BE-1, BE-2, …) are stable references —
+please cite them in replies so we can track each to resolution.
 
 ---
 
@@ -157,13 +156,11 @@ GET /analytics/attendance?from=2026-03-01&to=2026-05-31&departmentId=cmq6w2...
 GET /analytics/workforce-trend?range=6m&departmentId=cmq6w2...
 ```
 
-_(This same contract also lives in `docs/BACKEND_API_REQUESTS.md` — keep the two in sync.)_
-
 ---
 
 ## Docs drift to confirm (not bugs — just so our docs agree)
 
-- **Leave actions are `PATCH`, not `POST`** — `PATCH /leave/requests/:id/{approve,reject,withdraw}` is what's live and correct (`CLAUDE.md §3` / `BACKEND_API_REQUESTS.md` list them as `POST`).
-- **Timesheets are LIVE** — `GET /timesheets`, `/timesheets/entries`, `/timesheets/:id/{submit,approve,reject}`, `/timesheets/approvals`, `/timesheets/projects(/:id/tasks)`, `/timesheets/settings`, `/timesheets/summary` all answer from the real backend (our docs §27 still said "MSW-backed").
+- **Leave actions are `PATCH`, not `POST`** — `PATCH /leave/requests/:id/{approve,reject,withdraw}` is what's live and correct. They were previously documented as `POST` — please update wherever that's recorded (API docs / Swagger).
+- **Timesheets are LIVE** — `GET /timesheets`, `/timesheets/entries`, `/timesheets/:id/{submit,approve,reject}`, `/timesheets/approvals`, `/timesheets/projects(/:id/tasks)`, `/timesheets/settings`, `/timesheets/summary` all answer from the real backend (they were previously noted as not-yet-implemented / mocked — please mark them live).
 - **Custom-role endpoints are LIVE** — `POST /settings/roles` (`201`) and `DELETE /settings/roles/:key` (`200 {key,status:"deleted"}`) are live and verified.
 - **`POST /timesheets/:id/submit` 400s on an empty body** — minor inconsistency: other action routes (`/auth/logout`, `PATCH …/withdraw`) tolerate an empty body and return `200`; `submit` requires a non-empty JSON body. Consider making action endpoints tolerate an empty body for consistency. (FE now always sends `{}`.)
