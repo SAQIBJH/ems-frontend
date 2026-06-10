@@ -1,10 +1,12 @@
-# Reply to the Backend Team — Fixes Verified, One Item Still Open (BE-1)
+# Reply to the Backend Team — Fixes Verified, 2 Items Open (BE-1 partial, BE-12 new)
 
 > **From:** Frontend team · **Date:** 2026-06-10
 > **Re:** your fix report for the 11 contract issues + analytics filters.
 > We re-verified **every** item against the **live** backend (mocks OFF) as the real
-> roles. **Thank you — 11 of 12 are confirmed fixed.** One item, **BE-1**, is only
-> **partially** fixed. Details below; this note is self-contained.
+> roles. **Thank you — 11 of 12 are confirmed fixed.** Two items need attention:
+> **BE-1** is only **partially** fixed, and **BE-12** (logout doesn't fully end the
+> session) is a **new** issue we found during logout QA. Details below; this note is
+> self-contained.
 
 ---
 
@@ -68,22 +70,84 @@ until `/auth/me` returns a proper `401`. Please fold this into the next pass —
 
 ---
 
+## 🆕 New issue: BE-12 — logout does not fully end the session (access token survives)
+
+Found during logout QA. **`POST /auth/logout` only deletes the `refreshToken`; the
+`accessToken` is neither cleared from the browser nor revoked server-side**, so the user
+stays authenticated for up to the access-token TTL (~15 min) after "logging out."
+
+### Exact live results
+
+```
+LOGIN  → Set-Cookie: refreshToken=…  (Max-Age 604800)
+         Set-Cookie: accessToken=…   (Max-Age 900; stateless JWT)
+
+POST /auth/logout (200)
+       → Set-Cookie: refreshToken=; Expires=1970     ← clears refresh ONLY
+       → (NO Set-Cookie for accessToken)             ← access cookie NOT cleared
+
+GET /auth/me  reusing the original cookies AFTER logout      -> 200  ❌ still authenticated
+GET /auth/me  with accessToken ONLY (refreshToken deleted)   -> 200  ❌ still valid
+```
+
+### User-visible symptom
+
+Click **Logout** → redirected to `/login` → press the **browser Back button** → a
+protected route loads **still logged in**. Two compounding effects: the browser restores
+the page from **bfcache**, and even on refetch `GET /auth/me` returns **200** because the
+access cookie is still live and the JWT is still accepted.
+
+### Root cause (two gaps, both backend)
+
+1. **The `accessToken` cookie is never cleared on logout** — logout sends a clearing
+   `Set-Cookie` for `refreshToken` but **none** for `accessToken`, so the browser keeps
+   sending a valid access cookie. (We confirmed our BFF forwards every `Set-Cookie` you
+   send unchanged — you're simply not sending one for `accessToken`.)
+2. **The access token isn't revoked server-side** — it's a **stateless JWT** validated by
+   signature + `exp` only, not checked against a session denylist. Deleting the refresh
+   token stops _renewal_ but the existing access token stays valid until `exp`. The JWT
+   already carries a `sessionId`, but logout doesn't invalidate that session.
+
+### The ask 🛠️
+
+1. **Clear the access cookie on logout** — also send
+   `Set-Cookie: accessToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict`
+   (same attributes as when it's set), alongside the existing `refreshToken` clear.
+2. **Revoke the session server-side** — on logout, mark the token's `sessionId` revoked,
+   and have `authenticate` reject any access token whose session is revoked. (Your session
+   infra already exists — `logout-all` + `/auth/sessions` — logout should revoke the
+   _current_ session and `authenticate` should check it.)
+
+**Both are needed:** clearing the cookie fixes the normal-browser case; server-side
+revocation is the actual security guarantee (a stateless JWT stays cryptographically valid
+until `exp` regardless of the cookie — a copied token would still work for ~15 min).
+
+### Severity
+
+**Medium (security).** A "logged-out" user remains authenticated for up to the access-TTL,
+and Back-button restores a live session. The frontend already calls logout, clears its
+cache, and hard-redirects — but it **cannot** clear httpOnly cookies or revoke a JWT; that
+must be backend-side. (We can add a bfcache UX guard, but it won't close the hole.)
+
+---
+
 ## Quick reference
 
-| Item              | Status (live-verified)                                                                                                                                |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BE-1              | ⚠️ Partial — no-cookie / garbage token still `400 INVALID_TENANT` (fix the absent-token path → `401`)                                                 |
-| BE-2              | ✅ Fixed                                                                                                                                              |
-| BE-3              | ✅ Fixed                                                                                                                                              |
-| BE-4              | ✅ Fixed                                                                                                                                              |
-| BE-5              | ✅ Fixed                                                                                                                                              |
-| BE-6              | ✅ Fixed                                                                                                                                              |
-| BE-7              | ✅ Fixed                                                                                                                                              |
-| BE-8              | ✅ Fixed                                                                                                                                              |
-| BE-9              | ✅ Fixed                                                                                                                                              |
-| BE-10             | ✅ Fixed                                                                                                                                              |
-| BE-11             | ✅ Fixed                                                                                                                                              |
-| Analytics filters | ✅ Fixed (department filter live on headcount / attendance / recent-activity / leave-summary; the trend endpoints accept-but-ignore by design — fine) |
+| Item              | Status (live-verified)                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BE-1              | ⚠️ Partial — no-cookie / garbage token still `400 INVALID_TENANT` (fix the absent-token path → `401`)                                                                                       |
+| BE-2              | ✅ Fixed                                                                                                                                                                                    |
+| BE-3              | ✅ Fixed                                                                                                                                                                                    |
+| BE-4              | ✅ Fixed                                                                                                                                                                                    |
+| BE-5              | ✅ Fixed                                                                                                                                                                                    |
+| BE-6              | ✅ Fixed                                                                                                                                                                                    |
+| BE-7              | ✅ Fixed                                                                                                                                                                                    |
+| BE-8              | ✅ Fixed                                                                                                                                                                                    |
+| BE-9              | ✅ Fixed                                                                                                                                                                                    |
+| BE-10             | ✅ Fixed                                                                                                                                                                                    |
+| BE-11             | ✅ Fixed                                                                                                                                                                                    |
+| Analytics filters | ✅ Fixed (department filter live on headcount / attendance / recent-activity / leave-summary; the trend endpoints accept-but-ignore by design — fine)                                       |
+| **BE-12**         | 🆕 **NEW** — logout clears only `refreshToken`; `accessToken` is neither cleared nor revoked → user stays authenticated ~15 min after logout (clear the access cookie + revoke the session) |
 
 ---
 
