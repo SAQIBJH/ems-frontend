@@ -24,9 +24,14 @@ export const employeesApi = {
   /**
    * GET /employees/:id
    * Returns full employee with leaveBalances and documents.
+   * `includeTerminated` lets HR_ADMIN/SUPER_ADMIN open a terminated (soft-deleted)
+   * employee's profile (BE-3 fixed 2026-06-10; the backend ignores the flag for
+   * other roles, so passing it is always safe). Without it, terminated → 404.
    */
-  get: async (id: string): Promise<EmployeeDetail> => {
-    const { data } = await apiClient.get<{ data: EmployeeDetail }>(`/employees/${id}`);
+  get: async (id: string, includeTerminated = false): Promise<EmployeeDetail> => {
+    const { data } = await apiClient.get<{ data: EmployeeDetail }>(`/employees/${id}`, {
+      params: includeTerminated ? { includeTerminated: true } : undefined,
+    });
     return data.data;
   },
 

@@ -19,7 +19,7 @@ export interface PayrollPermissions {
   canAdjust: boolean;
   canApprove: boolean;
   canDisburse: boolean;
-  /** Cancel a run — SUPER_ADMIN only (the backend restricts cancel to that role). */
+  /** Cancel a non-PAID run — requires `payroll:initiate` (HR_ADMIN + SUPER_ADMIN). */
   canCancel: boolean;
 }
 
@@ -37,7 +37,9 @@ export function usePayrollPermissions(): PayrollPermissions {
     canAdjust: has(PAYROLL_PERMISSIONS.ADJUST),
     canApprove: has(PAYROLL_PERMISSIONS.APPROVE),
     canDisburse: has(PAYROLL_PERMISSIONS.DISBURSE),
-    // Backend allows cancel for SUPER_ADMIN only; HR_ADMIN gets 403. Gate the UI to match.
-    canCancel: user?.memberType === 'SUPER_ADMIN',
+    // Cancel is gated on payroll:initiate (HR_ADMIN + SUPER_ADMIN). The backend now
+    // allows HR to cancel non-PAID runs (BE-7 fixed 2026-06-10; PAID runs stay
+    // uncancellable server-side) — previously this was SUPER_ADMIN-only to match a 403.
+    canCancel: has(PAYROLL_PERMISSIONS.INITIATE),
   };
 }
