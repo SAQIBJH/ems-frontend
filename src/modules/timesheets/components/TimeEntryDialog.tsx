@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
@@ -74,7 +74,11 @@ export function TimeEntryDialog({
   const taskId = useWatch({ control: form.control, name: 'taskId' });
   const date = useWatch({ control: form.control, name: 'date' });
   const billable = useWatch({ control: form.control, name: 'billable' });
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks(projectId || null);
+  const { data: tasksData, isLoading: tasksLoading } = useTasks(projectId || null);
+  // Stable reference while loading: an inline `?? []` would mint a new array each
+  // render, and `tasks` is a useEffect dependency below — an unstable dep there makes
+  // the effect's setValue re-run forever (max-update-depth crash).
+  const tasks = useMemo(() => tasksData ?? [], [tasksData]);
 
   const activeProjects = projects.filter((p) => p.status === 'ACTIVE');
   const activeTasks = tasks.filter((t) => t.active);
@@ -84,12 +88,17 @@ export function TimeEntryDialog({
   useEffect(() => {
     if (!projectId) return;
     const current = form.getValues('taskId');
-    if (current && !tasks.some((t) => t.id === current)) {
+    // Only clear a stale task once tasks have actually loaded — the empty array during
+    // loading must not wipe a valid selection.
+    if (current && tasksData && !tasks.some((t) => t.id === current)) {
       form.setValue('taskId', '');
     }
     if (!existing) {
       const proj = projects.find((p) => p.id === projectId);
-      if (proj) form.setValue('billable', proj.billable);
+      // Guard the write so the effect settles instead of re-triggering itself.
+      if (proj && form.getValues('billable') !== proj.billable) {
+        form.setValue('billable', proj.billable);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, tasks]);

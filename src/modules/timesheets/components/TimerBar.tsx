@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { PlayIcon, SquareIcon, TimerIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -51,7 +51,11 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   const upsert = useUpsertTimeEntry(week, employeeId);
 
   const { data: projects = [] } = useMyProjects(employeeId);
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks(draft.projectId || null);
+  const { data: tasksData, isLoading: tasksLoading } = useTasks(draft.projectId || null);
+  // Keep a stable reference while tasks are loading: `?? []` inline would mint a new
+  // array every render, and this array is a useEffect dependency below — an unstable
+  // dep there causes the effect's setDraft to re-run forever (max-update-depth crash).
+  const tasks = useMemo(() => tasksData ?? [], [tasksData]);
   const activeProjects = projects.filter((p) => p.status === 'ACTIVE');
   const activeTasks = tasks.filter((t) => t.active);
 
@@ -64,11 +68,17 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   }, [running]);
 
   // Default billable from the chosen project and drop a task that no longer fits.
+  // Both setDraft calls are guarded so the effect is a no-op once settled — without
+  // the guards, an unconditional setState here re-triggers the effect indefinitely.
   useEffect(() => {
     if (!draft.projectId) return;
-    if (draft.taskId && !tasks.some((t) => t.id === draft.taskId)) setDraft({ taskId: '' });
+    // Only clear a stale task once tasks have actually loaded; the empty array during
+    // loading must not wipe a valid selection (e.g. a timer restored on refresh).
+    if (draft.taskId && tasksData && !tasks.some((t) => t.id === draft.taskId)) {
+      setDraft({ taskId: '' });
+    }
     const proj = projects.find((p) => p.id === draft.projectId);
-    if (proj) setDraft({ billable: proj.billable });
+    if (proj && draft.billable !== proj.billable) setDraft({ billable: proj.billable });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.projectId, tasks]);
 
