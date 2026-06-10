@@ -31,7 +31,9 @@ export const permissionsApi = {
   },
 
   /**
-   * POST /settings/roles — MSW (not yet live)
+   * POST /settings/roles — LIVE (verified 2026-06-10; 201)
+   * NOTE: the backend creates the role but DROPS the `permissions` field (lands
+   * with []); callers persist permissions with a follow-up PATCH (see useCreateRole).
    * Error: DUPLICATE_ROLE_KEY (409)
    */
   createRole: async (
@@ -44,7 +46,7 @@ export const permissionsApi = {
   },
 
   /**
-   * DELETE /settings/roles/:key — MSW (not yet live)
+   * DELETE /settings/roles/:key — LIVE (verified 2026-06-10; 200 → { key, status:"deleted" })
    * Error: ROLE_IN_USE (409) if users assigned to this role
    */
   deleteRole: async (key: string): Promise<{ key: string; status: string }> => {

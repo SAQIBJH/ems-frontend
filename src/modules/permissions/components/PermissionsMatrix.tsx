@@ -19,8 +19,6 @@ import {
 import type { LucideProps } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
-import { useQueryClient } from '@tanstack/react-query';
-
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -98,6 +96,16 @@ function getRoleLabel(role: string, customRoles: CustomRoleInfo[]): string {
   return customRoles.find((r) => r.key === role)?.name ?? role;
 }
 
+/**
+ * A role is custom when it isn't one of the built-ins. Derive from the built-in
+ * label map rather than the server's `customRoles[]` — the backend omits created
+ * roles from that array (GET returns them in `roles[]` only), so relying on it
+ * would make a custom role render as built-in (no delete button) after a refresh.
+ */
+function isCustomRole(role: string): boolean {
+  return !(role in BUILT_IN_ROLE_LABELS);
+}
+
 type PendingOverrides = Map<string, Set<PermissionKey>>;
 
 function getEffective(
@@ -132,7 +140,7 @@ function computeImpact(
     const lost = Array.from(oldPerms).filter((p) => !newPerms.has(p)) as PermissionKey[];
     if (gained.length === 0 && lost.length === 0) continue;
 
-    const isCustom = customRoles.some((r) => r.key === role);
+    const isCustom = isCustomRole(role);
     const userCount = isCustom ? 0 : (DEMO_USER_COUNTS[role] ?? 0);
     const roleLabel = getRoleLabel(role, customRoles);
 
@@ -282,7 +290,7 @@ function MatrixContent({
                 Permission
               </th>
               {data.roles.map((role) => {
-                const isCustom = customRoles.some((r) => r.key === role);
+                const isCustom = isCustomRole(role);
                 const roleColor = ROLE_COLORS[role] ?? 'var(--brand-500)';
                 return (
                   <th key={role} className="min-w-[110px] px-3 py-3 text-center">
@@ -376,7 +384,6 @@ function MatrixContent({
 
 export function PermissionsMatrix() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useRolesPermissions();
   const updateMutation = useUpdateRolePermissions();
   const deleteRoleMutation = useDeleteRole();
@@ -429,16 +436,15 @@ export function PermissionsMatrix() {
     if (!data) return;
     setImpactDialog((prev) => ({ ...prev, open: false }));
 
-    const customRoleKeys = new Set((data.customRoles ?? []).map((r) => r.key));
+    // The backend PATCH /settings/roles-permissions persists BOTH built-in and
+    // custom role keys (verified live), so every non-SUPER_ADMIN role is saved
+    // the same way — no cache-only path that silently drops custom-role edits.
     const rolesToSave = Array.from(overrides.keys()).filter((r) => r !== 'SUPER_ADMIN');
-    const builtInRolesToSave = rolesToSave.filter((r) => !customRoleKeys.has(r));
-    const customRolesToSave = rolesToSave.filter((r) => customRoleKeys.has(r));
-
     setSavingRoles(new Set(rolesToSave));
 
     let failCount = 0;
 
-    for (const role of builtInRolesToSave) {
+    for (const role of rolesToSave) {
       try {
         await updateMutation.mutateAsync({
           role,
@@ -459,27 +465,11 @@ export function PermissionsMatrix() {
       }
     }
 
-    if (customRolesToSave.length > 0) {
-      queryClient.setQueryData<RolesPermissionsData>(['settings', 'roles-permissions'], (old) => {
-        if (!old) return old;
-        const newMatrix = { ...old.matrix };
-        customRolesToSave.forEach((role) => {
-          newMatrix[role] = Array.from(overrides.get(role) ?? []) as PermissionKey[];
-        });
-        return { ...old, matrix: newMatrix };
-      });
-      setOverrides((prev) => {
-        const next = new Map(prev);
-        customRolesToSave.forEach((r) => next.delete(r));
-        return next;
-      });
-    }
-
     setSavingRoles(new Set());
     if (failCount === 0) {
       toast.success('Permissions saved');
     }
-  }, [data, overrides, updateMutation, queryClient]);
+  }, [data, overrides, updateMutation]);
 
   const handleDeleteRole = useCallback(
     async (key: string) => {
@@ -555,7 +545,7 @@ export function PermissionsMatrix() {
             >
               {data.roles.map((role) => {
                 const customRoles = data.customRoles ?? [];
-                const isCustom = customRoles.some((r) => r.key === role);
+                const isCustom = isCustomRole(role);
                 const roleColor = ROLE_COLORS[role] ?? 'var(--brand-500)';
                 const count = isCustom ? 0 : (DEMO_USER_COUNTS[role] ?? 0);
                 return (

@@ -20,7 +20,21 @@ export function useUpdateRolePermissions() {
 export function useCreateRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateCustomRoleInput) => permissionsApi.createRole(input),
+    // The backend `POST /settings/roles` creates the role but DROPS the
+    // `permissions` field (the role lands with []), so persist them with a
+    // follow-up PATCH — which the backend honours for custom role keys.
+    mutationFn: async (input: CreateCustomRoleInput) => {
+      const created = await permissionsApi.createRole(input);
+      if (input.permissions.length > 0) {
+        await permissionsApi.updateRolePermissions({
+          role: input.key,
+          permissions: input.permissions,
+        });
+      }
+      // Surface the permissions the user actually selected (the create
+      // response omits them) so the optimistic cache reflects reality.
+      return { ...created, key: input.key, name: input.name, permissions: input.permissions };
+    },
     onSuccess: (newRole) => {
       queryClient.setQueryData<RolesPermissionsData>(['settings', 'roles-permissions'], (old) => {
         if (!old) return old;
