@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { GlobeIcon, Loader2Icon, AlertTriangleIcon, PlusIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,6 +27,7 @@ import { StatsCard } from '@/components/data-display/StatsCard';
 import { PageHeader } from '@/shared/layouts/PageHeader';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { useAuth } from '@/providers';
 import { cn } from '@/lib/utils';
 
 import {
@@ -498,6 +500,17 @@ function InvoicesSection({ canApprove, canPay }: { canApprove: boolean; canPay: 
 
 export function GlobalWorkforceScreen() {
   const perms = usePayrollPermissions();
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Global Workforce is HR_ADMIN / SUPER_ADMIN only (all its data endpoints 403
+  // otherwise). Mirror PayrollScreen/MigrationScreen: send self-service roles to
+  // their payslips instead of rendering a page full of 403 error states.
+  const isHrOrAdmin = user?.memberType === 'HR_ADMIN' || user?.memberType === 'SUPER_ADMIN';
+  useEffect(() => {
+    if (user && !isHrOrAdmin) router.replace('/payroll/my-payslips');
+  }, [user, isHrOrAdmin, router]);
+  if (user && !isHrOrAdmin) return null;
 
   return (
     <div className="flex flex-col">
