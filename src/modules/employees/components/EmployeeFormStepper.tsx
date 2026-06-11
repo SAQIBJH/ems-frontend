@@ -830,7 +830,7 @@ export function EmployeeFormStepper() {
   const isLastStep = step === TOTAL_STEPS;
 
   return (
-    <>
+    <div className="flex min-h-full flex-col">
       <PageHeader
         title="New Employee"
         breadcrumbs={[{ label: 'Employees', href: '/employees' }, { label: 'New employee' }]}
@@ -840,7 +840,7 @@ export function EmployeeFormStepper() {
         <StepIndicator current={step} labels={STEP_LABELS} />
       </div>
 
-      <div className="px-6 py-6">
+      <div className="flex-1 px-6 py-6">
         {step === 1 && <Step1Personal form={form} />}
         {step === 2 && (
           <Step2Job
@@ -919,6 +919,6 @@ export function EmployeeFormStepper() {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
