@@ -79,8 +79,11 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
     );
   }
 
-  // Relay status and body unchanged.
-  const responseBody = await backendResponse.text();
+  // Relay status and body unchanged. Read the body as raw bytes — NOT
+  // backendResponse.text(), which UTF-8-decodes and corrupts binary responses
+  // (file/document downloads, payslip PDFs, image exports). arrayBuffer() preserves
+  // the exact bytes (and is equally correct for JSON/CSV).
+  const responseBody = await backendResponse.arrayBuffer();
   const response = new NextResponse(responseBody, { status: backendResponse.status });
 
   const contentType = backendResponse.headers.get('content-type');
