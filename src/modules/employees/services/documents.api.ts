@@ -19,10 +19,15 @@ export const documentsApi = {
 
   /**
    * POST /employees/:id/documents  (multipart/form-data)
-   * Do NOT set Content-Type manually — Axios injects the boundary automatically
-   * when the body is a FormData instance.
    * Fields: file (File), documentType (string)
    * Shape: { data: EmployeeDocument }
+   *
+   * We MUST override Content-Type to `multipart/form-data` here. The shared axios
+   * instance (`lib/api-client.ts`) sets a default `Content-Type: application/json`;
+   * with that default in place, axios 1.x serializes a FormData body to JSON
+   * (`formDataToJSON` → the File becomes `{}`) and the file is never sent. Setting
+   * the header to `multipart/form-data` makes axios pass the FormData through, and
+   * the platform fills in the real boundary.
    */
   upload: async (
     employeeId: string,
@@ -35,6 +40,7 @@ export const documentsApi = {
     const { data } = await apiClient.post<{ data: EmployeeDocument }>(
       `/employees/${employeeId}/documents`,
       form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return data.data;
   },
