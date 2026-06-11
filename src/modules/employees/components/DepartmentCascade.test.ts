@@ -37,20 +37,22 @@ describe('buildDepartmentLevels', () => {
     expect(levels.map((l) => l.value)).toEqual(['sales']);
   });
 
-  it('adds an empty sub-department level when the selected dept has children', () => {
+  it('returns just the filled path for a parent with children (no trailing empty)', () => {
     const levels = buildDepartmentLevels(tree, 'eng');
-    expect(levels.map((l) => l.value)).toEqual(['eng', '']);
-    expect(levels[1].options.map((d) => d.id)).toEqual(['be', 'fe']);
+    expect(levels.map((l) => l.value)).toEqual(['eng']);
+    expect(levels[0].options.map((d) => d.id)).toEqual(['eng', 'sales']);
   });
 
   it('expands the full chain for a deeply nested leaf (edit prefill)', () => {
     const levels = buildDepartmentLevels(tree, 'platform');
     expect(levels.map((l) => l.value)).toEqual(['eng', 'be', 'platform']);
+    // Each level's options are the previous level's children.
+    expect(levels[1].options.map((d) => d.id)).toEqual(['be', 'fe']);
+    expect(levels[2].options.map((d) => d.id)).toEqual(['platform']);
   });
 
-  it('shows the next empty level when a mid dept with children is selected', () => {
+  it('returns the filled path up to a mid-level dept (no trailing empty)', () => {
     const levels = buildDepartmentLevels(tree, 'be');
-    expect(levels.map((l) => l.value)).toEqual(['eng', 'be', '']);
-    expect(levels[2].options.map((d) => d.id)).toEqual(['platform']);
+    expect(levels.map((l) => l.value)).toEqual(['eng', 'be']);
   });
 });
