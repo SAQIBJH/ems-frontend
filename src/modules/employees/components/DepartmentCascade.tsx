@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { findDepartmentPath, type Department } from '@/modules/departments';
 
 /**
@@ -80,15 +81,16 @@ export function DepartmentCascade({
               </Select>
             </div>
             {removable && (
-              <button
+              <Button
                 type="button"
-                onClick={() => onChange(levels[i - 1].value)}
-                className="shrink-0 rounded-md p-2 text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-danger hover:bg-danger/10 hover:text-danger"
                 aria-label="Remove sub-department"
-                title="Remove sub-department"
+                onClick={() => onChange(levels[i - 1].value)}
               >
-                <X className="size-4" aria-hidden />
-              </button>
+                <X className="size-3.5" aria-hidden />
+              </Button>
             )}
           </div>
         );
