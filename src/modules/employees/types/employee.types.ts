@@ -63,7 +63,7 @@ export interface Employee {
   gender: Gender | null;
   address: string | null;
   designation: string;
-  departmentId: string;
+  departmentId: string[];
   managerId: string | null;
   joinedOn: string;
   employmentType: EmploymentType;
@@ -120,7 +120,7 @@ export interface EmployeeCreateInput {
   employmentType: EmploymentType;
   joinedOn: string;
   designation: string;
-  departmentId: string;
+  departmentId: string[];
   managerId?: string;
   phone?: string;
   location?: string;

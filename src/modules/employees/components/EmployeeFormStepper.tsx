@@ -39,6 +39,7 @@ const stepperSchema = employeeCreateSchema.extend({
 type StepperValues = z.infer<typeof stepperSchema>;
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
 import { useDepartments, findDepartmentPath, type Department } from '@/modules/departments';
+import { toDepartmentIdPath } from '../utils/employee-department';
 import type {
   DocumentType,
   EmployeeCreateInput,
@@ -113,7 +114,7 @@ function toDateInput(iso: string | null | undefined): string {
   }
 }
 
-function buildPayload(values: StepperValues): EmployeeCreateInput {
+function buildPayload(values: StepperValues, departments: Department[]): EmployeeCreateInput {
   return {
     firstName: values.firstName,
     lastName: values.lastName,
@@ -122,7 +123,8 @@ function buildPayload(values: StepperValues): EmployeeCreateInput {
     employmentType: values.employmentType as EmploymentType,
     joinedOn: values.joinedOn,
     designation: values.designation,
-    departmentId: values.departmentId,
+    // API expects the ordered department path [rootId, …, leafId], even for a single dept.
+    departmentId: toDepartmentIdPath(departments, values.departmentId),
     managerId: values.managerId || undefined,
     phone: values.phone || undefined,
     location: values.location || undefined,
@@ -813,7 +815,9 @@ export function EmployeeFormStepper() {
 
     setIsSubmitting(true);
     try {
-      const employee = await createMutation.mutateAsync(buildPayload(form.getValues()));
+      const employee = await createMutation.mutateAsync(
+        buildPayload(form.getValues(), deptList ?? []),
+      );
 
       // Upload queued documents after employee is created
       const failedUploads: string[] = [];

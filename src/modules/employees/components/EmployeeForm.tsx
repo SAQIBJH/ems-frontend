@@ -31,7 +31,8 @@ import {
   type EmployeeCreateFormValues,
 } from '../validations/employee.schema';
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
-import { useDepartments, flattenDepartmentTree } from '@/modules/departments';
+import { useDepartments, flattenDepartmentTree, type Department } from '@/modules/departments';
+import { toDepartmentIdPath } from '../utils/employee-department';
 import type {
   EmployeeCreateInput,
   EmployeeDetail,
@@ -53,7 +54,10 @@ function toDateInput(iso: string | null | undefined): string {
   }
 }
 
-function buildPayload(values: EmployeeCreateFormValues): EmployeeCreateInput {
+function buildPayload(
+  values: EmployeeCreateFormValues,
+  departments: Department[],
+): EmployeeCreateInput {
   return {
     firstName: values.firstName,
     lastName: values.lastName,
@@ -62,7 +66,8 @@ function buildPayload(values: EmployeeCreateFormValues): EmployeeCreateInput {
     employmentType: values.employmentType as EmploymentType,
     joinedOn: values.joinedOn,
     designation: values.designation,
-    departmentId: values.departmentId,
+    // API expects the ordered department path [rootId, …, leafId], even for a single dept.
+    departmentId: toDepartmentIdPath(departments, values.departmentId),
     managerId: values.managerId || undefined,
     phone: values.phone || undefined,
     location: values.location || undefined,
@@ -121,7 +126,7 @@ function EmployeeFormInner({
         employmentType: employee.employmentType,
         joinedOn: toDateInput(employee.joinedOn),
         designation: employee.designation,
-        departmentId: employee.departmentId,
+        departmentId: employee.departmentId.at(-1) ?? '',
         managerId: employee.managerId ?? '',
         phone: employee.phone ?? '',
         location: employee.location ?? '',
@@ -134,7 +139,7 @@ function EmployeeFormInner({
   }, [mode, employee, reset]);
 
   async function onSubmit(values: EmployeeCreateFormValues) {
-    const payload = buildPayload(values);
+    const payload = buildPayload(values, deptList ?? []);
     try {
       let saved: EmployeeDetail;
 

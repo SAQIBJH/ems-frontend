@@ -35,7 +35,7 @@ export const employeeHandlers = [
       );
     }
     if (departmentId) {
-      filtered = filtered.filter((e) => e.departmentId === departmentId);
+      filtered = filtered.filter((e) => e.departmentId.includes(departmentId));
     }
     if (status) {
       filtered = filtered.filter((e) => e.employmentStatus === status);
@@ -111,7 +111,7 @@ export const employeeHandlers = [
       gender: (body.gender as EmployeeDetail['gender']) ?? null,
       address: (body.address as string | null) ?? null,
       designation: String(body.designation ?? ''),
-      departmentId: String(body.departmentId ?? ''),
+      departmentId: Array.isArray(body.departmentId) ? (body.departmentId as string[]) : [],
       managerId: (body.managerId as string | null) ?? null,
       joinedOn: String(body.joinedOn ?? new Date().toISOString()),
       employmentType: (body.employmentType as EmployeeDetail['employmentType']) ?? 'FULL_TIME',
