@@ -42,9 +42,13 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
   if (cookie) headers.set('cookie', cookie);
 
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-  let body: string | undefined;
+  let body: ArrayBuffer | undefined;
   if (hasBody) {
-    body = await request.text();
+    // Forward the body as raw bytes — NOT request.text(). Reading the body as text
+    // UTF-8-decodes it, which corrupts binary/multipart payloads (file uploads),
+    // making the backend reject them as "not multipart". arrayBuffer() preserves the
+    // exact bytes (and is equally correct for JSON).
+    body = await request.arrayBuffer();
     const contentType = request.headers.get('content-type');
     if (contentType) headers.set('content-type', contentType);
   }
