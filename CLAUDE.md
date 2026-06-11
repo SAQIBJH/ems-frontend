@@ -1315,3 +1315,74 @@ named `pnpm test` file where rollup/calculation logic is added) → commit the e
 message → mark `[x]` in the BUILD_PLAN tracker → STOP and wait for "next".** Every
 screen owes all four states (§13), dark mode + responsive (§15), permission gates
 (§10), and no `any` / no raw hex (§12).
+
+---
+
+## 28. Tooling workflow — graphify · superpowers · memory (use every session)
+
+> Three assistant tools are installed and **must be used to their full potential**.
+> This section is the standing contract so the workflow survives every `/clear`.
+> It governs HOW work is approached; it does not override §2/§4 or any rule above.
+
+### graphify — query the graph first, don't re-read files
+
+A knowledge graph of this repo lives at **`graphify-out/graph.json`** (built via the
+`/graphify` skill; HTML at `graphify-out/graph.html`, audit at
+`graphify-out/GRAPH_REPORT.md`).
+
+- **Before answering any codebase / architecture / "what calls X" / "trace the flow"
+  question, run `graphify query "<question>"` against the existing graph instead of
+  blind-reading files.** The graph is the map; reading files is the fallback.
+- It is also the fastest way to spot **import cycles**, **god nodes**, and
+  cross-module coupling — e.g. it already flags the `payroll/MigrationScreen.tsx →
+sub-panel → modules/payroll/index.ts → MigrationScreen.tsx` barrel cycles (a §6
+  circular-import violation). Use it as a design-smell radar before refactors.
+- **Keep it fresh.** After a chunk of code work, refresh incrementally:
+  `/graphify . --update` (code-only changes re-extract via deterministic AST — free,
+  no subagents). A full rebuild (`/graphify .`) is only needed to re-extract changed
+  **docs/images**, which `--update` will skip once their manifest entry is current.
+- The graph reflects **code**; doc/image nodes may lag — verify against the file when
+  a doc detail is load-bearing.
+
+### superpowers — process skills before implementation
+
+The superpowers plugin's skills are **rigid where they say so** — follow them, don't
+adapt away the discipline.
+
+- **Brainstorm before building.** Any new feature/module/behavior change → invoke
+  `superpowers:brainstorming` (or the project's own brainstorming flow) **before**
+  writing code. Sessions land in `.superpowers/brainstorm/`.
+- **TDD for implementation**, **systematic-debugging for any bug/test failure**,
+  **verification-before-completion before any "done" claim** (which dovetails with the
+  §15 Definition of Done and the per-step Test Gate above).
+- Process skills outrank implementation skills: "let's build X" → brainstorm first,
+  then build.
+
+### memory — write the non-obvious after it's decided
+
+Persistent memory lives in the **native auto-memory** at
+`~/.claude/projects/D--Ems-ems-frontend/memory/` (indexed by `MEMORY.md`). **This is
+the one and only source of truth for cross-session memory — write here, read here.**
+**(The `claude-mem` plugin is NOT capturing on this machine and we do not rely on it.
+Verified 2026-06-12, after a restart: two independent failures — its plugin hooks don't
+fire in a live Claude Code session on Windows, and even when an event is forced in, the
+worker's SDK summarizer returns an empty "idle" response so `observations` stays 0.
+Do not assume claude-mem recorded anything; do not spend time fixing it unless the user
+asks. See `claude-mem-capture-needs-restart.md`.)**
+
+- After a **decision, a piece of user feedback, or a discovered backend/tooling
+  reality that isn't derivable from the code or git history**, write it as a memory
+  file and add a one-line pointer to `MEMORY.md`.
+- Don't record what the repo already encodes (structure, past fixes, CLAUDE.md rules).
+- Treat recalled memories as _background that was true when written_ — re-verify any
+  file/flag/endpoint they name before acting (see the existing
+  `verify-live-api-not-just-docs` memory).
+
+### Per-task order of operations
+
+1. **Process skill** (brainstorm / debug) if the task is creative or a bug.
+2. **graphify query** to ground yourself in the real code before touching it.
+3. Build per the §-rules above (engines, four states, tokens, permissions).
+4. **Test Gate** → **verification-before-completion** before claiming done.
+5. **Write a memory** for anything non-obvious learned.
+6. **`/graphify . --update`** after meaningful code changes so the map stays current.

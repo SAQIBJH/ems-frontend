@@ -52,3 +52,7 @@ test-results/
 # Claude Code — local settings contain machine-specific permission rules, not secrets,
 # but must not be committed (gitignored per security gate B2).
 .claude/settings.local.json
+
+# graphify — local knowledge-graph build output (~8 MB, machine-local, regenerated
+# on demand via the /graphify skill). Not pushed.
+graphify-out/
