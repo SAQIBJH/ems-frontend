@@ -12,13 +12,6 @@ import type { AxiosError } from 'axios';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageHeader } from '@/shared/layouts/PageHeader';
@@ -31,8 +24,9 @@ import {
   type EmployeeCreateFormValues,
 } from '../validations/employee.schema';
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
-import { useDepartments, flattenDepartmentTree, type Department } from '@/modules/departments';
+import { useDepartments, type Department } from '@/modules/departments';
 import { toDepartmentIdPath } from '../utils/employee-department';
+import { DepartmentCascade } from './DepartmentCascade';
 import type {
   EmployeeCreateInput,
   EmployeeDetail,
@@ -91,7 +85,6 @@ function EmployeeFormInner({
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
   const { data: deptList } = useDepartments();
-  const flatDepts = flattenDepartmentTree(deptList ?? []);
   const { refetch: fetchNextCode, isFetching: isGeneratingCode } = useNextEmployeeCode();
 
   const form = useForm<EmployeeCreateFormValues>({
@@ -250,21 +243,12 @@ function EmployeeFormInner({
           label: 'Department',
           required: true,
           render: ({ field, error }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="df-departmentId" className="w-full" aria-invalid={!!error}>
-                <SelectValue placeholder="Select department">
-                  {(v) => flatDepts.find((d) => d.id === v)?.name ?? v}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {flatDepts.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.depth > 0 ? `${'—'.repeat(d.depth)} ` : ''}
-                    {d.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DepartmentCascade
+              tree={deptList ?? []}
+              value={field.value}
+              onChange={field.onChange}
+              invalid={!!error}
+            />
           ),
         },
         {
