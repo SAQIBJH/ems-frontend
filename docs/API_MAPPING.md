@@ -1,9 +1,13 @@
 # EMS API — Actual Response Mapping
 
-> **Last verified: 2026-05-27** (bulk approve live-tested + null balance fix deployed)
+> **Last verified: 2026-06-10** (BE-1 `/auth/me` auth precedence fix + prior Phase 3 coverage)
 > Base URL: `https://employee-management-system-2b9q.onrender.com/api/v1`
 > Local: `http://localhost:3000/api/v1`
 > Email: Resend HTTP API (port 443, not SMTP — OTP delivery live and tested)
+>
+> **Cloudinary:** Live on Render (2026-06-09) — cloud `dmljxhmio`. `POST /employees/:id/photo` and `POST /employees/:id/documents` upload to Cloudinary; `GET` returns `fileUrl` on `res.cloudinary.com`. Settings storage integration returns `provider: cloudinary`, `configured: true`.
+>
+> **MSW (Mock Service Worker):** The deployed Vercel frontend has `NEXT_PUBLIC_USE_MOCKS` controlled by the Vercel env var. Default in code is `false`. If set to `true`, Phase 3 API calls are intercepted by MSW in the browser before reaching the backend BFF proxy. Set it to `false` in Vercel dashboard → Settings → Environment Variables to force real backend calls.
 
 ---
 
@@ -175,6 +179,17 @@ On any error, both cookies are cleared. Error codes: `REFRESH_TOKEN_MISSING`, `I
 }
 ```
 
+**Auth behavior:**
+
+| Case                                                | Status | Error code                        |
+| --------------------------------------------------- | ------ | --------------------------------- |
+| Missing cookie / Bearer token                       | 401    | `UNAUTHORIZED`                    |
+| Garbage or unparseable token                        | 401    | `INVALID_TOKEN` or `UNAUTHORIZED` |
+| Expired / invalid JWT                               | 401    | `INVALID_TOKEN`                   |
+| Revoked session token                               | 401    | `INVALID_TOKEN`                   |
+| Explicit invalid `X-Tenant-Key` or tenant subdomain | 400    | `INVALID_TENANT`                  |
+| Valid token                                         | 200    | —                                 |
+
 ---
 
 ### `GET /auth/sessions`
@@ -199,6 +214,25 @@ On any error, both cookies are cleared. Error codes: `REFRESH_TOKEN_MISSING`, `I
 ### `POST /auth/logout`
 
 **Response `data`:** `{ "message": "Logged out successfully" }`
+
+**Behavior:**
+
+- revokes the current server-side session using `request.user.sessionId`
+- clears `accessToken` cookie
+- clears `refreshToken` cookie
+- old copied access tokens from that session stop working immediately
+- reusing the old cookie jar, old `accessToken` cookie, or old Bearer token returns `401 INVALID_TOKEN`
+
+### `POST /auth/logout-all`
+
+**Response `data`:** `{ "message": "Logged out from all devices" }`
+
+**Behavior:**
+
+- revokes all sessions for the current user
+- clears `accessToken` cookie
+- clears `refreshToken` cookie
+- old copied access tokens from any revoked session stop working immediately
 
 ### `DELETE /auth/sessions/:sessionId`
 
@@ -1186,7 +1220,7 @@ Returns attrition rate trend over time.
 
 **Roles:** HR_ADMIN, SUPER_ADMIN. Query: `?range=6m|12m` (default `6m`).
 
-Returns monthly payroll cost trend (estimated from headcount — no payroll module yet).
+Returns monthly payroll cost trend. Data sourced from live payroll runs (PayrollRun + Payslip models). Falls back to headcount-based estimation only if no payroll runs exist for the period.
 
 ```json
 {
@@ -1553,7 +1587,7 @@ Query: `?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&departmentId=`
 - `data.chartData[]`: `month`, `monthLabel`, `totalGross`, `totalDeductions`, `totalNet`, `employeeCount`
 - `data.tableData.items[]`: `departmentName`, `employeeCount`, `totalGross`, `totalDeductions`, `totalNet`, `avgNetPerEmployee`
 
-> **Note:** Payroll cost is estimated from headcount (no payroll module yet). FULL_TIME: 80,000/month, PART_TIME/CONTRACT: 40,000/month, INTERNSHIP: 20,000/month gross.
+> **Note:** When live payroll runs exist, figures come from real Payslip data. The headcount-based estimates (FULL_TIME: ₹80,000/mo, PART_TIME/CONTRACT: ₹40,000/mo, INTERNSHIP: ₹20,000/mo) are used as fallback only when no payroll run covers the month.
 
 #### `GET /reports/payroll/ctc-analysis`
 
@@ -2934,22 +2968,22 @@ It is a public Cloudinary URL — no auth header needed to fetch the file itself
 
 ### Payroll Runs
 
-| Method | Path                          | Roles   | Notes                                                                                               |
-| ------ | ----------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
-| GET    | `/payroll/runs`               | HR,SA   | `?page&limit&year&status`. Paginated. status: DRAFT\|CALCULATING\|REVIEW\|APPROVED\|PAID\|CANCELLED |
-| POST   | `/payroll/runs`               | HR,SA   | 201. Required: period (YYYY-MM). 409 RUN_EXISTS if non-CANCELLED run exists                         |
-| GET    | `/payroll/runs/:id`           | HR,SA   | Includes `summary.byDepartment[]` and `summary.warnings[]`                                          |
-| POST   | `/payroll/runs/:id/calculate` | HR,SA   | 202. DRAFT→REVIEW. Computes payslips for all employees with salary config                           |
-| POST   | `/payroll/runs/:id/approve`   | HR,SA   | 200. REVIEW→APPROVED. Body: `{notes}`                                                               |
-| PATCH  | `/payroll/runs/:id/mark-paid` | HR,SA   | 200. APPROVED→PAID. Body: `{paidAt, paymentReference}`. Updates all payslips to PAID                |
-| POST   | `/payroll/runs/:id/cancel`    | SA only | 200. Cannot cancel PAID runs. Body: `{reason}`                                                      |
+| Method | Path                          | Roles                 | Notes                                                                                               |
+| ------ | ----------------------------- | --------------------- | --------------------------------------------------------------------------------------------------- |
+| GET    | `/payroll/runs`               | HR,SA                 | `?page&limit&year&status`. Paginated. status: DRAFT\|CALCULATING\|REVIEW\|APPROVED\|PAID\|CANCELLED |
+| POST   | `/payroll/runs`               | HR,SA                 | 201. Required: period (YYYY-MM). 409 RUN_EXISTS if non-CANCELLED run exists                         |
+| GET    | `/payroll/runs/:id`           | HR,SA                 | Includes `summary.byDepartment[]` and `summary.warnings[]`                                          |
+| POST   | `/payroll/runs/:id/calculate` | HR,SA                 | 202. DRAFT→REVIEW. Computes payslips for all employees with salary config                           |
+| POST   | `/payroll/runs/:id/approve`   | HR,SA                 | 200. REVIEW→APPROVED. Body: `{notes}`                                                               |
+| PATCH  | `/payroll/runs/:id/mark-paid` | HR,SA                 | 200. APPROVED→PAID. Body: `{paidAt, paymentReference}`. Updates all payslips to PAID                |
+| POST   | `/payroll/runs/:id/cancel`    | HR_ADMIN, SUPER_ADMIN | 200. Cannot cancel PAID runs (400 INVALID_STATUS). Body: `{reason}`                                 |
 
 ### Run Payslips
 
 | Method | Path                                       | Roles | Notes                                                                                                |
 | ------ | ------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
 | GET    | `/payroll/runs/:runId/payslips`            | HR,SA | `?page&limit&departmentId&search`. Lists payslips in run                                             |
-| GET    | `/payroll/runs/:runId/payslips/:payslipId` | HR,SA | Full detail same shape as employee self-service detail. Includes `documentUrl`                       |
+| GET    | `/payroll/runs/:runId/payslips/:payslipId` | HR,SA | **PayslipDetail** for drawer. UI route: `/payroll/:runId` → Payslip drawer. See shape below          |
 | PATCH  | `/payroll/runs/:runId/payslips/:payslipId` | HR,SA | Add one-time adjustments. Body: `{oneTimeAdditions[], oneTimeDeductions[], notes}`. Recalculates net |
 | GET    | `/payroll/runs/:runId/export`              | HR,SA | `Content-Type: text/csv`. Payroll register download                                                  |
 
@@ -3053,9 +3087,9 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
 
 ## Domain F — Payroll (`/payroll/*`)
 
-> **Status: LIVE ✅**  
-> F.1–F.5, F.8, F.9, F.12–F.14 endpoints are **live on Render**.  
-> F.6 (Claims), F.7 (Garnishments), F.10 (Documents), F.11 (Accounting) are **MSW-only** (no live backend).  
+> **Status: LIVE ✅ (all sections)**  
+> All F.1–F.17 endpoints are **live on Render** as of 2026-06-08.  
+> F.6 (Claims), F.7 (Garnishments), F.10 (Documents), F.11 (Accounting) — previously MSW-only — are now implemented. See §F.17 below.  
 > **Money:** major units (e.g. `1800000` = ₹18,00,000). **Casing:** camelCase throughout.  
 > **Auth:** Bearer token required on every endpoint. Role codes: HR=HR_ADMIN, SA=SUPER_ADMIN, MGR=MANAGER, EMP=EMPLOYEE.
 
@@ -3085,7 +3119,14 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
       "taxable": true,
       "active": true,
       "displayOrder": 1,
-      "description": "Basic salary — 40% of CTC"
+      "description": "Basic salary — 40% of CTC",
+      "statutoryTag": "PF_WAGE",
+      "prorate": true,
+      "payInPeriods": null,
+      "glAccountCode": null,
+      "costCenterRule": "DEPARTMENT",
+      "createdAt": "2026-06-09T00:00:00.000Z",
+      "updatedAt": "2026-06-09T00:00:00.000Z"
     },
     {
       "id": "comp-hra",
@@ -3354,7 +3395,9 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
       "registrationIds": { "pan": "AAACA1234C", "tan": "DELA12345B", "gstin": "07AAACA1234C1Z5" },
       "statutoryPackId": "pack-in-2026",
       "payCalendarId": "cal-in-monthly",
-      "createdAt": "2026-01-01T00:00:00.000Z"
+      "active": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     },
     {
       "id": "le-acme-us",
@@ -3451,12 +3494,7 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
           "wageBase": 21000
         }
       ],
-      "statutoryComponents": [
-        { "code": "EPF_EE", "name": "PF Employee", "type": "DEDUCTION" },
-        { "code": "EPF_ER", "name": "PF Employer", "type": "EMPLOYER_CONTRIBUTION" },
-        { "code": "ESI_EE", "name": "ESI Employee", "type": "DEDUCTION" },
-        { "code": "TDS", "name": "Income Tax (TDS)", "type": "DEDUCTION" }
-      ]
+      "statutoryComponents": ["PF_EE", "PF_ER", "ESI_EE", "ESI_ER", "PROF_TAX", "TDS"]
     }
   ],
   "meta": {}
@@ -3471,7 +3509,7 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
 
 **Roles:** SA only
 
-**Request body:**
+**Request body (flat — preferred):**
 
 ```json
 {
@@ -3479,24 +3517,18 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
   "version": "2026.2",
   "effectiveFrom": "2026-10-01",
   "effectiveTo": null,
-  "packData": {
-    "rounding": "nearest_rupee",
-    "proration": "working_days",
-    "taxRegimes": [
-      {
-        "code": "NEW",
-        "name": "New Tax Regime",
-        "default": true,
-        "slabs": [{ "from": 0, "to": 400000, "rate": 0 }]
-      }
-    ],
-    "contributionSchemes": [
-      { "code": "EPF", "employeeRate": 12, "employerRate": 12, "wageBase": 15000 }
-    ],
-    "statutoryComponents": [{ "code": "EPF_EE", "name": "PF Employee", "type": "DEDUCTION" }]
-  }
+  "rounding": { "mode": "NEAREST", "precision": 0 },
+  "proration": { "basis": "CALENDAR_DAYS" },
+  "taxRegimes": [],
+  "contributionSchemes": [],
+  "localTaxes": [],
+  "statutoryComponents": ["PF", "PF_ER", "ESI_EE", "ESI_ER", "PROF_TAX", "TDS"],
+  "minimumWages": [],
+  "gratuity": null
 }
 ```
+
+**`statutoryComponents`:** always `string[]` in responses. On write, legacy `{ "code": "PF" }` objects are accepted and normalized to `"PF"` before storage.
 
 **Errors:**
 
@@ -3508,9 +3540,11 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
 
 #### `GET /payroll/pay-calendars`
 
-**Roles:** HR, SA
+**Roles:** HR, SA  
+**UI:** Payroll → Pay Calendars  
+**Seed:** `npm run db:seed:payroll-contract`
 
-**Response 200:**
+**Response 200 (frontend `PayCalendar` shape):**
 
 ```json
 {
@@ -3519,26 +3553,26 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
     {
       "id": "cal-in-monthly",
       "name": "India Monthly Payroll",
-      "code": "IN_MONTHLY",
-      "country": "IN",
-      "paySchedule": "MONTHLY",
-      "firstPayDate": "2026-01-31",
-      "createdAt": "2026-01-01T00:00:00.000Z"
-    },
-    {
-      "id": "cal-us-biweekly",
-      "name": "US Bi-Weekly Payroll",
-      "code": "US_BIWEEKLY",
-      "country": "US",
-      "paySchedule": "BIWEEKLY",
-      "firstPayDate": "2026-01-10"
+      "legalEntityId": "le-acme-in",
+      "frequency": "MONTHLY",
+      "periodAnchor": 1,
+      "payDateRule": "LAST_WORKING_DAY",
+      "payDay": 30,
+      "cutoffDay": 25,
+      "holidayCalendarId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "meta": {}
 }
 ```
 
-**`paySchedule` values:** `MONTHLY` | `BIWEEKLY` | `WEEKLY`
+**`periodAnchor`:** integer day-of-month `1–28` (UI renders `Day {periodAnchor}`). Legacy DB value `"MONTH_START"` is normalized to `1` on read. POST/PATCH accept integer; response always returns integer.
+
+**`frequency` values:** `MONTHLY` | `BIWEEKLY` | `WEEKLY` (stored as `paySchedule` in DB; POST accepts `frequency` or `paySchedule`)
+
+**Errors:** `400 VALIDATION_ERROR` if `periodAnchor` out of range; `422 INVALID_PAY_CALENDAR` optional alias for invalid scheduling fields.
 
 ---
 
@@ -3555,6 +3589,49 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
   "firstPayDate": "2026-01-31"
 }
 ```
+
+---
+
+### F.5b — Payroll Base Paths (UI list screens)
+
+#### `GET /payroll/employees`
+
+**Roles:** HR, SA  
+**UI:** Payroll → Employees roster  
+**Response 200:** `{ success, data: PayrollEmployee[], meta }` — each item: `employeeId`, `employeeCode`, `employeeName`, `department`, `designation`, `country`, `currency`, `payGroupId`, `payGroupName`, `hasSalaryConfig`, `annualCtc`, `active`
+
+#### `GET /payroll/migration`
+
+**Roles:** HR, SA  
+**UI:** Payroll → Migration hub (alias of `/payroll/migration/status` aggregate)  
+**Response 200:** `{ sandboxMode, goLivePeriod, openingBalancesCount, historicalPayslipsCount, lastReconciledRunId, updatedAt }`
+
+#### `GET /payroll/payment-batches`
+
+**Roles:** HR, SA  
+**Response 200:** array of `{ id, runId, period, count, totalAmount, currency, status, createdAt, reconciledAt }`
+
+#### `GET /payroll/reports`
+
+**Roles:** HR, SA  
+**Response 200:** `{ reports: [{ id, path, label, method, requiresRunId? }], recentRuns: [...] }`
+
+#### `GET /payroll/settings`
+
+**Roles:** HR, SA  
+**Response 200:** `{ defaultCountry, defaultCurrency, sandboxMode, dataPolicy, features, updatedAt }` — sub-resource `/payroll/settings/data-policy` unchanged
+
+#### `GET /payroll/contractor-invoices`
+
+**Roles:** HR, SA  
+**Seed:** `npm run db:seed:payroll-contract`  
+**Response item:** `{ id, workerId, workerName, period, amount, currency, withholdingPct, netPayable, status, payoutRef, submittedAt, decidedAt }`
+
+#### `GET /payroll/opening-balances`
+
+**Roles:** HR, SA  
+**Seed:** `npm run db:seed:payroll-contract`  
+**Response item:** `{ employeeId, employeeCode, employeeName, fiscalYear, grossEarnings, taxableIncome, taxDeducted, totalDeductions, netPay, contributions, importedAt }`
 
 ---
 
@@ -4438,9 +4515,9 @@ Response shape (both POST + PATCH): full department object with `headEmployeeId`
 
 ---
 
-### F.17 — MSW-Only Endpoints (NOT live on backend)
+### F.17 — Previously MSW-Only Endpoints (NOW LIVE ✅ as of 2026-06-08)
 
-These endpoints exist only as frontend mocks (MSW). Calling them on Render returns **404**.
+These endpoints were previously MSW-only frontend mocks. They are now fully implemented and live on Render. Calling them returns real data.
 
 | Section              | Endpoints                                                                                                                                                                                            |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -4494,8 +4571,32 @@ These endpoints exist only as frontend mocks (MSW). Calling them on Render retur
 | GET    | `/timesheets/settings` | HR,SA     | Timesheet config (standardWeeklyHours, overtimeThreshold, etc.) |
 | PATCH  | `/timesheets/settings` | HR,SA     | Update timesheet settings                                       |
 
-**Timesheet shape:** `{ id, employeeId, weekStart, weekEnd, status(DRAFT/SUBMITTED/APPROVED/REJECTED), totalHours, billableHours, overtimeHours, standardHours, entries[] }`
+**Timesheet shape:** `{ id, employeeId, employeeName, weekStart, weekEnd, status(DRAFT/SUBMITTED/APPROVED/REJECTED), totalHours, billableHours, overtimeHours, standardHours, submittedAt, decidedBy, decidedAt, comment, entries[] }`
 **Entry shape:** `{ id, timesheetId, projectId, taskId?, date, hours, billable, note, source(MANUAL/TIMER) }`
+
+**`GET /timesheets/approvals` response:** Array of timesheet objects. Each includes `employeeName` (enriched from Employee table — required by ApprovalTab UI).
+
+**`GET /timesheets/summary` response:**
+
+```json
+{
+  "totalHours": 2993.75,
+  "billableHours": 2581.25,
+  "nonBillableHours": 412.5,
+  "overtimeHours": 0,
+  "utilizationPct": 86,
+  "byProject": [{ "projectId", "projectName", "hours", "billableHours" }],
+  "byEmployee": [{ "employeeId", "employeeName", "employeeCode", "hours", "billableHours", "utilizationPct" }]
+}
+```
+
+`byEmployee` is non-empty when time entries exist in the range (fixes "No logged hours" in Utilization report).
+
+**`GET /payroll/runs/:id/register?type=SALARY` columns:** `employeeCode, employeeName, department, grossEarnings, totalDeductions, netPay, employerCost`
+
+- `department`: from `employee.department.name`
+- `employerCost`: grossEarnings × 1.13 (gross + employer contributions)
+- `summary`: includes `totalGross`, `totalDeductions`, `totalNet`, `totalEmployerCost`, `employeeCount`
 
 ---
 
@@ -4527,35 +4628,37 @@ These endpoints exist only as frontend mocks (MSW). Calling them on Render retur
 
 ### F.8 — Run Approvals, Variance & Audit
 
-| Method | Path                                                | Roles | Notes                                            |
-| ------ | --------------------------------------------------- | ----- | ------------------------------------------------ |
-| POST   | `/payroll/runs/:id/approvals/:level`                | HR,SA | Body: `{approvedBy, comment}`. Level 1 or 2      |
-| GET    | `/payroll/runs/:id/variance`                        | HR,SA | Variance vs previous run — flags >20% change     |
-| GET    | `/payroll/runs/:id/audit`                           | HR,SA | Full audit trail with timeline events            |
-| POST   | `/payroll/runs/:id/payslips/:payslipId/recalculate` | HR,SA | Re-run calculation for single payslip            |
-| POST   | `/payroll/runs/:runId/payslips/:payslipId/hold`     | HR,SA | Body: `{reason}`. Sets status=HELD               |
-| POST   | `/payroll/runs/:runId/payslips/:payslipId/release`  | HR,SA | Releases held payslip back to CALCULATED         |
-| POST   | `/payroll/runs/:id/inputs/from-timesheets`          | HR,SA | Imports approved timesheet hours into run inputs |
+| Method | Path                                                | Roles | Notes                                                                                                                                    |
+| ------ | --------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/payroll/runs/:id/approvals/:level`                | HR,SA | Body: `{approvedBy, comment}`. Level 1 or 2                                                                                              |
+| GET    | `/payroll/runs/:id/variance`                        | HR,SA | `{ runId, thresholdPct, comparedToPeriod, items: [{ employeeId, employeeName, currentNet, previousNet, deltaPct, flags[] }] }`           |
+| GET    | `/payroll/runs/:id/audit`                           | HR,SA | **`data` is `PayrollRunAuditEntry[]`** (array). UI calls `.map()` on `data` directly. Entry: `{ id, runId, action, actor, at, detail? }` |
+| POST   | `/payroll/runs/:id/payslips/:payslipId/recalculate` | HR,SA | Re-run calculation for single payslip                                                                                                    |
+| POST   | `/payroll/runs/:runId/payslips/:payslipId/hold`     | HR,SA | Body: `{reason}`. Sets status=HELD                                                                                                       |
+| POST   | `/payroll/runs/:runId/payslips/:payslipId/release`  | HR,SA | Releases held payslip back to CALCULATED                                                                                                 |
+| POST   | `/payroll/runs/:id/inputs/from-timesheets`          | HR,SA | Imports approved timesheet hours into run inputs                                                                                         |
 
 ### F.9 — Disbursement & Payment Batch
 
-| Method | Path                                     | Roles | Notes                                      |
-| ------ | ---------------------------------------- | ----- | ------------------------------------------ | --------------------------------------- |
-| GET    | `/payroll/runs/:id/payment-batch`        | HR,SA | Get existing payment batch for run         |
-| POST   | `/payroll/runs/:id/payment-batch`        | HR,SA | Create payment batch (skips HELD payslips) |
-| GET    | `/payroll/runs/:id/bank-file`            | HR,SA | `?format=NACH                              | CSV`. Returns flat file for bank upload |
-| GET    | `/payroll/payment-batches/:id/status`    | HR,SA | Get batch by ID with status                |
-| POST   | `/payroll/payment-batches/:id/reconcile` | HR,SA | Mark batch RECONCILED                      |
+| Method | Path                                     | Roles | Notes                                                                                                                       |
+| ------ | ---------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| GET    | `/payroll/runs/:id/payment-batch`        | HR,SA | **PaymentBatch**. Returns empty shell `{ id: null, count: 0, lines: [], status: 'NONE' }` when no batch exists (not `null`) |
+| POST   | `/payroll/runs/:id/payment-batch`        | HR,SA | Create payment batch (skips HELD payslips)                                                                                  |
+| GET    | `/payroll/runs/:id/bank-file`            | HR,SA | `?format=NACH                                                                                                               | CSV`. Returns flat file for bank upload |
+| GET    | `/payroll/payment-batches/:id/status`    | HR,SA | Get batch by ID with status                                                                                                 |
+| POST   | `/payroll/payment-batches/:id/reconcile` | HR,SA | Mark batch RECONCILED                                                                                                       |
 
 ### F.10 — Payslip Publishing & Templates
 
-| Method | Path                         | Roles | Notes                                               |
-| ------ | ---------------------------- | ----- | --------------------------------------------------- |
-| POST   | `/payroll/runs/:id/publish`  | HR,SA | Publish payslips to employees (sets published=true) |
-| GET    | `/payroll/payslip-templates` | HR,SA | Get (or auto-create) payslip template               |
-| PATCH  | `/payroll/payslip-templates` | HR,SA | Update sections, fields, logo, locale               |
+| Method | Path                         | Roles                 | Notes                                                                                             |
+| ------ | ---------------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
+| POST   | `/payroll/runs/:id/publish`  | HR,SA                 | Publish payslips to employees (sets published=true)                                               |
+| GET    | `/payroll/payslip-templates` | all authenticated     | Get (or auto-create) payslip template. EMPLOYEE/MANAGER can read for self-service payslip drawer. |
+| PATCH  | `/payroll/payslip-templates` | HR_ADMIN, SUPER_ADMIN | Update sections, fields, logo, locale                                                             |
 
-**Template shape:** `{ id, tenantId, name, locale, logoUrl, sections: [{id, label, visible, order}], fields: [{key, label, visible}] }`
+**Template shape (UI contract):** `{ id, name, locale, logoUrl, sections: [{ key, label, enabled, order, color }], fields: [{ key, label, enabled }], updatedAt }`
+
+> Section `key` values: `earnings` | `deductions` | `employerContributions` | `oneTime` | `ytd` | `attendance` | `paymentInfo`. Backend normalizes legacy `id`/`visible` on read/write. Each section includes **`color`** (hex) — UI crashes without it.
 
 ### F.11 — Accounting Journal
 
@@ -4564,14 +4667,14 @@ These endpoints exist only as frontend mocks (MSW). Calling them on Render retur
 | GET    | `/payroll/runs/:id/journal`        | HR,SA | Debit/credit journal for the run       |
 | GET    | `/payroll/runs/:id/journal/export` | HR,SA | `?format=CSV`. Download journal as CSV |
 
-**Journal shape:** `{ runId, period, totalDebit, totalCredit, entries: [{account, debit, credit, employeeId, description}] }`
+**Journal shape (JournalDocument):** `{ runId, period, currency, lines: [{ account, costCenter, debit, credit, currency }], totalDebit, totalCredit, balanced, generatedAt }` — UI reads **`lines`** (not `entries`)
 
 ### F.12 — Events & Catalogue
 
-| Method | Path                       | Roles | Notes                                            |
-| ------ | -------------------------- | ----- | ------------------------------------------------ |
-| GET    | `/payroll/events`          | HR,SA | `?runId=`. List payroll events (audit feed)      |
-| GET    | `/payroll/event-catalogue` | HR,SA | Static list of all event types with descriptions |
+| Method | Path                       | Roles | Notes                                                                                            |
+| ------ | -------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
+| GET    | `/payroll/events`          | HR,SA | `?runId=`. **`data` is event array** `[{ id, type, runId, at, summary }]` (not `{ events: [] }`) |
+| GET    | `/payroll/event-catalogue` | HR,SA | Static list of all event types with descriptions                                                 |
 
 ### F.13 — Tax Forms
 
@@ -4580,3 +4683,464 @@ These endpoints exist only as frontend mocks (MSW). Calling them on Render retur
 | GET    | `/payroll/employees/:id/tax-form` | HR,SA | `?type=FORM16 | W2  | P60&fy=YYYY-YY`. Returns tax form summary |
 
 **Tax form shape:** `{ formType, fiscalYear, employee: {id, name, employeeCode, pan}, employer: {name, tan}, incomeDetails: {grossIncome, netTaxableIncome, taxDeducted}, downloadUrl }`
+
+#### PayslipDetail — `GET /payroll/runs/:runId/payslips/:payslipId`
+
+Consumed by payroll run detail **View payslip** drawer (`/payroll/:runId`).
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "cmq5kde4c00awes8dxbqju4ds",
+    "period": "2026-05",
+    "periodLabel": "May 2026",
+    "currency": "INR",
+    "employee": {
+      "id": "...",
+      "firstName": "HR",
+      "lastName": "Admin",
+      "employeeCode": "E0003",
+      "designation": "HR Manager",
+      "departmentName": "HR",
+      "panNumber": null
+    },
+    "company": { "name": "Acme Corp", "address": null, "logoUrl": null },
+    "earnings": [
+      {
+        "code": "BASIC",
+        "name": "Basic Salary",
+        "type": "EARNING",
+        "amount": 45000,
+        "monthlyAmount": 45000,
+        "taxable": true
+      }
+    ],
+    "deductions": [
+      {
+        "code": "PF",
+        "name": "Provident Fund",
+        "type": "DEDUCTION",
+        "amount": 4500,
+        "monthlyAmount": 4500,
+        "taxable": false
+      }
+    ],
+    "employerContributions": [
+      {
+        "code": "PF_ER",
+        "name": "Employer PF",
+        "type": "EMPLOYER_CONTRIBUTION",
+        "amount": 4500,
+        "monthlyAmount": 4500,
+        "taxable": false
+      }
+    ],
+    "oneTimeAdditions": [],
+    "oneTimeDeductions": [],
+    "grossEarnings": 90000,
+    "totalDeductions": 11000,
+    "netPay": 79000,
+    "workingDays": 22,
+    "presentDays": 22,
+    "leaveDays": 0,
+    "lopDays": 0,
+    "status": "PAID",
+    "paymentDate": "2026-05-28",
+    "paymentReference": null,
+    "payrollRunId": "cmq5kdd6300aues8dg44o2fn8",
+    "documentUrl": "https://res.cloudinary.com/.../payslip_E0003_2026_05.webp",
+    "generatedAt": "2026-05-28T00:00:00.000Z",
+    "ytd": {
+      "fiscalYear": "2026-27",
+      "monthsElapsed": 2,
+      "grossEarnings": 180000,
+      "taxableIncome": 156600,
+      "taxDeducted": 13000,
+      "totalDeductions": 22000,
+      "netPay": 158000,
+      "contributions": { "PF": 9000, "PF_ER": 9000 }
+    }
+  }
+}
+```
+
+> **UI line items:** each `earnings[]` / `deductions[]` / `employerContributions[]` entry must include **`amount`** (UI reads this; `monthlyAmount` is back-compat alias).
+> **`employerCost`:** `grossEarnings + sum(employerContributions[].amount)` — employer statutory amounts do not reduce `netPay`.
+> **Empty state:** `404 NOT_FOUND` if payslip not in run. Drawer shows "Failed to load payslip" on non-2xx.
+
+### Statutory contribution calculation (engine — no separate route)
+
+On `POST /payroll/runs/:id/calculate`, the engine:
+
+1. Resolves the pinned statutory pack (legal entity `statutoryPackId` or country-effective pack for run `period`).
+2. Builds `componentByCode` from pay-group components including each `statutoryTag`.
+3. For each `contributionScheme` in `pack.contributionSchemes`:
+   - Wage base = sum of earning line `amount` where `component.statutoryTag === scheme.wageBaseTag`.
+   - Untagged earnings are excluded.
+   - `wageCeiling` (minor units in pack) caps the base: `min(rawBase, wageCeiling / 100)`.
+   - Employee amount = `round(base × scheme.employee.rate / 100)` posted to `deductions[]` as `scheme.employee.component`.
+   - Employer amount = `round(base × scheme.employer.rate / 100)` posted to `employerContributionsJson` as `scheme.employer.component`.
+4. Pay-group deduction/employer components whose `code` matches scheme component codes are skipped (engine is source of truth).
+5. `pinnedStatutoryPack` stored on run `summaryJson` at calculate time.
+
+**Example:** `BASIC.statutoryTag = "PF_WAGE"`, scheme `wageBaseTag = "PF_WAGE"`, earning ₹50,000, ceiling ₹15,000 → PF employee ₹1,800, PF employer ₹1,800, `netPay` reduced by employee PF only.
+
+**Registers:** `GET /payroll/runs/:id/register?type=STATUTORY` uses computed `pfEmployee` / `pfEmployer` from stored payslip lines. `type=SALARY` `employerCost` = gross + employer contributions (not hardcoded ×1.13).
+
+### Payment batch detail (run-scoped)
+
+**Frontend detail source:** `GET /payroll/runs/:runId/payment-batch` (not list-only `GET /payroll/payment-batches`).
+
+**Response includes `lines[]`:** `{ payslipId, employeeId, employeeCode, employeeName, amount, currency, status, failureReason, payoutRef }`. Empty shell when no batch: `{ id: null, lines: [], status: "NONE" }`.
+
+---
+
+## Settings — Integrations (Phase 3 UI)
+
+UI routes: `/settings/integration-email`, `/settings/integration-storage`, `/settings/integration-webhooks`
+
+| Method | Path                                 | Roles | UI consumer                   |
+| ------ | ------------------------------------ | ----- | ----------------------------- |
+| GET    | `/settings/integrations/email`       | HR,SA | Email integration page        |
+| PATCH  | `/settings/integrations/email`       | HR,SA | Save sender/from settings     |
+| GET    | `/settings/integrations/email/stats` | HR,SA | 24h delivery stats panel      |
+| POST   | `/settings/integrations/email/test`  | HR,SA | Send test email               |
+| GET    | `/settings/integrations/storage`     | HR,SA | Storage integration page      |
+| PATCH  | `/settings/integrations/storage`     | HR,SA | Folder/mime limits            |
+| GET    | `/settings/webhooks`                 | HR,SA | Webhooks list + event catalog |
+| POST   | `/settings/webhooks`                 | HR,SA | Create webhook                |
+| PATCH  | `/settings/webhooks/:id`             | HR,SA | Update webhook                |
+| DELETE | `/settings/webhooks/:id`             | HR,SA | Delete webhook                |
+| POST   | `/settings/webhooks/:id/test`        | HR,SA | Test delivery (simulated)     |
+
+**Email response (UI contract):** `{ provider, status: "connected"|"unconfigured"|"error", fromAddress, fromName, lastTestedAt, config: { apiKey, ...providerFields }, configured, enabled, domain?, domainVerified? }`
+
+**Storage response (UI contract):** `{ provider: "s3"|"gcs"|"azure", status, lastTestedAt, config: { bucket, region, accessKeyId, versioningEnabled, presignedUrlTtlSeconds, ... }, retentionPolicies: [{ documentType, retentionDays, autoDeletionEnabled }], virusScan: { enabled, provider, webhookUrl } }`
+
+**Garnishment response:** includes `amount: { kind: "FLAT"|"PERCENT_OF_DISPOSABLE", value }` (not flat `amountKind`/`amountValue` alone).
+
+**Webhooks list:** `{ webhooks: [{ id, name, url, events[], enabled, secretMasked, lastTriggeredAt, createdAt }], eventCatalog: [{ type, label }] }`
+
+---
+
+## Dashboard — Pending Approvals (HR + Manager)
+
+| Method | Path                 | Roles      | Notes                             |
+| ------ | -------------------- | ---------- | --------------------------------- |
+| GET    | `/manager/approvals` | MGR, HR,SA | Dashboard pending approvals panel |
+
+**HR_ADMIN / SUPER_ADMIN:** tenant-wide queue (`scope=tenant`). **MANAGER:** direct-report queue only.
+
+**Response:** `{ items: [{ id, type, color, title, subtitle, employeeName, submittedAt, ... }], leaveRequests[], regularizationRequests[], timesheetRequests[], assetRequests[], total, approvalBreakdown }`
+
+Each `items[]` entry includes **`color`** (hex). UI maps `type` → color; missing color crashes dashboard.
+
+---
+
+## Employee Profile — Activity
+
+| Method | Path                      | Roles              | UI route               |
+| ------ | ------------------------- | ------------------ | ---------------------- |
+| GET    | `/employees/:id/activity` | HR,SA,MGR,EMP(own) | Profile → Activity tab |
+
+**Response:** `{ items: [{ id, type, action, actionLabel, description, color, actorEmail?, createdAt, timestamp, fileUrl? }], total }`
+
+---
+
+## Employee Profile — Compensation
+
+| Method | Path                                    | Roles          | Notes            |
+| ------ | --------------------------------------- | -------------- | ---------------- |
+| GET    | `/payroll/employees/:employeeId/salary` | HR,SA,EMP(own) | Compensation tab |
+
+**`calculatedComponents[]`** each include **`color`** and **`amount`**. `BENEFIT` type is normalized to `EARNING` for UI. Reimbursement categories include **`color`**.
+
+---
+
+## Pay Schedules
+
+| Method | Path                 | Roles | UI route                  |
+| ------ | -------------------- | ----- | ------------------------- |
+| GET    | `/payroll/schedules` | HR,SA | `/settings/pay/schedules` |
+
+Merges active pay groups + pay calendars. Seed via `node prisma/seedPhase3Integrations.js` or `npm run seed:production-api` (POST `/payroll/pay-calendars`).
+
+**Empty state:** `[]` — UI shows empty table. **Live:** Render production (2026-06-09 audit: ≥6 schedules after API seed).
+
+---
+
+## Statutory Packs (newreqphase3 F.3) — Flat API
+
+| Method | Path                           | Roles | Notes                                                      |
+| ------ | ------------------------------ | ----- | ---------------------------------------------------------- |
+| GET    | `/payroll/statutory-packs`     | HR,SA | `?country=IN` optional filter                              |
+| GET    | `/payroll/statutory-packs/:id` | HR,SA | Flat response                                              |
+| POST   | `/payroll/statutory-packs`     | SA    | **Flat body** — same fields as GET (no `packData` wrapper) |
+| PATCH  | `/payroll/statutory-packs/:id` | SA    | Partial flat body                                          |
+| DELETE | `/payroll/statutory-packs/:id` | SA    | `{ deleted: true }` or `409 PACK_IN_USE`                   |
+
+**Flat response/request fields:** `country`, `version`, `effectiveFrom`, `effectiveTo`, `rounding`, `proration`, `taxRegimes[]`, `contributionSchemes[]`, `localTaxes[]`, **`statutoryComponents: string[]`**, `minimumWages[]`, **`gratuity`** (object or `null`).
+
+**`statutoryComponents` contract:** Response is always `string[]` (e.g. `["PF", "PF_ER"]`). POST/PATCH accept `string[]` or legacy `{ code: string }[]`; backend normalizes to strings before persisting via `normalizeStatutoryComponents()`.
+
+**Errors:** `409 PACK_VERSION_EXISTS` (duplicate tenant+country+version), `422 INVALID_PACK` (effectiveFrom > effectiveTo), `400 VALIDATION_ERROR` (`details: [{field, message}]`), `409 PACK_IN_USE` (referenced by legal entity).
+
+**Storage:** Rule fields stored in DB `packData` JSON; API always flattened via `fmtStatutoryPackRow()` with normalized `statutoryComponents`.
+
+---
+
+## Payroll Run Types (newreqphase3)
+
+| Type                | POST body extras                                                                             | Duplicate rule                                 |
+| ------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `REGULAR`           | default                                                                                      | `409 RUN_EXISTS` if second REGULAR same period |
+| `OFF_CYCLE`         | `employeeIds[]`                                                                              | May coexist with REGULAR same period           |
+| `BONUS` / `ARREARS` | — (set `variablePay` on run inputs before calculate)                                         | May coexist                                    |
+| `FNF`               | `fnf: { employeeId, lastWorkingDay, yearsOfService, leaveBalanceDays, noticeShortfallDays }` | May coexist                                    |
+| `REVERSAL`          | `reversalOfRunId` (target APPROVED/PAID)                                                     | May coexist                                    |
+
+**Response fields:** `type`, `employeeIds`, `employeeId`, `fnfParams`, `reversalOfRunId`, `reversalOfPeriodLabel`.
+
+**Errors:** `422 INVALID_RUN_TYPE`, `422 REVERSAL_TARGET_REQUIRED`, `409 RUN_EXISTS` (REGULAR only).
+
+**Calculate behavior:** OFF_CYCLE → subset employees; BONUS/ARREARS → only rows with `variablePay` input; REVERSAL → negate target payslip lines; FNF → single employee.
+
+---
+
+## Deployed UI Complete Audit — Endpoint Reference (2026-06-09)
+
+> Evidence: `deployed-ui-complete-final-audit-evidence/`. Command: `npm run test:deployed-ui` or `npm run test:playwright:deployed`.
+
+### Settings — Payslip Template
+
+| Method | Path                             | Roles                 | Request                         | Response `data`                                                             | UI                                                                        |
+| ------ | -------------------------------- | --------------------- | ------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| GET    | `/payroll/payslip-templates`     | all authenticated     | —                               | `{ id, name, locale, sections[{key,label,enabled,order,color}], fields[] }` | `/settings/pay/payslip-template` and employee self-service payslip drawer |
+| PATCH  | `/payroll/payslip-templates/:id` | HR_ADMIN, SUPER_ADMIN | `{ sections?, fields?, name? }` | Updated template                                                            | Save button (enabled only when dirty)                                     |
+
+**Seed:** `seedPhase3Integrations.js` normalizes 7 sections with `color`. **Live:** ✅
+
+### Settings — Email / Resend
+
+| Method | Path                                 | Roles | Request          | Response `data`                                                                    | UI                            |
+| ------ | ------------------------------------ | ----- | ---------------- | ---------------------------------------------------------------------------------- | ----------------------------- |
+| GET    | `/settings/integrations/email`       | HR,SA | —                | `{ provider, status, config:{apiKey}, fromAddress, apiKeyMasked, domainVerified }` | `/settings/integration-email` |
+| PATCH  | `/settings/integrations/email`       | HR,SA | partial settings | same shape                                                                         | Save                          |
+| GET    | `/settings/integrations/email/stats` | HR,SA | —                | `{ sent24h, delivered24h, bounced24h, failed24h, lastSentAt }`                     | Stats panel                   |
+| POST   | `/settings/integrations/email/test`  | HR,SA | `{ to? }`        | `{ sent: true, message }`                                                          | Send test email               |
+
+**Provider:** Resend when `RESEND_API_KEY` set on Render. **Live:** ✅ test button 200.
+
+### Settings — Storage / Cloudinary
+
+| Method | Path                                  | Roles | Request | Response `data`                                                                                                                        | UI                              |
+| ------ | ------------------------------------- | ----- | ------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| GET    | `/settings/integrations/storage`      | HR,SA | —       | `{ provider: "cloudinary"\|"s3", status, config:{bucket,region,cloudName,folder,...}, retentionPolicies[], virusScan, metadataStore }` | `/settings/integration-storage` |
+| PATCH  | `/settings/integrations/storage`      | HR,SA | partial | same                                                                                                                                   | Save                            |
+| POST   | `/settings/integrations/storage/test` | HR,SA | —       | `{ bucket, latencyMs, status }`                                                                                                        | Test connection                 |
+
+**Provider mapping:** defaults to `cloudinary` when Cloudinary env vars configured; S3-shaped `config` retained for UI compatibility. **Upload:** `POST /employees/:id/documents` → `503 STORAGE_NOT_CONFIGURED` until Cloudinary on Render.
+
+### Settings — Webhooks
+
+| Method | Path                          | Roles | Request                                      | Response                              | UI                               |
+| ------ | ----------------------------- | ----- | -------------------------------------------- | ------------------------------------- | -------------------------------- |
+| GET    | `/settings/webhooks`          | HR,SA | —                                            | `{ webhooks[], eventCatalog[] }`      | `/settings/integration-webhooks` |
+| POST   | `/settings/webhooks`          | HR,SA | `{ name, url, events[], enabled?, secret? }` | webhook object                        | Create modal                     |
+| PATCH  | `/settings/webhooks/:id`      | HR,SA | partial                                      | webhook                               | Edit / enable                    |
+| POST   | `/settings/webhooks/:id/test` | HR,SA | —                                            | `{ delivered, statusCode, testedAt }` | Test button                      |
+
+**Seed:** `seed:production-api` or `seedPhase3Integrations.js`. **Empty:** `webhooks: []`.
+
+### Employee Documents
+
+| Method | Path                              | Roles          | Notes                                          |
+| ------ | --------------------------------- | -------------- | ---------------------------------------------- |
+| GET    | `/employees/:id/documents`        | HR,SA,EMP(own) | List metadata from Postgres                    |
+| POST   | `/employees/:id/documents`        | HR,SA,EMP(own) | multipart; WebP via sharp; Cloudinary required |
+| DELETE | `/employees/:id/documents/:docId` | HR,SA          | Removes DB + Cloudinary                        |
+
+**Audit:** `DOCUMENT_UPLOADED` / `DOCUMENT_DELETED` logged to `audit_logs` (Activity tab). **Download:** client opens `fileUrl` from list response.
+
+### Employee Activity (audit-logs)
+
+| Method | Path          | Roles     | Query                              | Response                 |
+| ------ | ------------- | --------- | ---------------------------------- | ------------------------ |
+| GET    | `/audit-logs` | HR,SA,MGR | `entity=Employee&entityId=&limit=` | `{ logs[], pagination }` |
+
+UI Activity tab uses this endpoint (not `/employees/:id/activity` alias). **Seed:** PATCH employee or upload document to generate rows. `EMPLOYEE_UPDATED` logged on PATCH.
+
+### Payroll Deep Actions (PAID run)
+
+| Action             | Method   | Path                                       | Roles |
+| ------------------ | -------- | ------------------------------------------ | ----- |
+| View payslip       | GET      | `/payroll/runs/:runId/payslips/:payslipId` | HR,SA |
+| Export register    | GET      | `/payroll/runs/:id/register?type=SALARY`   | HR,SA |
+| Publish payslips   | POST     | `/payroll/runs/:id/publish`                | HR,SA |
+| Payment batch      | GET/POST | `/payroll/runs/:id/payment-batch`          | HR,SA |
+| Bank file          | GET      | `/payroll/runs/:id/bank-file?format=NACH`  | HR,SA |
+| Accounting journal | GET      | `/payroll/runs/:id/journal`                | HR,SA |
+| Statutory return   | GET      | `/payroll/runs/:id/statutory-return`       | HR,SA |
+| Audit pack         | GET      | `/payroll/reports/audit-pack?runId=`       | HR,SA |
+| Audit trail        | GET      | `/payroll/runs/:id/audit`                  | HR,SA |
+| Events             | GET      | `/payroll/events?runId=`                   | HR,SA |
+| Event catalogue    | GET      | `/payroll/event-catalogue`                 | HR,SA |
+
+**2026-06-09 deployed audit:** all deep actions PASS on May 2026 PAID run.
+
+### Timesheets (all roles)
+
+| Method         | Path                             | Roles             | Notes          |
+| -------------- | -------------------------------- | ----------------- | -------------- |
+| GET            | `/timesheets?week=YYYY-MM-DD`    | all with employee | Week grid      |
+| POST           | `/timesheets/entries`            | EMP               | Add entry      |
+| PATCH          | `/timesheets/entries/:id`        | EMP               | Edit           |
+| DELETE         | `/timesheets/entries/:id`        | EMP               | Delete         |
+| POST           | `/timesheets/:id/submit`         | EMP               | Submit week    |
+| GET            | `/timesheets/approvals`          | MGR,HR            | Approval queue |
+| POST           | `/timesheets/:id/approve`        | MGR,HR            | Approve        |
+| POST           | `/timesheets/:id/reject`         | MGR,HR            | `{ comment }`  |
+| GET/POST/PATCH | `/timesheets/projects`           | HR,MGR            | Projects tab   |
+| POST           | `/timesheets/projects/:id/tasks` | HR,MGR            | Tasks          |
+
+**SUPER_ADMIN:** no employee record — UI shows graceful empty state (not 500).
+
+### Phase 3 Modules
+
+| Module        | UI route         | Key APIs                                           | Live status |
+| ------------- | ---------------- | -------------------------------------------------- | ----------- |
+| Recruitment   | `/recruitment`   | `/recruitment/summary`, `/openings`, `/candidates` | ✅ load     |
+| Performance   | `/performance`   | `/performance/goals`, `/performance/reviews`       | ✅ load     |
+| Assets        | `/assets`        | `/assets`, `/assets/requests`                      | ✅ load     |
+| Announcements | `/announcements` | `/announcements`                                   | ✅ load     |
+
+### Known Console Noise
+
+Cold `/api/auth/me` before login should now return `401 UNAUTHORIZED` when no cookie is present. A `400 INVALID_TENANT` there is a regression.
+
+---
+
+## Frontend QA Sweep Fixes (2026-06-10)
+
+### BE-1 — Auth: Invalid JWT now returns 401, not 400
+
+`GET /auth/me` and other protected endpoints now return `401 UNAUTHORIZED` for missing cookies/tokens and `401 INVALID_TOKEN` for garbage, expired, or forged JWTs. `400 INVALID_TENANT` remains valid only when the caller explicitly supplies a bad tenant context such as `X-Tenant-Key` or subdomain.
+
+### BE-2 — PayGroup: overrideCalculationType null/blank accepted
+
+`POST /payroll/pay-groups` and `PATCH /payroll/pay-groups/:id` now accept `null` or `""` for `overrideCalculationType` without 500. Only `FLAT`, `PERCENTAGE`, `FORMULA`, or null are valid.
+
+### BE-3 — Employees: terminated employee lookup
+
+`GET /employees/:id?includeTerminated=true` — HR_ADMIN and SUPER_ADMIN can retrieve soft-deleted/terminated employees by appending this query param. Without the param, `deletedAt: null` is still enforced.
+
+### BE-4 — Payroll Salary: effectiveTo validation
+
+`POST /payroll/employees/:id/salary` now returns `400 VALIDATION_ERROR` if `effectiveTo < effectiveFrom`.
+
+### BE-5 — Leave Team Endpoints: SUPER_ADMIN support
+
+`GET /leave/team/requests` and `GET /leave/team/calendar` now work for SUPER_ADMIN (who has no employee profile). SUPER_ADMIN gets org-wide results (`managerEmployeeId = null` path). Other non-employee users still get `403 FORBIDDEN`.
+
+**Leave team request shape** (with fix):
+
+```json
+{
+  "id": "...",
+  "referenceNo": "LVR-0001",
+  "employeeId": "...",
+  "employeeName": "Priya Sharma",
+  "employeeCode": "E0004",
+  "leaveTypeId": "...",
+  "leaveTypeName": "Annual Leave",
+  "startDate": "2026-06-10T00:00:00.000Z",
+  "endDate": "2026-06-12T00:00:00.000Z",
+  "totalDays": 3,
+  "status": "PENDING",
+  "reason": "Vacation",
+  "submittedAt": "2026-06-08T10:00:00.000Z",
+  "decidedAt": null
+}
+```
+
+### BE-6 — Leave Approve/Reject: approverComment in response
+
+`PATCH /leave/requests/:id/approve` and `PATCH /leave/requests/:id/reject` now include `approverComment` in the response body:
+
+```json
+{
+  "id": "...",
+  "referenceNo": "LVR-0001",
+  "status": "APPROVED",
+  "decidedAt": "...",
+  "approverComment": "Approved as planned"
+}
+```
+
+### BE-7 — Payroll Cancel: HR_ADMIN can cancel
+
+`POST /payroll/runs/:id/cancel` now accessible to `HR_ADMIN` (previously SUPER_ADMIN only). PAID runs still cannot be cancelled by anyone (400 INVALID_STATUS from repository).
+
+### BE-8 — Payslip Templates: all authenticated users can read
+
+`GET /payroll/payslip-templates` is now accessible to all authenticated users (previously HR_ADMIN only). Required for employee self-service payslip drawer.
+
+### BE-9 — Report Export: status + download endpoints added
+
+Three new routes:
+
+- `GET /reports/export/:jobId` — returns job status (`PENDING` / `SUCCESS` / `FAILED`)
+- `GET /reports/export/:jobId/status` — alias for above
+- `GET /reports/export/:jobId/download` — streams `text/csv` with `Content-Disposition: attachment`
+
+**Status response:**
+
+```json
+{ "jobId": "...", "status": "SUCCESS", "exportType": "attendance", "exportedAt": "..." }
+```
+
+**Download:** Returns `text/csv` with `Content-Disposition: attachment; filename="<type>-<YYYY-MM-DD>.csv"`. If still pending → 202 JSON `{ "status": "PENDING" }`. Export is processed near-synchronously.
+
+### BE-10 — Roles: createRole persists permissions
+
+`POST /settings/roles` now writes `permissions[]` as `RolePermission` DB records on creation. If a permission key doesn't exist in the `Permission` table, it is silently skipped.
+
+### BE-11 — Roles: customRoles in GET /settings/roles-permissions
+
+`GET /settings/roles-permissions` now includes `customRoles` array:
+
+```json
+{
+  "roles": ["SUPER_ADMIN", "HR_ADMIN", "MANAGER", "EMPLOYEE", "my-custom-role"],
+  "permissions": ["leave:approve", "reports:read"],
+  "matrix": { "SUPER_ADMIN": ["leave:approve", ...], "my-custom-role": [] },
+  "customRoles": [{ "key": "my-custom-role", "name": "Custom Role" }]
+}
+```
+
+### Analytics Filters (all 9 endpoints)
+
+All analytics endpoints now accept three optional query params:
+
+| Param          | Type       | Description                             |
+| -------------- | ---------- | --------------------------------------- |
+| `departmentId` | string     | Filter results to a specific department |
+| `from`         | YYYY-MM-DD | Start date (overrides preset `range`)   |
+| `to`           | YYYY-MM-DD | End date (overrides preset `range`)     |
+
+All 9 endpoints **accept** these query params without error. Filtering behavior per endpoint:
+
+| Endpoint                             | `departmentId` applied            | `from`/`to` applied       |
+| ------------------------------------ | --------------------------------- | ------------------------- |
+| `/analytics/attendance`              | ✅ filters AttendanceRecord       | ✅ overrides preset range |
+| `/analytics/headcount-by-department` | ✅ filters to single dept         | —                         |
+| `/analytics/leave-summary`           | ✅ filters LeaveRequest by dept   | ✅ overrides preset range |
+| `/analytics/recent-activity`         | ✅ filters AuditLog by actor dept | —                         |
+| `/analytics/summary`                 | — (accepted, ignored)             | —                         |
+| `/analytics/workforce-trend`         | — (accepted, ignored)             | —                         |
+| `/analytics/attrition`               | — (accepted, ignored)             | —                         |
+| `/analytics/payroll-cost`            | — (accepted, ignored)             | —                         |
+| `/analytics/department-performance`  | — (accepted, ignored)             | —                         |
+
+**Note:** "accepted, ignored" means the param is valid (no 400 error) but the response is unfiltered. Full filtering for workforce-trend, attrition, payroll-cost, and department-performance is deferred.

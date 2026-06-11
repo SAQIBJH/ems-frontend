@@ -35,45 +35,37 @@ import { performanceHandlers } from './performance';
 import { assetsHandlers } from './assets';
 import { announcementsHandlers } from './announcements';
 
-// MSW intercepts ONLY endpoints not yet live on the backend.
-// When NEXT_PUBLIC_USE_MOCKS=true and no handler matches, the request passes
-// through MSW → BFF (Next.js /api/*) → real Render backend unchanged.
+// MSW is an OFFLINE / DEMO FALLBACK ONLY. It intercepts solely when
+// NEXT_PUBLIC_USE_MOCKS=true (that is the only condition under which MSWProvider
+// starts the worker). In normal runs the flag is `false`, the worker never
+// starts, and EVERY request goes straight to the live Render backend through the
+// BFF (Next.js /api/*). The handlers registered below are completely INERT
+// unless you deliberately flip the flag on.
 //
-// ── Still mocked (backend not yet built — 2026-05-26) ──────────────────────
-//   POST /auth/otp/initiate          — MFA challenge initiation
+// ── Live verification sweep — 2026-06-11 ───────────────────────────────────
+// A live HR_ADMIN sweep against production confirmed that essentially every
+// endpoint these handlers mock is now LIVE (200 + expected shape): all
+// /payroll/* (components, groups, schedules, countries, legal-entities,
+// pay-calendars, statutory-packs, runs + run-scoped inputs/payslips/journal/
+// variance/payment-batch/audit, roster, employees, events, event-catalogue,
+// reimbursement-*, workers, payslip-templates, cost-summary, contractor-invoices,
+// opening-balances, payment-batches, migration, employee loans/tax-form/
+// garnishments), all /reports/*, the 4 Phase-2 /analytics/* (workforce-trend,
+// attrition, payroll-cost, department-performance), /settings/integrations/* +
+// /settings/webhooks, all /timesheets/*, and all four Phase-3 modules
+// (recruitment, performance, assets, announcements). See
+// memory/live-sweep-2026-06-11.md.
+//
+// ── Genuinely NOT on the backend (the only real reason to keep a mock) ─────
+//   POST /auth/otp/initiate          — MFA challenge initiation (MFA disabled)
 //   POST /holidays/import            — .ics import + preview + commit
-//   GET  /employee/dashboard         — leaveBalanceSummary not yet on live backend
-//   GET  /employee/documents         — no live endpoint yet
-//   POST /attendance/regularization/:id/documents — supporting doc upload not yet live
-//   POST /settings/roles             — create custom role (Step 46)
-//   DELETE /settings/roles/:key      — delete custom role (Step 46)
-//   All  /payroll/*                  — Phase 2 payroll (not yet built)
-//   All  /reports/*                  — Phase 2 reports (not yet built)
-//   GET  /analytics/workforce-trend  — Phase 2 analytics (MSW)
-//   GET  /analytics/attrition        — Phase 2 analytics (MSW)
-//   GET  /analytics/payroll-cost     — Phase 2 analytics (MSW)
-//   GET  /analytics/department-performance — Phase 2 analytics (MSW)
-//   All  /timesheets/*                — Timesheets (MSW)
-//   All  /recruitment/*               — Phase 3 recruitment (MSW)
-//   All  /performance/*               — Phase 3 performance (MSW)
-//   All  /assets/*                    — Phase 3 assets (MSW)
-//   All  /announcements/*             — Phase 3 announcements (MSW)
 //
-// ── Live — no handler here; all requests pass through ──────────────────────
-//   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
-//   Departments GET/POST/PATCH/DELETE, :id/employees, reassign-and-delete
-//   Leave       requests CRUD, bulk approve/reject, team/calendar, coverage
-//   Attendance  records, summary, check-in/out, regularization, team/weekly
-//   Holidays    CRUD, upcoming
-//   Analytics   summary (+deltas), attendance, headcount, recent-activity
-//   Dashboards  /manager/dashboard (extended)
-//   Employee    /employee/team (live)
-//   Notifications GET, PATCH read, PATCH read-all
-//   Search      GET /search
-//   Settings    tenant, branding, attendance-rules, security/auth,
-//               notifications/preferences, leave-types CRUD, roles CRUD
-//   Documents   presign, confirm, GET, DELETE, download (Cloudinary multipart)
-//   Audit logs  GET /audit-logs
+// CAUTION: the live shapes have moved on since these mocks were written, so the
+// mocks may now be STALE relative to the real backend. If you flip mocks back on
+// for offline/demo use, treat their response shapes as potentially behind live.
+//
+// (The previous "Still mocked (2026-05-26)" list here claimed payroll/reports/
+// analytics/timesheets/phase-3 were unbuilt — that is obsolete; they shipped.)
 //
 // ── Shape deviations from BACKEND_API_REQUESTS.md to watch ─────────────────
 //   GET /employees/next-code       → response field is "nextCode", not "code"

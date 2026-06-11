@@ -189,28 +189,39 @@ GET    /api/v1/search?q=&type=&page=&limit=
 
 ### What still needs MSW
 
-The backend team shipped all previously-mocked endpoints as of 2026-05-26.
-The following endpoints remain unimplemented on the backend and are still
-served by MSW:
+> **Updated 2026-06-11 after a live verification sweep.** The previous claim here
+> (that payroll, reports, analytics, settings-integrations, timesheets, and the
+> Phase-3 modules were still unbuilt) is **obsolete** — the backend shipped them.
+> MSW is now an **offline / demo fallback only**: it intercepts solely when
+> `NEXT_PUBLIC_USE_MOCKS=true`. The normal/default state is `false`, where the
+> worker never starts and every request hits the live backend. The handlers are
+> retained (not deleted) so offline/demo mode still works. See
+> `memory/live-sweep-2026-06-11.md`.
 
-**Auth / Holidays (original MSW set):**
+**Genuinely NOT on the backend — the only real reason to keep a mock:**
 
-- **`POST /auth/otp/initiate`** — MFA challenge initiation
+- **`POST /auth/otp/initiate`** — MFA challenge initiation (MFA is disabled)
 - **`POST /holidays/import`** (+ preview + commit) — `.ics` file import flow
 
-**Phase 2 — Payroll, Reports & Analytics** (see `docs/phase2api.md` Domains 1–6):
+**Confirmed LIVE on 2026-06-11 (mock now shadows a real endpoint):** all
+`/payroll/*` (components, groups, schedules, countries, legal-entities,
+pay-calendars, statutory-packs, runs + run-scoped inputs/payslips/journal/
+variance/payment-batch/audit, roster, employees, events, event-catalogue,
+reimbursement-\*, workers, payslip-templates, cost-summary, contractor-invoices,
+opening-balances, payment-batches, migration, employee loans/tax-form/
+garnishments), all `/reports/*`, the 4 Phase-2 `/analytics/*` (workforce-trend,
+attrition, payroll-cost, department-performance), `/settings/integrations/email`,
+`/settings/integrations/storage`, `/settings/webhooks`, all `/timesheets/*`, and
+all four Phase-3 modules (recruitment, performance, assets, announcements).
 
-- All `/payroll/*` endpoints
-- All `/reports/*` endpoints
-- `GET /analytics/workforce-trend`, `/analytics/attrition`, `/analytics/payroll-cost`, `/analytics/department-performance`
+**Not re-verified in the 2026-06-11 sweep (treat as unverified):** `/billing/*`
+(`subscription`, `plans`, `invoices`). Confirm with a live response before
+relying on either the mock or the live shape.
 
-**Phase 2.5 — Settings: Integrations & Billing** (see `docs/phase2api.md` Domains 7–8):
-
-- `GET /settings/integrations/email`, `PATCH /settings/integrations/email`, `POST /settings/integrations/email/test`
-- `GET /settings/integrations/storage`, `PATCH /settings/integrations/storage`, `POST /settings/integrations/storage/test`
-- `GET /settings/webhooks`, `POST /settings/webhooks`, `PATCH /settings/webhooks/:id`, `DELETE /settings/webhooks/:id`, `GET /settings/webhooks/:id/deliveries`, `POST /settings/webhooks/:id/test`
-- `GET /billing/subscription`, `GET /billing/plans`
-- `GET /billing/invoices`
+> **CAUTION:** because live shapes have moved on since the mocks were authored,
+> the mocks may now be **stale** relative to the real backend. If you flip mocks
+> back on for offline/demo use, treat their response shapes as potentially behind
+> live. Honor the verify-live-API discipline before trusting either.
 
 All other requests pass through MSW unmatched → BFF → real Render backend.
 
@@ -1196,22 +1207,30 @@ bar as §25/§21 — not a new style.
   backend later ships a documented endpoint, the only change is flipping
   `NEXT_PUBLIC_USE_MOCKS` / removing the handler — no app-code change.
 
-> **Live transition — updated 2026-06-09 (verify before trusting).** The backend has
-> since shipped much of payroll, so "payroll is MSW-first" above is now partly stale.
-> **`/payroll/statutory-packs` (GET/POST/PATCH/DELETE) is LIVE and shape-verified**
-> end-to-end against production: flat body & response (no `packData` wrapper),
+> **Live transition — updated 2026-06-11 (supersedes the 2026-06-09 note).** Payroll
+> is **no longer MSW-first** — the backend has shipped essentially all of it. A live
+> HR_ADMIN sweep on 2026-06-11 found **every FE payroll path returns `200`**, including
+> the ones the 2026-06-09 note wrongly listed as `404`: **`employees`, `migration`, and
+> `payment-batches` are now LIVE.** Confirmed `200` + plausible shape: `components`,
+> `groups`, `schedules`, `countries`, `legal-entities`, `pay-calendars`,
+> `statutory-packs`, `runs` (+ run-scoped `inputs`/`payslips`/`journal`/`variance`/
+> `payment-batch`/`audit`), `roster`, `employees`, `events`, `event-catalogue`,
+> `reimbursement-categories/-claims`, `workers`, `payslip-templates`, `cost-summary`,
+> `contractor-invoices`, `opening-balances`, `payment-batches`, `migration`, and
+> employee-scoped `loans`/`tax-form`/`garnishments`.
+>
+> **`/payroll/statutory-packs` (GET/POST/PATCH/DELETE) remains the one endpoint
+> shape-verified** end-to-end: flat body & response (no `packData` wrapper),
 > `statutoryComponents` is `string[]` on read **and** write (legacy `{code}` objects
 > tolerated), `gratuity` returned, `DELETE` → `200 {deleted:true}` or `409 PACK_IN_USE`.
 > The FE types reflect this (`applicability`/`jurisdiction` optional, `tenantId?` added).
-> A live sweep of the FE's payroll paths (2026-06-09) found most respond `200` —
-> `components`, `countries`, `groups`, `schedules`, `runs`, `roster`, `legal-entities`,
-> `event-catalogue`, `events`, `pay-calendars`, `payslip-templates`,
-> `reimbursement-categories/-claims`, `workers`, `cost-summary`, `contractor-invoices`,
-> `opening-balances` — while **`employees`, `migration`, `payment-batches`, `reports`,
-> `settings` still `404`** (those screens break with mocks fully off, unless they use
-> sub-paths). **A `200` only means the route exists — only `statutory-packs` has had its
-> response shape verified against the FE types.** Treat the other live endpoints as
-> unverified until checked the same way (see the verify-live-API discipline).
+>
+> Two still need a shape check: `/payroll/reports/audit-pack?runId=` (200 but a
+> non-standard envelope — likely a file) and `/payroll/employees/:id/salary` (404 for an
+> employee with no salary record; the route is live per BE-4). **A `200` only means the
+> route exists** — shape-verify per domain before deleting any handler (see the
+> verify-live-API discipline). The default state is `NEXT_PUBLIC_USE_MOCKS=false`; the
+> handlers are kept only as an offline/demo fallback. See `memory/live-sweep-2026-06-11.md`.
 
 ### Run types (Step 118)
 

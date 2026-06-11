@@ -2,8 +2,8 @@
 
 > **From:** Frontend team
 > **To:** Backend team
-> **Status:** 2 endpoints still pending (updated 2026-05-26)
-> **Last updated:** 2026-05-26
+> **Status:** 3 endpoints still pending (updated 2026-06-11)
+> **Last updated:** 2026-06-11
 >
 > ## Purpose
 >
@@ -54,6 +54,7 @@ documented here. Frontend code is already updated to use the actual live shapes.
 
 1. [Auth — OTP initiate](#1-auth-otp-initiate) ← **Still pending**
 2. [Holidays — .ics import](#2-holidays-ics-import) ← **Still pending**
+3. [Auth — Company registration (self-serve signup)](#3-auth-company-registration-self-serve-signup) ← **NEW — backend building now**
 
 ---
 
@@ -154,6 +155,134 @@ Frontend routes to `/otp-verification?challengeId=...`. Then `POST /auth/verify-
 **Body:** `{ "overwriteExisting": true }`
 
 **Response 200:** `{ "imported": 8, "overwritten": 2, "skipped": 0 }`
+
+---
+
+## 3. Auth — Company registration (self-serve signup)
+
+> **Status: NEW — backend building now. MSW mock active on the frontend until live.**
+
+### `POST /auth/register`
+
+**Why:** New self-serve signup screen `/(auth)/signup` (sibling of `/login`). A
+prospect with no account creates a **brand-new tenant + its first SUPER_ADMIN** in
+one step and is **logged straight in**. This is the entry point for the E2E flow.
+
+**Access:** **Public — no auth.** No `accessToken`/`refreshToken` cookie is required
+on the request (the user has none yet). No `x-tenant-key` (the tenant doesn't exist
+yet — this call creates it).
+
+**Field casing:** `camelCase` (auth domain).
+
+> **Scope note (agreed with backend team 2026-06-11):** this is a **minimal,
+> low-friction signup** to unblock the E2E company-creation path. **Strict field
+> validation is intentionally deferred** — the goal is to land the company with the
+> fewest details, then collect the rest in-app. `country`, `currency`, and `timezone`
+> are **not** collected here; they are set later in **Settings → Company Profile**.
+
+**Body:**
+
+```json
+{
+  "companyName": "Acme Inc",
+  "fullName": "Mohammad Saqib",
+  "email": "admin@acme.com",
+  "password": "Password123!"
+}
+```
+
+**Field rules — deliberately minimal (full validation comes in a later phase):**
+
+| Field         | Type   | Rule (for now)                                                         |
+| ------------- | ------ | ---------------------------------------------------------------------- |
+| `companyName` | string | required, non-empty (labels the new tenant)                            |
+| `fullName`    | string | required, non-empty (backend may split into first/last as it sees fit) |
+| `email`       | string | required, valid email shape, **globally unique** across all tenants    |
+| `password`    | string | required, non-empty (min-length & complexity rules added later)        |
+
+**Success `201` — MUST set login cookies in the same response.**
+
+Set `accessToken` (15-min TTL) + `refreshToken` (7-day TTL) httpOnly cookies exactly
+as `POST /auth/login` does, so the browser is authenticated immediately and redirects
+to `/dashboard`. The `data` payload **mirrors the login envelope** plus a `tenant`
+block:
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "<ignored by browser — cookie-based, present for Postman/Swagger only>",
+    "sessionId": "sess_...",
+    "tenant": {
+      "id": "ten_...",
+      "name": "Acme Inc",
+      "country": null,
+      "currency": null,
+      "timezone": null
+    },
+    "user": {
+      "id": "usr_...",
+      "email": "admin@acme.com",
+      "memberType": "SUPER_ADMIN",
+      "employeeId": null,
+      "employee": null
+    },
+    "permissions": [
+      "employees:read",
+      "employees:write",
+      "employees:delete",
+      "employees:export",
+      "departments:read",
+      "departments:write",
+      "attendance:read",
+      "attendance:write",
+      "leave:read",
+      "leave:request",
+      "leave:approve",
+      "analytics:read",
+      "permissions:manage",
+      "audit:read"
+    ]
+  },
+  "meta": {}
+}
+```
+
+> `permissions` is the **explicit** SUPER_ADMIN list — identical to what
+> `GET /settings/roles-permissions` reports for `SUPER_ADMIN` (`API_MAPPING.md`).
+> Do **not** return a `["*"]` wildcard; the frontend's `can()` check matches exact
+> strings.
+
+**Two provisioning expectations (backend-side, not visible in the response but required for the new tenant to be usable):**
+
+1. The new user is created as **`SUPER_ADMIN`** with **`employeeId: null` and
+   `employee: null`** — a SUPER_ADMIN has no employee profile (`CLAUDE.md §4`).
+2. The new tenant is seeded with the **default roles + permission matrix** (the same
+   matrix `GET /settings/roles-permissions` returns), so the admin can immediately
+   manage roles, invite employees, etc., on first login.
+
+**Errors** (standard error envelope — `{ success:false, error:{ code, message, details, requestId } }`):
+
+| Code           | Status | When                                                                                                                                                                                                                                                                                                                  |
+| -------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EMAIL_IN_USE` | 409    | `email` already registered (in any tenant). Frontend shows it on the email field.                                                                                                                                                                                                                                     |
+| `VALIDATION`   | 422    | Only the minimal rules above fail (e.g. a required field is empty, or `email` is malformed). `error.details[]` = `{ field, message }[]` → mapped to the matching form field via `form.setError`, using the exact body field names (`companyName`, `fullName`, `email`, `password`). Stricter rules are a later phase. |
+
+**Notes:**
+
+- **Validation is intentionally light for now** (agreed with backend team). Tighter
+  rules (password length/complexity, name limits), email verification, and
+  **duplicate-company prevention** come in later phases — the full plan is
+  `docs/COMPANY_ONBOARDING_VALIDATION_ROADMAP.md`. When each phase starts we update
+  this section together.
+- `country` / `currency` / `timezone` are **not** part of signup. The tenant is
+  created with them `null`; they are captured later in **Settings → Company Profile**.
+- Company name is **not** required to be unique — two tenants may share a name. Only
+  `email` is globally unique.
+- No email-verification step in this version (instant login). If you add MFA/email
+  verification later, please raise it as a separate contract change — do not alter
+  this 201-with-cookies behaviour silently.
+- No `slug`/subdomain in this version.
 
 ---
 
