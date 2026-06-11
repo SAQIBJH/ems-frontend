@@ -38,7 +38,7 @@ const stepperSchema = employeeCreateSchema.extend({
 });
 type StepperValues = z.infer<typeof stepperSchema>;
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
-import { useDepartments, flattenDepartmentTree } from '@/modules/departments';
+import { useDepartments, findDepartmentPath, type Department } from '@/modules/departments';
 import type {
   DocumentType,
   EmployeeCreateInput,
@@ -313,16 +313,86 @@ function Step1Personal({ form }: { form: UseFormReturn<StepperValues> }) {
   );
 }
 
+/* ── department → sub-department cascade ──────────────────────────────────── */
+
+/**
+ * Turn the selected department id into a chain of select levels: roots first, then
+ * the children of each selected node. The deepest selected node IS `departmentId`;
+ * drilling into a sub-department is optional (a parent is a valid choice).
+ */
+function buildDepartmentLevels(
+  tree: Department[],
+  selectedId: string,
+): { options: Department[]; value: string }[] {
+  const path = findDepartmentPath(tree, selectedId);
+  const levels: { options: Department[]; value: string }[] = [];
+  let options = tree;
+  for (let i = 0; ; i++) {
+    const node = path[i];
+    levels.push({ options, value: node?.id ?? '' });
+    if (!node || node.children.length === 0) break;
+    options = node.children;
+  }
+  return levels;
+}
+
+/**
+ * Renders the Department select, plus a Sub-department select for each level that has
+ * children. Selecting any level sets `departmentId` to that node (the most specific
+ * pick wins); deeper levels reset automatically because the chain is derived from the
+ * value. Optional: the user may stop at any level.
+ */
+function DepartmentCascade({
+  tree,
+  value,
+  onChange,
+  invalid,
+}: {
+  tree: Department[];
+  value: string;
+  onChange: (id: string) => void;
+  invalid: boolean;
+}) {
+  const levels = buildDepartmentLevels(tree, value);
+  return (
+    <div className="space-y-2">
+      {levels.map((level, i) => {
+        const placeholder = i === 0 ? 'Select department' : 'Select sub-department';
+        return (
+          <Select key={i} value={level.value} onValueChange={(v) => onChange(v ?? '')}>
+            <SelectTrigger
+              id={i === 0 ? 'df-departmentId' : undefined}
+              className="w-full"
+              aria-invalid={i === 0 ? invalid : undefined}
+            >
+              <SelectValue placeholder={placeholder}>
+                {(v) => level.options.find((d) => d.id === v)?.name ?? placeholder}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {level.options.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── step 2: job ──────────────────────────────────────────────────────────── */
 
 function Step2Job({
   form,
-  flatDepts,
+  departments,
   isGeneratingCode,
   onGenerateCode,
 }: {
   form: UseFormReturn<StepperValues>;
-  flatDepts: { id: string; name: string; depth: number }[];
+  departments: Department[];
   isGeneratingCode: boolean;
   onGenerateCode: () => void;
 }) {
@@ -389,25 +459,12 @@ function Step2Job({
             control={form.control}
             name="departmentId"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger
-                  id="df-departmentId"
-                  className="w-full"
-                  aria-invalid={!!form.formState.errors.departmentId}
-                >
-                  <SelectValue placeholder="Select department">
-                    {(v) => flatDepts.find((d) => d.id === v)?.name ?? v}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {flatDepts.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.depth > 0 ? `${'—'.repeat(d.depth)} ` : ''}
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <DepartmentCascade
+                tree={departments}
+                value={field.value}
+                onChange={field.onChange}
+                invalid={!!form.formState.errors.departmentId}
+              />
             )}
           />
         </FormFieldWrapper>
@@ -661,7 +718,6 @@ export function EmployeeFormStepper() {
   const draftLoadedRef = useRef(false);
 
   const { data: deptList } = useDepartments();
-  const flatDepts = flattenDepartmentTree(deptList ?? []);
   const { refetch: fetchNextCode, isFetching: isGeneratingCode } = useNextEmployeeCode();
   const createMutation = useCreateEmployee();
 
@@ -845,7 +901,7 @@ export function EmployeeFormStepper() {
         {step === 2 && (
           <Step2Job
             form={form}
-            flatDepts={flatDepts}
+            departments={deptList ?? []}
             isGeneratingCode={isGeneratingCode}
             onGenerateCode={handleGenerateCode}
           />

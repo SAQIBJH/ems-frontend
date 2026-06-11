@@ -30,4 +30,8 @@ export {
 } from './hooks/useDepartmentMutations';
 
 // Utils
-export { flattenDepartmentTree, findDepartmentById } from './utils/department.utils';
+export {
+  flattenDepartmentTree,
+  findDepartmentById,
+  findDepartmentPath,
+} from './utils/department.utils';
