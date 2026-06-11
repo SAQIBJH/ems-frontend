@@ -7,7 +7,16 @@ import type { UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
-import { CheckIcon, FileTextIcon, Loader2Icon, PlusIcon, TrashIcon, Wand2Icon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  FileTextIcon,
+  Loader2Icon,
+  PlusIcon,
+  TrashIcon,
+  Wand2Icon,
+} from 'lucide-react';
 import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
@@ -860,7 +869,7 @@ export function EmployeeFormStepper() {
       </div>
 
       {/* Footer */}
-      <div className="sticky bottom-0 flex items-center justify-between border-t border-subtle bg-surface px-6 py-4">
+      <div className="sticky bottom-0 z-10 flex items-center justify-between border-t border-subtle bg-surface px-6 py-4">
         <Button
           type="button"
           variant="ghost"
@@ -876,7 +885,8 @@ export function EmployeeFormStepper() {
         <div className="flex items-center gap-3">
           {step > 1 && (
             <Button type="button" variant="outline" onClick={handleBack} disabled={isSubmitting}>
-              ← Back
+              <ArrowLeftIcon className="size-4" aria-hidden />
+              Back
             </Button>
           )}
           {step === 1 && (
@@ -898,7 +908,8 @@ export function EmployeeFormStepper() {
 
           {!isLastStep ? (
             <Button type="button" onClick={handleNext}>
-              Next →
+              Next
+              <ArrowRightIcon className="size-4" aria-hidden />
             </Button>
           ) : (
             <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
