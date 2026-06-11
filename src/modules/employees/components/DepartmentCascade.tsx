@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { X } from 'lucide-react';
 import { findDepartmentPath, type Department } from '@/modules/departments';
 
 /**
@@ -53,25 +54,43 @@ export function DepartmentCascade({
     <div className="space-y-2">
       {levels.map((level, i) => {
         const placeholder = i === 0 ? 'Select department' : 'Select sub-department';
+        // Sub-levels with a selection can be removed → reassign to the parent level,
+        // dropping this level and anything deeper. The root department is required.
+        const removable = i > 0 && level.value !== '';
         return (
-          <Select key={i} value={level.value} onValueChange={(v) => onChange(v ?? '')}>
-            <SelectTrigger
-              id={i === 0 ? 'df-departmentId' : undefined}
-              className="w-full"
-              aria-invalid={i === 0 ? invalid : undefined}
-            >
-              <SelectValue placeholder={placeholder}>
-                {(v) => level.options.find((d) => d.id === v)?.name ?? placeholder}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {level.options.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div key={i} className="flex items-center gap-2">
+            <div className="flex-1">
+              <Select value={level.value} onValueChange={(v) => onChange(v ?? '')}>
+                <SelectTrigger
+                  id={i === 0 ? 'df-departmentId' : undefined}
+                  className="w-full"
+                  aria-invalid={i === 0 ? invalid : undefined}
+                >
+                  <SelectValue placeholder={placeholder}>
+                    {(v) => level.options.find((d) => d.id === v)?.name ?? placeholder}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {level.options.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {removable && (
+              <button
+                type="button"
+                onClick={() => onChange(levels[i - 1].value)}
+                className="shrink-0 rounded-md p-2 text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
+                aria-label="Remove sub-department"
+                title="Remove sub-department"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            )}
+          </div>
         );
       })}
     </div>
