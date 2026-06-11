@@ -56,3 +56,7 @@ test-results/
 # graphify — local knowledge-graph build output (~8 MB, machine-local, regenerated
 # on demand via the /graphify skill). Not pushed.
 graphify-out/
+
+# superpowers — local brainstorm/process scratch. Conclusions get promoted to docs/
+# or memory; the raw sessions stay machine-local. Not pushed.
+.superpowers/
