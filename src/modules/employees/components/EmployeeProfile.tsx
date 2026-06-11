@@ -26,6 +26,7 @@ import { useEmployee } from '../hooks/useEmployee';
 import { useDeleteEmployee } from '../hooks/useEmployeeMutations';
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
 import type { EmployeeDetail, EmploymentType } from '../types/employee.types';
+import { resolveDepartmentRef } from '../utils/employee-department';
 import { StatusBadge } from './StatusBadge';
 import { LeaveBalanceSidecard } from './LeaveBalanceSidecard';
 import { DocumentsTab } from './DocumentsTab';
@@ -151,7 +152,7 @@ function JobTab({ employee }: { employee: EmployeeDetail }) {
               <span className="font-mono text-xs">{employee.employeeCode}</span>
             </InfoRow>
             <InfoRow label="Designation">{employee.designation}</InfoRow>
-            <InfoRow label="Department">{employee.department?.name}</InfoRow>
+            <InfoRow label="Department">{resolveDepartmentRef(employee.department)?.name}</InfoRow>
             <InfoRow label="Employment type">
               {EMPLOYMENT_TYPE_LABELS[employee.employmentType as EmploymentType]}
             </InfoRow>
@@ -334,8 +335,11 @@ export function EmployeeProfile({ id }: { id: string }) {
               </div>
               <p className="mt-1 text-sm text-fg-muted">
                 {employee.designation}
-                {employee.department && (
-                  <span className="text-fg-subtle"> · {employee.department.name}</span>
+                {resolveDepartmentRef(employee.department) && (
+                  <span className="text-fg-subtle">
+                    {' '}
+                    · {resolveDepartmentRef(employee.department)?.name}
+                  </span>
                 )}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-fg-muted">

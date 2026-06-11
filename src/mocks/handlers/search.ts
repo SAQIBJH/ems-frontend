@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { EMPLOYEE_FIXTURES } from '../data/employees';
+import { resolveDepartmentRef } from '@/modules/employees/utils/employee-department';
 import type { SearchResult } from '@/modules/search/types/search.types';
 
 const DEPT_FIXTURES = [
@@ -40,7 +41,7 @@ export const searchHandlers = [
         type: 'employee',
         id: e.id,
         label: `${e.firstName} ${e.lastName}`,
-        sublabel: `${e.designation} · ${e.department?.name ?? ''}`,
+        sublabel: `${e.designation} · ${resolveDepartmentRef(e.department)?.name ?? ''}`,
         url: `/employees/${e.id}`,
       });
     }

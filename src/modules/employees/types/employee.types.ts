@@ -70,7 +70,9 @@ export interface Employee {
   employmentStatus: EmploymentStatus;
   location: string | null;
   payCurrency: string | null;
-  department: EmployeeDeptRef | null;
+  /** Single ref today; an ordered path array root→leaf once sub-departments ship.
+   *  Read via resolveDepartmentRef() (utils/employee-department) to get the deepest. */
+  department: EmployeeDeptRef | EmployeeDeptRef[] | null;
   manager: EmployeeManagerRef | null;
   user: EmployeeUserRef | null;
 }

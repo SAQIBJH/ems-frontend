@@ -66,6 +66,7 @@ import type {
   EmploymentStatus,
   EmploymentType,
 } from '../types/employee.types';
+import { resolveDepartmentRef } from '../utils/employee-department';
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
 import { StatusBadge } from './StatusBadge';
 import { useDepartments, flattenDepartmentTree } from '@/modules/departments';
@@ -603,7 +604,9 @@ export function EmployeeTable() {
         id: 'department',
         header: 'Department',
         cell: ({ row }) => (
-          <span className="text-sm text-fg-muted">{row.original.department?.name ?? '—'}</span>
+          <span className="text-sm text-fg-muted">
+            {resolveDepartmentRef(row.original.department)?.name ?? '—'}
+          </span>
         ),
       },
       {
