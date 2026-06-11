@@ -14,7 +14,7 @@ export const employeeCreateSchema = z.object({
   workEmail: z.string().min(1, 'Work email is required').email('Invalid email address'),
   employeeCode: z.string().min(2, 'At least 2 characters').max(20),
   employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP']),
-  joinedOn: z.string().regex(DATE_RE, 'Date must be MM-DD-YYYY'),
+  joinedOn: z.string().regex(DATE_RE, 'Date must be YYYY-MM-DD'),
   designation: z.string().min(1, 'Designation is required').max(100),
   departmentId: z.string().min(1, 'Department is required'),
   // Optional strings — empty string = not provided
