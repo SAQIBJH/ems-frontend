@@ -47,6 +47,22 @@ export interface LoginResponse {
   permissions: string[];
 }
 
+/** Tenant block returned by POST /auth/register. country/currency/timezone are
+ *  captured later in Settings → Company Profile, so they come back null at signup. */
+export interface Tenant {
+  id: string;
+  name: string;
+  country: string | null;
+  currency: string | null;
+  timezone: string | null;
+}
+
+/** Shape of POST /auth/register data payload — mirrors LoginResponse + the new tenant.
+ *  See docs/BACKEND_API_REQUESTS.md §3. */
+export interface RegisterResponse extends LoginResponse {
+  tenant: Tenant;
+}
+
 /** Alternate login response when MFA is required (no cookies issued yet). */
 export interface MfaRequiredResponse {
   mfaRequired: true;

@@ -160,7 +160,10 @@ Frontend routes to `/otp-verification?challengeId=...`. Then `POST /auth/verify-
 
 ## 3. Auth — Company registration (self-serve signup)
 
-> **Status: NEW — backend building now. MSW mock active on the frontend until live.**
+> **Status: ✅ LIVE & verified on Render (2026-06-11).** Happy path (`201` + cookies),
+> `409 EMAIL_ALREADY_EXISTS`, and `422 VALIDATION_ERROR` all confirmed against the live
+> API. The frontend signup screen works against live as-is. MSW mock retained only as an
+> offline/demo fallback.
 
 ### `POST /auth/register`
 
@@ -191,14 +194,18 @@ yet — this call creates it).
 }
 ```
 
-**Field rules — deliberately minimal (full validation comes in a later phase):**
+**Field rules — as enforced live (verified 2026-06-11):**
 
-| Field         | Type   | Rule (for now)                                                         |
-| ------------- | ------ | ---------------------------------------------------------------------- |
-| `companyName` | string | required, non-empty (labels the new tenant)                            |
-| `fullName`    | string | required, non-empty (backend may split into first/last as it sees fit) |
-| `email`       | string | required, valid email shape, **globally unique** across all tenants    |
-| `password`    | string | required, non-empty (min-length & complexity rules added later)        |
+| Field         | Type   | Rule (live)                                                                                                                                                                       |
+| ------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `companyName` | string | required, **≥ 2 chars** (labels the new tenant)                                                                                                                                   |
+| `fullName`    | string | required & validated, but **not persisted** — backend `User` has no name field (does not affect the UI contract, which only needs `user.id/email/memberType/employeeId/employee`) |
+| `email`       | string | required, valid email shape, **globally unique** across all tenants                                                                                                               |
+| `password`    | string | required, **≥ 8 chars**                                                                                                                                                           |
+
+> The frontend's own client-side schema is intentionally lighter (required + email
+> shape only). The backend's stricter rules (companyName ≥ 2, password ≥ 8) surface in
+> the UI via the `422` → `details[]` field mapping below — no client duplication needed.
 
 **Success `201` — MUST set login cookies in the same response.**
 
@@ -263,18 +270,18 @@ block:
 
 **Errors** (standard error envelope — `{ success:false, error:{ code, message, details, requestId } }`):
 
-| Code           | Status | When                                                                                                                                                                                                                                                                                                                  |
-| -------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EMAIL_IN_USE` | 409    | `email` already registered (in any tenant). Frontend shows it on the email field.                                                                                                                                                                                                                                     |
-| `VALIDATION`   | 422    | Only the minimal rules above fail (e.g. a required field is empty, or `email` is malformed). `error.details[]` = `{ field, message }[]` → mapped to the matching form field via `form.setError`, using the exact body field names (`companyName`, `fullName`, `email`, `password`). Stricter rules are a later phase. |
+| Code                   | Status | When                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EMAIL_ALREADY_EXISTS` | 409    | `email` already registered (in any tenant). Frontend keys off the **409 status** → shows the message on the email field. (Live code is `EMAIL_ALREADY_EXISTS`, not `EMAIL_IN_USE`.)                                                                                                                    |
+| `VALIDATION_ERROR`     | 422    | Field validation failed (companyName < 2, malformed email, password < 8, or missing field). `error.details[]` = `{ field, message }[]` → mapped to the matching form field via `form.setError`, using the body field names (`companyName`, `fullName`, `email`, `password`). Verified live 2026-06-11. |
 
 **Notes:**
 
-- **Validation is intentionally light for now** (agreed with backend team). Tighter
-  rules (password length/complexity, name limits), email verification, and
-  **duplicate-company prevention** come in later phases — the full plan is
-  `docs/COMPANY_ONBOARDING_VALIDATION_ROADMAP.md`. When each phase starts we update
-  this section together.
+- **Client-side validation is intentionally light** (required + email shape); the
+  **backend enforces the real rules** (companyName ≥ 2, password ≥ 8) and the FE
+  surfaces them via the `422` → `details[]` mapping. Further hardening (password
+  complexity, email verification, **duplicate-company prevention**) comes in later
+  phases — full plan in `docs/COMPANY_ONBOARDING_VALIDATION_ROADMAP.md`.
 - `country` / `currency` / `timezone` are **not** part of signup. The tenant is
   created with them `null`; they are captured later in **Settings → Company Profile**.
 - Company name is **not** required to be unique — two tenants may share a name. Only

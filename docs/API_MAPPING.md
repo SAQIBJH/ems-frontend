@@ -98,16 +98,16 @@ After login, two httpOnly cookies are set automatically:
 
 ## HTTP Status Code Rules
 
-| Situation                                 | Status |
-| ----------------------------------------- | ------ |
-| Success GET/PATCH/DELETE                  | 200    |
-| Success POST (create)                     | 201    |
-| Validation error (missing/invalid fields) | 400    |
-| Conflict (duplicate, cycle, not-empty)    | 409    |
-| Not found                                 | 404    |
-| Auth/token missing or invalid             | 401    |
-| Insufficient role                         | 403    |
-| Other bad request                         | 400    |
+| Situation                                        | Status |
+| ------------------------------------------------ | ------ |
+| Success GET/PATCH/DELETE                         | 200    |
+| Success POST (create)                            | 201    |
+| Field validation error (with `details[]`)        | 422    |
+| Conflict (duplicate, cycle, not-empty)           | 409    |
+| Not found                                        | 404    |
+| Auth/token missing or invalid                    | 401    |
+| Insufficient role                                | 403    |
+| Malformed / other bad request (no field details) | 400    |
 
 ---
 

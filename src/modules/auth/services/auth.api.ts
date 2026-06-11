@@ -1,10 +1,12 @@
 import { apiClient } from '@/lib/api-client';
 import type { User } from '@/types/user';
 import type { LoginInput } from '../validations/login.schema';
+import type { RegisterInput } from '../validations/register.schema';
 import type {
   LoginResponse,
   MfaRequiredResponse,
   OtpInitiateResponse,
+  RegisterResponse,
   Session,
 } from '../types/auth.types';
 
@@ -14,6 +16,13 @@ export const authApi = {
       '/auth/login',
       input,
     );
+    return data.data;
+  },
+
+  register: async (input: RegisterInput): Promise<RegisterResponse> => {
+    // Public endpoint — no cookies/Authorization needed. Server sets the
+    // accessToken + refreshToken cookies on the 201 response.
+    const { data } = await apiClient.post<{ data: RegisterResponse }>('/auth/register', input);
     return data.data;
   },
 

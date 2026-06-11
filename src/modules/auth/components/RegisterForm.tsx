@@ -1,3 +1,4 @@
+// src/modules/auth/components/RegisterForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -12,48 +13,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ApiError } from '@/types/api';
 import { cn } from '@/lib/utils';
-import { loginSchema, type LoginInput } from '../validations/login.schema';
-import { useLogin } from '../hooks/useLogin';
+import { registerSchema, type RegisterInput } from '../validations/register.schema';
+import { useRegister } from '../hooks/useRegister';
 
-interface LoginFormProps {
-  next: string;
-  resetSuccess?: boolean;
-}
-
-export function LoginForm({ next, resetSuccess }: LoginFormProps) {
+export function RegisterForm() {
   const { push } = useRouter();
-  const { mutateAsync, isPending } = useLogin();
+  const { mutateAsync, isPending } = useRegister();
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+  const form = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { companyName: '', fullName: '', email: '', password: '' },
   });
 
-  async function onSubmit(values: LoginInput) {
+  async function onSubmit(values: RegisterInput) {
     setGeneralError(null);
     try {
-      const result = await mutateAsync(values);
-
-      // MFA branch: server hasn't issued cookies yet — go to OTP screen.
-      if ('mfaRequired' in result) {
-        push(`/otp-verification?challengeId=${encodeURIComponent(result.challengeId)}`);
-        return;
-      }
-
-      // Normal login: cookies already set by server. Honor the ?next= param.
-      if (next !== '/dashboard') {
-        push(next);
-      } else {
-        const roleDefaults: Record<string, string> = {
-          SUPER_ADMIN: '/dashboard',
-          HR_ADMIN: '/dashboard',
-          MANAGER: '/dashboard',
-          EMPLOYEE: '/dashboard',
-        };
-        push(roleDefaults[result.user.memberType] ?? '/dashboard');
-      }
+      await mutateAsync(values);
+      // Cookies set by the server — go straight to the dashboard.
+      push('/dashboard');
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;
       const status = axiosErr.response?.status;
@@ -61,10 +40,10 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
 
       if (status === 422 && details?.length) {
         details.forEach(({ field, message }) => {
-          form.setError(field as keyof LoginInput, { message });
+          form.setError(field as keyof RegisterInput, { message });
         });
-      } else if (status === 401 || status === 400) {
-        setGeneralError('Invalid email or password. Please try again.');
+      } else if (status === 409) {
+        form.setError('email', { message: 'This email is already registered. Try signing in.' });
       } else if (!axiosErr.response) {
         setGeneralError('Unable to connect to the server. Check your connection and try again.');
       } else {
@@ -77,21 +56,13 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-fg">Sign in</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">
+          Create your company workspace
+        </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Enter your work email and password to continue.
+          Set up your company and admin account. You can add the rest later.
         </p>
       </div>
-
-      {/* Password reset success banner */}
-      {resetSuccess && (
-        <div
-          role="status"
-          className="rounded-lg border border-success/30 bg-success/5 px-4 py-3 text-sm text-success"
-        >
-          Your password has been reset. Sign in with your new password.
-        </div>
-      )}
 
       {/* General error */}
       {generalError && (
@@ -105,6 +76,56 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
 
       {/* Form */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {/* Company name */}
+        <div className="space-y-1.5">
+          <Label htmlFor="companyName" className="text-sm font-medium text-fg">
+            Company name
+          </Label>
+          <Input
+            id="companyName"
+            type="text"
+            autoComplete="organization"
+            placeholder="Acme Inc"
+            disabled={isPending}
+            aria-invalid={!!form.formState.errors.companyName}
+            aria-describedby={form.formState.errors.companyName ? 'companyName-error' : undefined}
+            className={cn(
+              form.formState.errors.companyName && 'border-danger focus-visible:ring-danger/30',
+            )}
+            {...form.register('companyName')}
+          />
+          {form.formState.errors.companyName && (
+            <p id="companyName-error" className="text-xs text-danger" role="alert">
+              {form.formState.errors.companyName.message}
+            </p>
+          )}
+        </div>
+
+        {/* Full name */}
+        <div className="space-y-1.5">
+          <Label htmlFor="fullName" className="text-sm font-medium text-fg">
+            Your name
+          </Label>
+          <Input
+            id="fullName"
+            type="text"
+            autoComplete="name"
+            placeholder="Jane Doe"
+            disabled={isPending}
+            aria-invalid={!!form.formState.errors.fullName}
+            aria-describedby={form.formState.errors.fullName ? 'fullName-error' : undefined}
+            className={cn(
+              form.formState.errors.fullName && 'border-danger focus-visible:ring-danger/30',
+            )}
+            {...form.register('fullName')}
+          />
+          {form.formState.errors.fullName && (
+            <p id="fullName-error" className="text-xs text-danger" role="alert">
+              {form.formState.errors.fullName.message}
+            </p>
+          )}
+        </div>
+
         {/* Email */}
         <div className="space-y-1.5">
           <Label htmlFor="email" className="text-sm font-medium text-fg">
@@ -132,23 +153,14 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
 
         {/* Password */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-sm font-medium text-fg">
-              Password
-            </Label>
-            <Link
-              href="/forgot-password"
-              className="text-xs text-brand hover:text-brand-hover transition-colors"
-              tabIndex={isPending ? -1 : 0}
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <Label htmlFor="password" className="text-sm font-medium text-fg">
+            Password
+          </Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
+              autoComplete="new-password"
               placeholder="••••••••"
               disabled={isPending}
               aria-invalid={!!form.formState.errors.password}
@@ -185,23 +197,19 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
           {isPending ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-              Signing in…
+              Creating workspace…
             </>
           ) : (
-            'Sign in'
+            'Create workspace'
           )}
         </Button>
       </form>
 
       {/* Footer link */}
       <p className="text-center text-sm text-fg-muted">
-        Don&apos;t have an account?{' '}
-        <Link
-          href="/signup"
-          className="text-brand hover:text-brand-hover transition-colors"
-          tabIndex={isPending ? -1 : 0}
-        >
-          Create a company workspace
+        Already have an account?{' '}
+        <Link href="/login" className="text-brand hover:text-brand-hover transition-colors">
+          Sign in
         </Link>
       </p>
     </div>
