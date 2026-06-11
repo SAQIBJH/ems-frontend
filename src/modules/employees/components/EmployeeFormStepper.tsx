@@ -889,7 +889,18 @@ export function EmployeeFormStepper() {
             </Button>
           )}
           {step === 1 && (
-            <Button type="button" variant="outline" onClick={() => router.push('/employees')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // Discard the work: clear the persisted draft (otherwise it gets
+                // restored on the next visit), reset the fields, and drop queued docs.
+                if (userId) localStorage.removeItem(draftKey(userId));
+                form.reset();
+                setQueuedDocs([]);
+                router.push('/employees');
+              }}
+            >
               Cancel
             </Button>
           )}
