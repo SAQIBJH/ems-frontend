@@ -1,6 +1,7 @@
 // Components
 export { DepartmentTree } from './components/DepartmentTree';
 export { DepartmentForm } from './components/DepartmentForm';
+export { AddMembersDialog } from './components/AddMembersDialog';
 
 // Types
 export type {
@@ -9,6 +10,8 @@ export type {
   DepartmentCreateInput,
   DepartmentUpdateInput,
   DepartmentDeleteResult,
+  AddMembersInput,
+  AddMembersResult,
 } from './types/department.types';
 
 // Schemas
@@ -27,6 +30,7 @@ export {
   useCreateDepartment,
   useUpdateDepartment,
   useDeleteDepartment,
+  useAddDepartmentMembers,
 } from './hooks/useDepartmentMutations';
 
 // Utils

@@ -8,6 +8,7 @@ import {
   PencilIcon,
   Trash2Icon,
   FolderPlusIcon,
+  UserPlusIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
@@ -52,6 +53,7 @@ import type { Department } from '../types/department.types';
 import { findDepartmentById, flattenDepartmentTree } from '../utils/department.utils';
 import { DepartmentForm } from './DepartmentForm';
 import { DepartmentEmployeesTable } from './DepartmentEmployeesTable';
+import { AddMembersDialog } from './AddMembersDialog';
 
 /* ── Dept color palette ─────────────────────────────────────────────────── */
 
@@ -272,6 +274,8 @@ function DepartmentDetailPanel({
     ? (flatDepts.find((d) => d.id === dept.parentId)?.name ?? null)
     : null;
 
+  const [addMembersOpen, setAddMembersOpen] = useState(false);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Hero card */}
@@ -314,6 +318,11 @@ function DepartmentDetailPanel({
                 'No head assigned · '
               )}
               {dept._count.employees} people
+              {dept.children.length > 0 &&
+                typeof dept.directEmployeeCount === 'number' &&
+                dept.directEmployeeCount !== dept._count.employees && (
+                  <span className="text-fg-subtle"> · {dept.directEmployeeCount} direct</span>
+                )}
             </p>
           </div>
 
@@ -389,13 +398,21 @@ function DepartmentDetailPanel({
 
       {/* Members */}
       <div className="rounded-xl border border-subtle bg-surface">
-        <div className="border-b border-subtle px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b border-subtle px-4 py-3">
           <h3 className="text-sm font-semibold text-fg">Members</h3>
+          <PermissionWrapper permission="departments:write">
+            <Button variant="outline" size="sm" onClick={() => setAddMembersOpen(true)}>
+              <UserPlusIcon className="mr-1.5 size-4 shrink-0" aria-hidden />
+              Add member
+            </Button>
+          </PermissionWrapper>
         </div>
         <div className="p-4">
-          <DepartmentEmployeesTable deptId={dept.id} />
+          <DepartmentEmployeesTable deptId={dept.id} showDepartment={dept.children.length > 0} />
         </div>
       </div>
+
+      <AddMembersDialog open={addMembersOpen} onOpenChange={setAddMembersOpen} dept={dept} />
     </div>
   );
 }
@@ -514,7 +531,7 @@ export function DepartmentTree() {
         }
       />
 
-      <div className="grid px-6 pb-6" style={{ gridTemplateColumns: '340px 1fr', gap: 16 }}>
+      <div className="grid p-6" style={{ gridTemplateColumns: '340px 1fr', gap: 16 }}>
         {/* Left: Tree panel */}
         <div className="rounded-xl border border-subtle bg-surface p-3">
           {isLoading ? (

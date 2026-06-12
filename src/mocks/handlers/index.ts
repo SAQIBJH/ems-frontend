@@ -61,7 +61,8 @@ import { announcementsHandlers } from './announcements';
 //
 // ── Live — no handler here; all requests pass through ──────────────────────
 //   Employees   GET/POST/PATCH/DELETE, bulk/deactivate, bulk/export, next-code
-//   Departments GET/POST/PATCH/DELETE, :id/employees, reassign-and-delete
+//   Departments GET/POST/PATCH/DELETE, :id/employees, :id/members,
+//               reassign-and-delete
 //   Leave       requests CRUD, bulk approve/reject, team/calendar, coverage
 //   Attendance  records, summary, check-in/out, regularization, team/weekly
 //   Holidays    CRUD, upcoming

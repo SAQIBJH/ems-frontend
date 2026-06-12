@@ -35,7 +35,15 @@ function TableSkeleton() {
   );
 }
 
-export function DepartmentEmployeesTable({ deptId }: { deptId: string }) {
+export function DepartmentEmployeesTable({
+  deptId,
+  showDepartment = false,
+}: {
+  deptId: string;
+  /** When true (parent depts), shows each row's actual sub-department, since
+   *  the list is subtree-aware and includes child-department employees. */
+  showDepartment?: boolean;
+}) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
@@ -99,6 +107,11 @@ export function DepartmentEmployeesTable({ deptId }: { deptId: string }) {
                   <th className="hidden px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted sm:table-cell">
                     Designation
                   </th>
+                  {showDepartment && (
+                    <th className="hidden px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted md:table-cell">
+                      Department
+                    </th>
+                  )}
                   <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-fg-muted">
                     Status
                   </th>
@@ -126,6 +139,11 @@ export function DepartmentEmployeesTable({ deptId }: { deptId: string }) {
                       <td className="hidden px-3 py-2.5 text-fg-muted sm:table-cell">
                         {emp.designation}
                       </td>
+                      {showDepartment && (
+                        <td className="hidden px-3 py-2.5 text-fg-muted md:table-cell">
+                          {emp.department?.name ?? '—'}
+                        </td>
+                      )}
                       <td className="px-3 py-2.5">
                         <span
                           className={cn(

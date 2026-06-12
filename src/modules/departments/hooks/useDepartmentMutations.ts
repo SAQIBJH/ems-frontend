@@ -6,6 +6,7 @@ import { queryClient } from '@/lib/query-client';
 import type { ApiError } from '@/types/api';
 import { departmentsApi } from '../services/departments.api';
 import type {
+  AddMembersResult,
   Department,
   DepartmentCreateInput,
   DepartmentDeleteResult,
@@ -51,4 +52,16 @@ export function useReassignAndDeleteDepartment() {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
     },
   });
+}
+
+export function useAddDepartmentMembers() {
+  return useMutation<AddMembersResult, AxiosError<ApiError>, { id: string; employeeIds: string[] }>(
+    {
+      mutationFn: departmentsApi.addMembers,
+      onSuccess: (_result, { id }) => {
+        queryClient.invalidateQueries({ queryKey: ['departments'] });
+        queryClient.invalidateQueries({ queryKey: ['departments', id, 'employees'] });
+      },
+    },
+  );
 }

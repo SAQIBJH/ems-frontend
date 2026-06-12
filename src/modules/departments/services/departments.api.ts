@@ -1,5 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import type {
+  AddMembersInput,
+  AddMembersResult,
   Department,
   DepartmentCreateInput,
   DepartmentDeleteResult,
@@ -75,6 +77,23 @@ export const departmentsApi = {
     const { data } = await apiClient.post<{ data: ReassignAndDeleteResult }>(
       `/departments/${id}/reassign-and-delete`,
       { reassignEmployeesTo },
+    );
+    return data.data;
+  },
+
+  /**
+   * POST /departments/:id/members → 200 (LIVE as of 2026-06-13)
+   * Bulk-assigns existing employees to this department / sub-department.
+   * Idempotent — already-members come back as `skipped`. Send only employee ids
+   * (the server resolves the department path). `_count.employees` is inclusive.
+   */
+  addMembers: async ({
+    id,
+    employeeIds,
+  }: { id: string } & AddMembersInput): Promise<AddMembersResult> => {
+    const { data } = await apiClient.post<{ data: AddMembersResult }>(
+      `/departments/${id}/members`,
+      { employeeIds },
     );
     return data.data;
   },

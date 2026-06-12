@@ -2,8 +2,8 @@
 
 > **From:** Frontend team
 > **To:** Backend team
-> **Status:** 2 endpoints still pending (updated 2026-05-26)
-> **Last updated:** 2026-05-26
+> **Status:** 2 endpoints still pending (updated 2026-06-13)
+> **Last updated:** 2026-06-13
 >
 > ## Purpose
 >
@@ -197,6 +197,13 @@ Frontend routes to `/otp-verification?challengeId=...`. Then `POST /auth/verify-
 
 - `POST /departments/:id/reassign-and-delete`
 - `GET /departments/:id/employees`
+
+### Departments — bulk add members (shipped 2026-06-13)
+
+- `POST /departments/:id/members` — bulk-assign existing employees to a
+  department / sub-department. Idempotent (already-members → `skipped`). Live
+  shape in `docs/API_MAPPING.md`. Errors: `VALIDATION_ERROR` (422),
+  `DEPARTMENT_NOT_FOUND` (404), `EMPLOYEE_NOT_FOUND` (404), `FORBIDDEN` (403).
 
 ### Leave (shipped 2026-05-26)
 
