@@ -24,7 +24,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
@@ -577,6 +577,10 @@ export function EmployeeTable() {
           return (
             <div className="flex min-w-0 items-center gap-3">
               <Avatar className="size-8 shrink-0">
+                <AvatarImage
+                  src={emp.profilePhotoUrl ?? undefined}
+                  alt={`${emp.firstName} ${emp.lastName}`}
+                />
                 <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">

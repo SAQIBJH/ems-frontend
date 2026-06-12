@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 import { BriefcaseIcon, EditIcon, MailIcon, PhoneIcon } from 'lucide-react';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { SectionCard } from '@/components/data-display/SectionCard';
@@ -28,6 +27,7 @@ import { EMPLOYMENT_TYPE_LABELS } from '../constants';
 import type { EmployeeDetail, EmploymentType } from '../types/employee.types';
 import { resolveDepartmentRef } from '../utils/employee-department';
 import { StatusBadge } from './StatusBadge';
+import { ProfilePhotoEditor } from './ProfilePhotoEditor';
 import { LeaveBalanceSidecard } from './LeaveBalanceSidecard';
 import { DocumentsTab } from './DocumentsTab';
 import { AttendanceTab } from './AttendanceTab';
@@ -44,10 +44,6 @@ function formatDate(iso: string | null | undefined): string {
   } catch {
     return '—';
   }
-}
-
-function getInitials(first: string, last: string): string {
-  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
 }
 
 /* ── Overview tab ─────────────────────────────────────────────────────────── */
@@ -306,10 +302,14 @@ export function EmployeeProfile({ id }: { id: string }) {
 
   /* Success */
   const fullName = `${employee.firstName} ${employee.lastName}`;
-  const initials = getInitials(employee.firstName, employee.lastName);
   const canTerminate =
     permissions.includes('employees:delete') && employee.employmentStatus !== 'TERMINATED';
   const isInvited = employee.user?.status === 'INVITED';
+  // Only the employee themselves may change their profile photo — not HR or
+  // SUPER_ADMIN. (The backend also permits HR/SUPER_ADMIN, but product wants
+  // this restricted to self.) SUPER_ADMIN has a null employeeId, so they never
+  // match here.
+  const canEditPhoto = !!viewer?.employeeId && viewer.employeeId === employee.id;
 
   return (
     <>
@@ -361,11 +361,13 @@ export function EmployeeProfile({ id }: { id: string }) {
         {/* Identity card */}
         <div className="rounded-xl border border-subtle bg-surface p-6">
           <div className="flex flex-wrap items-center gap-5">
-            <Avatar className="size-14 shrink-0">
-              <AvatarFallback className="bg-brand-50 text-base font-semibold text-brand">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <ProfilePhotoEditor
+              employeeId={employee.id}
+              firstName={employee.firstName}
+              lastName={employee.lastName}
+              photoUrl={employee.profilePhotoUrl}
+              canEdit={canEditPhoto}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-semibold tracking-[-0.01em] text-fg">{fullName}</h2>

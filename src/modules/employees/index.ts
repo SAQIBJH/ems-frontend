@@ -30,6 +30,7 @@ export type {
   EmployeeDocument,
   DocumentType,
   DocumentVerificationStatus,
+  PhotoUploadResult,
 } from './types/employee.types';
 
 // Schemas
@@ -42,6 +43,7 @@ export type {
 // Service
 export { employeesApi } from './services/employees.api';
 export { documentsApi } from './services/documents.api';
+export { photoApi } from './services/photo.api';
 
 // Hooks
 export { useEmployees } from './hooks/useEmployees';
@@ -53,3 +55,4 @@ export {
   useInviteEmployee,
 } from './hooks/useEmployeeMutations';
 export { useEmployeeDocuments, useUploadDocument, useRemoveDocument } from './hooks/useDocuments';
+export { useUploadPhoto, useDeletePhoto } from './hooks/usePhoto';

@@ -70,6 +70,9 @@ export interface Employee {
   employmentStatus: EmploymentStatus;
   location: string | null;
   payCurrency: string | null;
+  /** Cloudinary WebP URL of the profile photo, or null. Written via the
+   *  /employees/:id/photo endpoints (see services/photo.api.ts). */
+  profilePhotoUrl: string | null;
   /** Single ref today; an ordered path array root→leaf once sub-departments ship.
    *  Read via resolveDepartmentRef() (utils/employee-department) to get the deepest. */
   department: EmployeeDeptRef | EmployeeDeptRef[] | null;
@@ -150,6 +153,12 @@ export interface EmployeeInviteResult {
 }
 
 export type EmployeeUpdateInput = Partial<EmployeeCreateInput>;
+
+/** Returned by POST /employees/:id/photo. */
+export interface PhotoUploadResult {
+  id: string;
+  profilePhotoUrl: string;
+}
 
 export interface EmployeeDeleteResult {
   id: string;

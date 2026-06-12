@@ -118,6 +118,7 @@ export const employeeHandlers = [
       employmentStatus: 'ACTIVE',
       location: (body.location as string | null) ?? null,
       payCurrency: 'INR',
+      profilePhotoUrl: null,
       department: null,
       manager: null,
       user: null,

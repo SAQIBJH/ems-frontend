@@ -12,6 +12,9 @@ export interface UserEmployee {
   employmentType: string;
   employmentStatus: string;
   location: string;
+  /** Cloudinary WebP URL of the profile photo, or null. Verified present on
+   *  GET /auth/me's employee object (2026-06-12). */
+  profilePhotoUrl: string | null;
 }
 
 /** Shape returned by GET /auth/me (verified against API_MAPPING.md). */

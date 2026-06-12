@@ -227,11 +227,14 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring hover:ring-2 hover:ring-ring/30 transition-shadow"
+        className="flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring hover:ring-2 hover:ring-ring/30 transition-shadow cursor-pointer"
         aria-label="Open user menu"
       >
         <Avatar className="size-8 pointer-events-none">
-          <AvatarImage src={undefined} alt={user?.employee?.firstName ?? user?.email} />
+          <AvatarImage
+            src={user?.employee?.profilePhotoUrl ?? undefined}
+            alt={user?.employee?.firstName ?? user?.email}
+          />
           <AvatarFallback className="text-xs bg-brand text-on-primary">{initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>

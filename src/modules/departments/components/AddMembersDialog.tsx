@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -238,6 +238,10 @@ export function AddMembersDialog({
                       )}
                     >
                       <Avatar size="sm">
+                        <AvatarImage
+                          src={emp.profilePhotoUrl ?? undefined}
+                          alt={`${emp.firstName} ${emp.lastName}`}
+                        />
                         <AvatarFallback>{initials(emp.firstName, emp.lastName)}</AvatarFallback>
                       </Avatar>
                       <span className="min-w-0 flex-1">
