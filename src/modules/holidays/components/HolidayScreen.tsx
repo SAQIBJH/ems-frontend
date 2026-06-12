@@ -227,7 +227,7 @@ export function HolidayScreen() {
         }
       />
 
-      <div className="space-y-6 px-6 pb-6">
+      <div className="space-y-6 p-6">
         {/* Year navigation + type legend */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Year nav */}

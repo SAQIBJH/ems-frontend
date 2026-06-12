@@ -82,7 +82,7 @@ export function LeaveBalanceRow() {
 
 export function LeaveBalanceCards() {
   return (
-    <div className="px-6 pb-6">
+    <div className="p-6">
       <LeaveBalanceRow />
     </div>
   );
