@@ -366,6 +366,39 @@ Only used in MFA flow (not needed for standard login — MFA is disabled).
 **Body:** `{ "challengeId": "...", "code": "123456" }` ← field is `code`, NOT `otp`  
 **Response `data`:** same shape as login
 
+### Employee invitation & account activation
+
+> **Status: LIVE ✅** (implemented 2026-06-12; final emailed-link live proof pending —
+> FE keeps a mock fallback until then). Full contract + open confirmations:
+> `docs/BACKEND_API_REQUESTS.md §3`.
+
+**`GET /auth/invitation?token=<raw>`** (public) — always `200`; state in `data.status`:
+`{ "status": "VALID"|"EXPIRED"|"USED"|"NOT_FOUND", "employee": { "firstName", "companyName" } | null, "expiresAt": string | null }`.
+
+**`POST /auth/accept-invitation`** (public) — `{ token, password }` → sets password,
+`INVITED → ACTIVE`, consumes token. `200 data: { "activated": true }` (no auto-login).
+Errors: `410 INVITE_EXPIRED`, `409 INVITE_ALREADY_USED`, `404 INVALID_TOKEN`,
+`422 WEAK_PASSWORD` (`error.details[]`). Policy: min 8 + upper + lower + number.
+
+**`POST /auth/invitation/resend`** (public) — `{ email }` → generic `200
+{ "message": "If an invite exists, a new link was sent" }`. Rate limit 5/15min.
+
+**`POST /employees/:id/invite`** (HR_ADMIN, SUPER_ADMIN) — send/resend; optional
+`{ emailTarget: "PERSONAL"|"WORK" }`. `200 data: { sent, sentTo, email (masked), expiresAt }`.
+Errors: `404 EMPLOYEE_NOT_FOUND`, `409 ALREADY_ACTIVE`, `409 EMPLOYEE_TERMINATED`,
+`422 NO_DELIVERY_EMAIL`, `429 RATE_LIMITED`.
+
+**`POST /employees`** — gains optional `memberType` (default `EMPLOYEE`), `sendInvite`
+(default `false`), `emailTarget` (defaults from tenant `invite_email_target`). Response
+gains `user: { status: "INVITED" }` and `invite: { sent, sentTo, email, expiresAt }` (or
+`{ sent: false, reason: "EMAIL_SEND_FAILED"|"NO_DELIVERY_EMAIL" }`). Email failure does
+**not** roll back the create.
+
+**Login while `INVITED`** → `403 ACCOUNT_NOT_ACTIVATED`.
+
+**Tenant setting** `invite_email_target: "PERSONAL"|"WORK"` (snake_case) on
+`GET/PATCH /settings/tenant`, default `PERSONAL`.
+
 ---
 
 ## Employees

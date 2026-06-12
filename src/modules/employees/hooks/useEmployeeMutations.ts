@@ -11,6 +11,7 @@ import type {
   EmployeeCreateInput,
   EmployeeDeleteResult,
   EmployeeDetail,
+  EmployeeInviteResult,
   EmployeeUpdateInput,
 } from '../types/employee.types';
 
@@ -54,5 +55,18 @@ export function useBulkDeactivate() {
 export function useBulkExport() {
   return useMutation<BulkExportResult, AxiosError<ApiError>, string[]>({
     mutationFn: employeesApi.bulkExport,
+  });
+}
+
+export function useInviteEmployee() {
+  return useMutation<
+    EmployeeInviteResult,
+    AxiosError<ApiError>,
+    { id: string; emailTarget?: 'PERSONAL' | 'WORK' }
+  >({
+    mutationFn: employeesApi.invite,
+    onSuccess: (_result, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees', id] });
+    },
   });
 }

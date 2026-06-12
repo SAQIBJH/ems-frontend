@@ -6,6 +6,8 @@ export interface TenantSettings {
   working_hours_start: string;
   working_hours_end: string;
   fiscal_year_start: number;
+  /** Which employee email invite links are sent to. Defaults to PERSONAL. */
+  invite_email_target?: 'PERSONAL' | 'WORK';
   /** Tenant identity fields — camelCase per API_MAPPING.md */
   legalName?: string;
   displayName?: string;
@@ -53,6 +55,7 @@ export interface TenantSettingsUpdateInput {
   timezone?: string;
   working_hours_start?: string;
   working_hours_end?: string;
+  invite_email_target?: 'PERSONAL' | 'WORK';
   legalName?: string;
   displayName?: string;
   country?: string;

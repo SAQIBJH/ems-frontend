@@ -57,12 +57,17 @@ export function LoginForm({ next, resetSuccess }: LoginFormProps) {
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;
       const status = axiosErr.response?.status;
+      const code = axiosErr.response?.data?.error?.code;
       const details = axiosErr.response?.data?.error?.details;
 
       if (status === 422 && details?.length) {
         details.forEach(({ field, message }) => {
           form.setError(field as keyof LoginInput, { message });
         });
+      } else if (status === 403 && code === 'ACCOUNT_NOT_ACTIVATED') {
+        setGeneralError(
+          'Your account isn’t activated yet. Check your email for the invitation link to set your password, or contact your administrator.',
+        );
       } else if (status === 401 || status === 400) {
         setGeneralError('Invalid email or password. Please try again.');
       } else if (!axiosErr.response) {

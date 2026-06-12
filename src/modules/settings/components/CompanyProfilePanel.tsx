@@ -39,7 +39,13 @@ const companyProfileSchema = z.object({
   country: z.string().optional(),
   primaryContactEmail: z.string().email('Must be a valid email').or(z.literal('')).optional(),
   defaultCurrency: z.string().optional(),
+  invite_email_target: z.enum(['PERSONAL', 'WORK']),
 });
+
+const INVITE_TARGET_LABELS: Record<'PERSONAL' | 'WORK', string> = {
+  PERSONAL: 'Personal email',
+  WORK: 'Work email',
+};
 
 type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
 
@@ -84,6 +90,7 @@ export function CompanyProfilePanel() {
       country: '',
       primaryContactEmail: '',
       defaultCurrency: '',
+      invite_email_target: 'PERSONAL',
     },
   });
 
@@ -99,6 +106,7 @@ export function CompanyProfilePanel() {
         country: data.country ?? '',
         primaryContactEmail: data.primaryContactEmail ?? '',
         defaultCurrency: data.defaultCurrency ?? '',
+        invite_email_target: data.invite_email_target ?? 'PERSONAL',
       });
     }
   }, [data, form]);
@@ -115,6 +123,7 @@ export function CompanyProfilePanel() {
         country: values.country || undefined,
         primaryContactEmail: values.primaryContactEmail || undefined,
         defaultCurrency: values.defaultCurrency || undefined,
+        invite_email_target: values.invite_email_target,
       },
       {
         onSuccess: () => toast.success('Company profile saved'),
@@ -235,6 +244,35 @@ export function CompanyProfilePanel() {
             )}
           </FormRow>
 
+          {/* Invite email target */}
+          <FormRow
+            label="Send invites to"
+            help="Which employee email account-activation links are sent to."
+          >
+            <Controller
+              control={form.control}
+              name="invite_email_target"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(val) =>
+                    field.onChange((val as 'PERSONAL' | 'WORK') ?? 'PERSONAL')
+                  }
+                >
+                  <SelectTrigger id="invite_email_target" className="max-w-[240px]">
+                    <SelectValue placeholder="Select email target">
+                      {(v) => INVITE_TARGET_LABELS[v as 'PERSONAL' | 'WORK'] ?? v}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PERSONAL">{INVITE_TARGET_LABELS.PERSONAL}</SelectItem>
+                    <SelectItem value="WORK">{INVITE_TARGET_LABELS.WORK}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </FormRow>
+
           {/* Fiscal year — read-only */}
           {data && (
             <FormRow label="Fiscal year" help="Contact support to change.">
@@ -274,6 +312,7 @@ export function CompanyProfilePanel() {
                   country: data?.country ?? '',
                   primaryContactEmail: data?.primaryContactEmail ?? '',
                   defaultCurrency: data?.defaultCurrency ?? '',
+                  invite_email_target: data?.invite_email_target ?? 'PERSONAL',
                 })
               }
               disabled={mutation.isPending}

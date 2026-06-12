@@ -2,6 +2,8 @@ import { apiClient } from '@/lib/api-client';
 import type { User } from '@/types/user';
 import type { LoginInput } from '../validations/login.schema';
 import type {
+  AcceptInvitationResult,
+  InvitationValidation,
   LoginResponse,
   MfaRequiredResponse,
   OtpInitiateResponse,
@@ -71,5 +73,35 @@ export const authApi = {
 
   resetPassword: async (token: string, password: string): Promise<void> => {
     await apiClient.post('/auth/reset-password', { token, password });
+  },
+
+  // ── Employee invitation / account activation ──────────────────────────────
+
+  /** GET /auth/invitation?token= — public; always 200, state is in `data.status`. */
+  validateInvitation: async (token: string): Promise<InvitationValidation> => {
+    const { data } = await apiClient.get<{ data: InvitationValidation }>('/auth/invitation', {
+      params: { token },
+    });
+    return data.data;
+  },
+
+  /** POST /auth/accept-invitation — public; sets password, activates the user. */
+  acceptInvitation: async (token: string, password: string): Promise<AcceptInvitationResult> => {
+    const { data } = await apiClient.post<{ data: AcceptInvitationResult }>(
+      '/auth/accept-invitation',
+      { token, password },
+    );
+    return data.data;
+  },
+
+  /** POST /auth/invitation/resend — public; generic no-leak response. */
+  resendInvitation: async (email: string): Promise<{ message: string }> => {
+    const { data } = await apiClient.post<{ data: { message: string } }>(
+      '/auth/invitation/resend',
+      {
+        email,
+      },
+    );
+    return data.data;
   },
 };

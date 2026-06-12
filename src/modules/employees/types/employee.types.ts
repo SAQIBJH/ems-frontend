@@ -83,6 +83,8 @@ export interface Employee {
 export interface EmployeeDetail extends Employee {
   leaveBalances?: LeaveBalance[];
   documents?: EmployeeDocument[];
+  /** Present only on the POST /employees response when sendInvite was set. */
+  invite?: EmployeeInviteResult;
 }
 
 export interface Pagination {
@@ -128,6 +130,23 @@ export interface EmployeeCreateInput {
   dateOfBirth?: string;
   personalEmail?: string;
   address?: string;
+  /** Login role for the provisioned user. Backend defaults to EMPLOYEE. */
+  memberType?: MemberType;
+  /** When true, backend provisions an INVITED user and emails the activation link. */
+  sendInvite?: boolean;
+  /** Which email the invite goes to; omitted → backend uses tenant `invite_email_target`. */
+  emailTarget?: 'PERSONAL' | 'WORK';
+}
+
+/** `invite` summary returned on POST /employees when sendInvite is set. */
+export interface EmployeeInviteResult {
+  sent: boolean;
+  sentTo?: 'PERSONAL' | 'WORK';
+  /** Masked recipient, e.g. "j****@gmail.com" — display only. */
+  email?: string;
+  expiresAt?: string;
+  /** Present when sent === false. */
+  reason?: 'EMAIL_SEND_FAILED' | 'NO_DELIVERY_EMAIL';
 }
 
 export type EmployeeUpdateInput = Partial<EmployeeCreateInput>;

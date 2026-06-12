@@ -6,6 +6,7 @@ import type {
   EmployeeCreateInput,
   EmployeeDeleteResult,
   EmployeeDetail,
+  EmployeeInviteResult,
   EmployeeListParams,
   EmployeesPage,
   EmployeeUpdateInput,
@@ -116,5 +117,24 @@ export const employeesApi = {
   getNextCode: async (): Promise<string> => {
     const { data } = await apiClient.get<{ data: { code: string } }>('/employees/next-code');
     return data.data.code;
+  },
+
+  /**
+   * POST /employees/:id/invite → 200
+   * Send/resend the account-activation invite. Invalidates prior unused tokens.
+   * `emailTarget` omitted → backend uses the tenant `invite_email_target` setting.
+   */
+  invite: async ({
+    id,
+    emailTarget,
+  }: {
+    id: string;
+    emailTarget?: 'PERSONAL' | 'WORK';
+  }): Promise<EmployeeInviteResult> => {
+    const { data } = await apiClient.post<{ data: EmployeeInviteResult }>(
+      `/employees/${id}/invite`,
+      emailTarget ? { emailTarget } : {},
+    );
+    return data.data;
   },
 };

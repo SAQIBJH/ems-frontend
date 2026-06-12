@@ -55,6 +55,7 @@ import type {
   EmployeeCreateInput,
   EmploymentType,
   Gender,
+  MemberType,
 } from '../types/employee.types';
 import { useCreateEmployee } from '../hooks/useEmployeeMutations';
 import { useNextEmployeeCode } from '../hooks/useNextEmployeeCode';
@@ -142,6 +143,10 @@ function buildPayload(values: StepperValues, departments: Department[]): Employe
     gender: (values.gender as Gender) || undefined,
     dateOfBirth: toDateInput(values.dateOfBirth) || undefined,
     personalEmail: values.personalEmail || undefined,
+    // Access step → login role + optional activation invite. emailTarget is
+    // omitted so the backend uses the tenant `invite_email_target` setting.
+    memberType: (values.memberType as MemberType) || 'EMPLOYEE',
+    sendInvite: values.sendInviteEmail,
   };
 }
 
@@ -771,9 +776,27 @@ export function EmployeeFormStepper() {
 
       if (userId) localStorage.removeItem(draftKey(userId));
 
-      if (failedUploads.length > 0) {
+      // Invite outcome (only when the toggle was on). Failures are non-fatal —
+      // the employee is created regardless; HR can resend from the profile.
+      const invite = employee.invite;
+      const inviteFailed = invite && invite.sent === false;
+      const inviteNote = !inviteFailed
+        ? ''
+        : invite?.reason === 'NO_DELIVERY_EMAIL'
+          ? ' No email on file to send the invite — add one and resend from the profile.'
+          : ' The invite email failed to send — resend from the profile.';
+
+      if (failedUploads.length > 0 || inviteFailed) {
         toast.warning(
-          `Employee created. ${failedUploads.length} document(s) failed to upload — retry from the profile.`,
+          `Employee created.${
+            failedUploads.length > 0
+              ? ` ${failedUploads.length} document(s) failed to upload — retry from the profile.`
+              : ''
+          }${inviteNote}`,
+        );
+      } else if (invite?.sent) {
+        toast.success(
+          `Employee created. Invite sent to their ${invite.sentTo?.toLowerCase()} email.`,
         );
       } else {
         toast.success('Employee created successfully.');

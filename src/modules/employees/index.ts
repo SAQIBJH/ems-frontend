@@ -15,6 +15,7 @@ export type {
   EmployeesPage,
   EmployeeListParams,
   EmployeeCreateInput,
+  EmployeeInviteResult,
   EmployeeUpdateInput,
   EmployeeDeleteResult,
   EmploymentType,
@@ -49,5 +50,6 @@ export {
   useCreateEmployee,
   useUpdateEmployee,
   useDeleteEmployee,
+  useInviteEmployee,
 } from './hooks/useEmployeeMutations';
 export { useEmployeeDocuments, useUploadDocument, useRemoveDocument } from './hooks/useDocuments';

@@ -62,6 +62,21 @@ export interface OtpInitiateResponse {
   resendAvailableAt: string;
 }
 
+/** GET /auth/invitation?token= — always HTTP 200; state lives in `status`. */
+export type InvitationStatus = 'VALID' | 'EXPIRED' | 'USED' | 'NOT_FOUND';
+
+export interface InvitationValidation {
+  status: InvitationStatus;
+  /** Minimal display info — present only when status is VALID. */
+  employee: { firstName: string; companyName: string } | null;
+  expiresAt: string | null;
+}
+
+/** POST /auth/accept-invitation → data */
+export interface AcceptInvitationResult {
+  activated: boolean;
+}
+
 /** Shape from GET /auth/sessions — all camelCase per auth domain (API_MAPPING.md). */
 export interface Session {
   id: string;

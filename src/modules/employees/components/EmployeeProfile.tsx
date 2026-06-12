@@ -23,7 +23,7 @@ import type { ApiError } from '@/types/api';
 import { cn } from '@/lib/utils';
 
 import { useEmployee } from '../hooks/useEmployee';
-import { useDeleteEmployee } from '../hooks/useEmployeeMutations';
+import { useDeleteEmployee, useInviteEmployee } from '../hooks/useEmployeeMutations';
 import { EMPLOYMENT_TYPE_LABELS } from '../constants';
 import type { EmployeeDetail, EmploymentType } from '../types/employee.types';
 import { resolveDepartmentRef } from '../utils/employee-department';
@@ -200,6 +200,7 @@ export function EmployeeProfile({ id }: { id: string }) {
 
   const { data: employee, isLoading, isError, error, refetch } = useEmployee(id);
   const deleteMutation = useDeleteEmployee();
+  const inviteMutation = useInviteEmployee();
 
   const showCompensation =
     viewer?.memberType === 'HR_ADMIN' || viewer?.memberType === 'SUPER_ADMIN';
@@ -223,6 +224,31 @@ export function EmployeeProfile({ id }: { id: string }) {
     } catch (err) {
       const axiosErr = err as AxiosError<ApiError>;
       toast.error(axiosErr.response?.data?.error?.message ?? 'Failed to terminate employee.');
+    }
+  }
+
+  async function handleResendInvite() {
+    if (!employee) return;
+    try {
+      const result = await inviteMutation.mutateAsync({ id: employee.id });
+      toast.success(
+        result.sent
+          ? `Invite sent to their ${result.sentTo?.toLowerCase() ?? ''} email.`.replace('  ', ' ')
+          : 'Invite processed.',
+      );
+    } catch (err) {
+      const apiError = (err as AxiosError<ApiError>).response?.data?.error;
+      const message =
+        apiError?.code === 'NO_DELIVERY_EMAIL'
+          ? 'No email on file for the selected target — add one first.'
+          : apiError?.code === 'ALREADY_ACTIVE'
+            ? 'This employee has already activated their account.'
+            : apiError?.code === 'EMPLOYEE_TERMINATED'
+              ? 'Cannot invite a terminated employee.'
+              : apiError?.code === 'RATE_LIMITED'
+                ? 'Too many invites sent. Please wait a few minutes and try again.'
+                : (apiError?.message ?? 'Failed to send invite.');
+      toast.error(message);
     }
   }
 
@@ -283,6 +309,7 @@ export function EmployeeProfile({ id }: { id: string }) {
   const initials = getInitials(employee.firstName, employee.lastName);
   const canTerminate =
     permissions.includes('employees:delete') && employee.employmentStatus !== 'TERMINATED';
+  const isInvited = employee.user?.status === 'INVITED';
 
   return (
     <>
@@ -291,6 +318,20 @@ export function EmployeeProfile({ id }: { id: string }) {
         breadcrumbs={[{ label: 'Employees', href: '/employees' }, { label: fullName }]}
         actions={
           <div className="flex items-center gap-2">
+            {isInvited && (
+              <PermissionWrapper permission="employees:write">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={handleResendInvite}
+                  disabled={inviteMutation.isPending}
+                >
+                  <MailIcon className="size-4" aria-hidden />
+                  {inviteMutation.isPending ? 'Sending…' : 'Resend invite'}
+                </Button>
+              </PermissionWrapper>
+            )}
             <PermissionWrapper permission="employees:write">
               <Link
                 href={`/employees/${id}/edit`}

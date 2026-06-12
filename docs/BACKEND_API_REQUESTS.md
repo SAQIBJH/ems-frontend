@@ -2,8 +2,8 @@
 
 > **From:** Frontend team
 > **To:** Backend team
-> **Status:** 2 endpoints still pending (updated 2026-06-13)
-> **Last updated:** 2026-06-13
+> **Status:** 2 endpoints + 1 flow (employee invitation) still pending (updated 2026-06-12)
+> **Last updated:** 2026-06-12
 >
 > ## Purpose
 >
@@ -54,6 +54,7 @@ documented here. Frontend code is already updated to use the actual live shapes.
 
 1. [Auth — OTP initiate](#1-auth-otp-initiate) ← **Still pending**
 2. [Holidays — .ics import](#2-holidays-ics-import) ← **Still pending**
+3. [Employee invitation & set-password](#3-employee-invitation--set-password) ← **Implemented & live; FE wired; final emailed-link proof pending**
 
 ---
 
@@ -154,6 +155,177 @@ Frontend routes to `/otp-verification?challengeId=...`. Then `POST /auth/verify-
 **Body:** `{ "overwriteExisting": true }`
 
 **Response 200:** `{ "imported": 8, "overwritten": 2, "skipped": 0 }`
+
+---
+
+## 3. Employee invitation & set-password
+
+> **Status: IMPLEMENTED & LIVE on backend (2026-06-12).** Frontend is wired
+> (MSW-first with live fallback). Two items still open — see §3.10 (activation-link
+> base + production sender domain) — and the §"Live-proof" emailed-link round-trip is
+> the only remaining signoff before the FE removes its mock fallback. Design rationale:
+> `docs/superpowers/specs/2026-06-12-employee-invitation-set-password-design.md`.
+> Field casing **camelCase** for auth/employees; **snake_case** for the settings field.
+
+**Why:** New employees cannot set their own password. The create stepper's "Send
+invite email" toggle is currently a no-op. This flow: HR creates → employee gets an
+emailed link → lands on `/set-password` → activates (`INVITED → ACTIVE`).
+
+### ⚠️ Backend confirmations required before building the create-side
+
+1. Does `POST /employees` create a login user today, or only an employee profile?
+2. If it creates a user, does it accept `memberType`, and what default status?
+3. Can `POST /employees` support `sendInvite` and trigger the invite **atomically**?
+4. Is there an `ACCOUNT_INVITE` activation email template, or must one be added?
+
+### Locked product decisions (FE side)
+
+- **Invite TTL = 72h** (configurable), server-enforced. Reset stays short.
+- **Email-send failure → do NOT roll back the create.** Persist employee + user +
+  token atomically; email is a side-effect. On failure return `invite.sent: false`
+  with a reason — HR resends. A transient SMTP outage must not block a valid create.
+- **After accept → frontend redirects to `/login`** (no auto-login). The optional
+  auto-login response is **not needed** — return `{ "activated": true }`.
+
+### 3.1 Modified — `POST /employees` (optional invite)
+
+Roles: HR_ADMIN, SUPER_ADMIN. **Body additions:**
+
+```json
+{ "memberType": "EMPLOYEE", "sendInvite": true, "emailTarget": "PERSONAL" }
+```
+
+- `memberType` defaults `EMPLOYEE` if omitted; `sendInvite` defaults `false`;
+  `emailTarget` (`PERSONAL | WORK`) defaults from the tenant setting if omitted.
+- If `sendInvite=true`: create employee + link user in `INVITED`, issue a single-use
+  invite token, send the email — atomically (see no-rollback rule above).
+
+**Response 201 `data`** (gains `user` + `invite`):
+
+```json
+{
+  "id": "emp_123",
+  "employeeCode": "EMP-0082",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "workEmail": "jane.doe@company.com",
+  "personalEmail": "jane.personal@gmail.com",
+  "user": {
+    "id": "usr_123",
+    "email": "jane.doe@company.com",
+    "memberType": "EMPLOYEE",
+    "status": "INVITED"
+  },
+  "invite": {
+    "sent": true,
+    "sentTo": "PERSONAL",
+    "email": "j****@gmail.com",
+    "expiresAt": "2026-06-16T10:30:00.000Z"
+  }
+}
+```
+
+> On email-send failure: `"invite": { "sent": false, "reason": "EMAIL_SEND_FAILED" }`
+> while the employee + user records still persist.
+
+### 3.2 New — `POST /employees/:id/invite` (send / resend)
+
+Roles: HR_ADMIN, SUPER_ADMIN. Body: optional `{ "emailTarget": "PERSONAL"|"WORK" }`.
+Invalidates prior unused tokens, issues a fresh one, sends a new email.
+
+**Response 200 `data`:** `{ "sent": true, "sentTo": "PERSONAL", "email": "p****@gmail.com", "expiresAt": "<ISO>" }`
+
+| Status | Code                  | When                                   |
+| -----: | --------------------- | -------------------------------------- |
+|    404 | `EMPLOYEE_NOT_FOUND`  | Employee does not exist                |
+|    409 | `ALREADY_ACTIVE`      | User already active                    |
+|    409 | `EMPLOYEE_TERMINATED` | Employee terminated / soft-deleted     |
+|    422 | `NO_DELIVERY_EMAIL`   | Selected target has no email           |
+|    429 | `RATE_LIMITED`        | Too many invite sends (~3/hr/employee) |
+
+### 3.3 New — `GET /auth/invitation?token=<raw>` (public, validate)
+
+Always **HTTP 200** so the page renders the right state. No auth.
+
+```json
+{
+  "status": "VALID",
+  "employee": { "firstName": "Jane", "companyName": "Acme" },
+  "expiresAt": "<ISO>"
+}
+```
+
+`status` ∈ `VALID | EXPIRED | USED | NOT_FOUND`. **No** email/tenant/token metadata leaked.
+
+### 3.4 New — `POST /auth/accept-invitation` (public)
+
+Body: `{ "token": "<raw>", "password": "NewPass123!" }`. Validates (constant-time hash
+compare) → sets password → `INVITED → ACTIVE` → consumes token.
+
+**Response 200 `data`:** `{ "activated": true }` _(no auto-login — see decisions)._
+
+| Status | Code                  | When                            |
+| -----: | --------------------- | ------------------------------- |
+|    410 | `INVITE_EXPIRED`      | Token expired                   |
+|    409 | `INVITE_ALREADY_USED` | Token already consumed          |
+|    404 | `INVALID_TOKEN`       | Token not found / invalid       |
+|    422 | `WEAK_PASSWORD`       | Fails policy; `error.details[]` |
+
+### 3.5 New — `POST /auth/invitation/resend` (public, self-serve)
+
+Body: `{ "email": "..." }`. **Generic no-leak 200:**
+`{ "message": "If an invite exists, a new link was sent" }`. Rate limit **5/15min**
+(`429 RATE_LIMITED`).
+
+### 3.6 Tenant setting — `invite_email_target`
+
+`GET/PATCH /settings/tenant` gains `"invite_email_target": "PERSONAL" | "WORK"`
+(**snake_case**, default `PERSONAL`).
+
+### 3.7 Token security (required)
+
+≥256-bit random; **stored hashed** (raw only in the email URL); single-use; single
+active unused token per user (resend invalidates prior); server-enforced TTL (72h
+default); constant-time compare; rate-limited; audit `INVITE_SENT/RESENT/ACCEPTED/failed`;
+**no raw token in logs**. Suggested model `UserInvitation(tokenHash, emailTarget,
+email, expiresAt, usedAt, revokedAt, createdById, …)`.
+
+### 3.8 Email template
+
+Add/confirm `ACCOUNT_INVITE` template. Variables: `employeeFirstName`, `companyName`,
+`activationUrl`, `expiresAt`, `supportEmail`. Subject e.g. _"Activate your account for
+{{companyName}}"_. `activationUrl` = `${APP_URL}/set-password?token=<raw>`.
+
+### 3.9 Login behavior for `INVITED`
+
+Login attempt before activation → `403 ACCOUNT_NOT_ACTIVATED`.
+
+### 3.10 Email / link confirmations (from live test 2026-06-12)
+
+A live test email (via Resend) confirmed delivery, the `ACCOUNT_INVITE` template, the
+72h expiry, and `companyName` / `employeeFirstName` interpolation. Two items still
+need backend confirmation:
+
+1. **Activation link target** — the "Activate Account" button MUST point to the
+   **frontend**: `${FRONTEND_APP_URL}/set-password?token=<rawToken>`. Query param must
+   be exactly `token`; base must be our deployed origin **per environment** (local
+   `http://localhost:3000`, production = our Vercel URL), **not** a backend URL. Please
+   paste the exact `href` used so we can verify base + token param.
+2. **Production sender** — the test used `onboarding@resend.dev`, which is Resend's
+   **sandbox** sender and can only deliver to the Resend account owner's address; it
+   cannot email arbitrary new-hire inboxes. Before real invites, configure a **verified
+   sending domain** (e.g. `no-reply@<company>`) and make the "Need help?" address a real
+   `supportEmail` (not `resend.dev`).
+3. **Optional** — confirm reply-to, and whether the subject stays
+   _"Welcome to {{companyName}}"_ (fine) or the contracted
+   _"Activate your account for {{companyName}}"_.
+
+### Live-proof before FE removes mocks
+
+create+`sendInvite` → `201` + `user.status=INVITED` + invite object · resend → new
+expiry · validate → `VALID` · accept → `activated:true` · login after accept → `200` ·
+reused/expired token → correct state · missing delivery email → `422` · already-active
+→ `409` · public resend unknown email → generic `200` · email actually delivered.
 
 ---
 

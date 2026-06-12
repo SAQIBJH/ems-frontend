@@ -4,6 +4,7 @@ import { employeeSelfServiceHandlers } from './employee-self-service';
 import { attendanceHandlers } from './attendance';
 import { holidaysHandlers } from './holidays';
 import { permissionsHandlers } from './permissions';
+import { employeeInviteHandlers } from './employee-invite';
 import { payrollComponentHandlers } from './payroll-components';
 import { payrollGroupHandlers } from './payroll-groups';
 import { payrollEmployeeHandlers } from './payroll-employee';
@@ -90,6 +91,7 @@ export const handlers = [
   ...attendanceHandlers,
   ...holidaysHandlers,
   ...permissionsHandlers,
+  ...employeeInviteHandlers,
   ...payrollComponentHandlers,
   ...payrollGroupHandlers,
   ...payrollEmployeeHandlers,
