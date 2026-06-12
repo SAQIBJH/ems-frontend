@@ -2,10 +2,12 @@
 
 **Date:** 2026-06-12
 **Module(s):** `auth`, `employees`, `settings`
-**Status:** Design + contract **agreed with backend** (mirrored verbatim 2026-06-12).
-**Pending backend implementation — NOT live.** Frontend implementation **deferred**
-(decision: persist contract only, then wait). Exact wire shapes live in
-`docs/BACKEND_API_REQUESTS.md §3` (canonical per CLAUDE.md §22).
+**Status:** ✅ **LIVE on backend + fully wired on frontend** (built Steps 1–6,
+2026-06-12; public endpoints live-verified against production). Only backend/devops
+email config remains (verified Resend sender domain + real support mailbox) —
+config-only, no FE change. Exact wire shapes live in `docs/BACKEND_API_REQUESTS.md §3`
+(canonical per CLAUDE.md §22); the "Frontend surface (DEFERRED…)" and "Backend
+confirmations still required" sections below are now historical — all are built/answered.
 
 ## Problem
 
