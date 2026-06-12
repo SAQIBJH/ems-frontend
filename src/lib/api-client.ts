@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isPublicPath } from './public-paths';
 
 /* baseURL is our own origin's `/api` — the browser never calls the real
  * backend directly. Requests hit the BFF proxy (src/app/api/[...path]),
@@ -75,11 +76,11 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       _drainQueue(refreshError);
       if (typeof window !== 'undefined') {
-        const isAuthPage =
-          window.location.pathname.startsWith('/login') ||
-          window.location.pathname.startsWith('/forgot-password') ||
-          window.location.pathname.startsWith('/otp-verification');
-        if (!isAuthPage) {
+        // Don't bounce to /login from public (auth) pages — an expected 401 (e.g.
+        // the app-boot /auth/me probe) fires there for unauthenticated visitors,
+        // such as a new employee landing on /set-password from an activation email.
+        // Sourced from a single PUBLIC_PATHS list so the allowlist can't drift again.
+        if (!isPublicPath(window.location.pathname)) {
           const next = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login?next=${next}`;
         }
