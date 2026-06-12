@@ -2,7 +2,11 @@
   "name": "ems-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "bootstrap": "node scripts/setup.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
