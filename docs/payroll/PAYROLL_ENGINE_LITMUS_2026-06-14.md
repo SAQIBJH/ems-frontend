@@ -135,7 +135,7 @@ Annual: `120,000 − 18,047 − 9,180 (FICA EE)` = **$92,773 / year** ✅
 
 ## Depth additions (2026-06-14)
 
-Four harder cases were added to stress the engine further. **23/23 PASS.**
+Four harder cases were added to stress the engine further. **24/24 PASS.**
 
 ### 4. India — surcharge (high earner, ₹60,00,000)
 
