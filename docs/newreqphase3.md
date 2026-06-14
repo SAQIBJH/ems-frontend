@@ -2059,9 +2059,12 @@ byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
 
 ### G.7 — Self-service & lifecycle additions (workflow redesign, 2026-06-14)
 
-> Built frontend-first (MSW) — these endpoints are **NOT yet on the live backend**
-> (verified `404 Route not found` on 2026-06-14). They activate when the backend ships
-> them or with `NEXT_PUBLIC_USE_MOCKS=true`. Field casing camelCase.
+> Built frontend-first (MSW). **LIVE STATUS (re-verified 2026-06-14, authed HR, read-only
+> probes):** both endpoints have since **SHIPPED on the backend** — `copy-week` returns
+> `422 VALIDATION_ERROR` on an empty body, `recall` returns `404 NOT_FOUND "Timesheet not
+> found"` on a fake id (both real route hits, vs the `404 "Route … not found"` a missing
+> route gives). Their **response bodies / state-machine are not yet exercised on prod**
+> (mutating) — verify on a non-prod tenant. Field casing camelCase.
 
 - **`POST /timesheets/copy-week`** (M5) — body `{ fromWeekStart, toWeekStart, withNotes? }`
   → `Timesheet` (201, target week). Copies each **unique project/task row** from the
@@ -2082,7 +2085,10 @@ byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
 - **In-app nudge (built, FE-only):** the My-Timesheet tab shows a dismissible banner when
   last week is `REJECTED` or a `DRAFT` with logged hours — pure client logic over
   `GET /timesheets?week=`, no endpoint.
-- **BACKEND REQUEST — email/push reminders (not built):** a scheduled job that emails
-  employees with an unsubmitted `DRAFT`/`REJECTED` prior week near the period cutoff, and
-  managers with pending approvals. Config knob `submitReminderDay` to live on
-  `TimesheetSettings` when implemented. No frontend work until the backend exposes it.
+- **BACKEND REQUEST — email/push reminders (not built — live-confirmed 2026-06-14):** a
+  scheduled job that emails employees with an unsubmitted `DRAFT`/`REJECTED` prior week
+  near the period cutoff, and managers with pending approvals. Config knob
+  `submitReminderDay` to live on `TimesheetSettings` when implemented — confirmed **absent**
+  from the live `GET /timesheets/settings` response (which also still lacks
+  `requireTaskOnEntry`). This is the only genuinely outstanding backend item from the
+  overhaul. No frontend work until the backend exposes it.
