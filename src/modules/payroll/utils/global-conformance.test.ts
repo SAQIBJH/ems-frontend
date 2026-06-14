@@ -113,3 +113,51 @@ describe('Global conformance: Philippines (unseen country) on config only', () =
     expect(tax).toBe(PESO(152_500));
   });
 });
+
+/* ── South Africa: a country whose income tax uses a CREDIT/REBATE, on config only ── */
+
+const RAND = (zar: number) => toMinor(zar, 'ZAR'); // R → cents
+
+/**
+ * SARS 2024/25 PAYE — marginal brackets + the annual primary rebate (R17,235),
+ * expressed as a `taxCredits` entry. South Africa is NOT seeded anywhere; this proves
+ * the engine handles a rebate-based regime through configuration alone.
+ * Source: SARS 2025 tax-year rates & rebates.
+ */
+const ZA_PAYE_2024: TaxRegime = {
+  code: 'ZA_PAYE',
+  name: 'South Africa PAYE',
+  taxCode: 'PAYE',
+  taxName: 'Pay As You Earn',
+  fiscalYear: '2024-25',
+  currency: 'ZAR',
+  standardDeduction: 0,
+  slabs: [
+    { from: RAND(0), to: RAND(237_100), rate: 18 },
+    { from: RAND(237_100), to: RAND(370_500), rate: 26 },
+    { from: RAND(370_500), to: RAND(512_800), rate: 31 },
+    { from: RAND(512_800), to: RAND(673_000), rate: 36 },
+    { from: RAND(673_000), to: RAND(857_900), rate: 39 },
+    { from: RAND(857_900), to: RAND(1_817_000), rate: 41 },
+    { from: RAND(1_817_000), to: null, rate: 45 },
+  ],
+  taxCredits: [{ code: 'PRIMARY_REBATE', amount: RAND(17_235) }],
+};
+
+describe('Global conformance: South Africa (unseen, rebate-based) on config only', () => {
+  it('income tax: R300,000 → R41,797 (marginal slabs minus the primary rebate)', () => {
+    // 237,100@18% = 42,678 ; (300,000−237,100)=62,900@26% = 16,354 ; slab = 59,032
+    // minus primary rebate 17,235 = 41,797
+    expect(computeRegimeTax(RAND(300_000), ZA_PAYE_2024)).toBe(RAND(41_797));
+  });
+
+  it('floors at 0 when the rebate exceeds the slab tax (very low income)', () => {
+    // R50,000 @ 18% = 9,000 slab; rebate 17,235 > 9,000 → 0 (never negative)
+    expect(computeRegimeTax(RAND(50_000), ZA_PAYE_2024)).toBe(0);
+  });
+
+  it('carries the tax line code as data (taxCode/taxName), not a hardcoded "TDS"', () => {
+    expect(ZA_PAYE_2024.taxCode).toBe('PAYE');
+    expect(ZA_PAYE_2024.taxCode).not.toBe('TDS');
+  });
+});

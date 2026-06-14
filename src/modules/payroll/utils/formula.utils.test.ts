@@ -231,6 +231,39 @@ describe('computeRegimeTax', () => {
     // slab tax on 6,000,000 = 1,500,000; +10% surcharge = 1,650,000; +4% cess = 1,716,000
     expect(computeRegimeTax(6000000, withSurcharge)).toBe(1716000);
   });
+
+  describe('taxCredits (e.g. SA primary rebate)', () => {
+    const flat10: TaxRegime = {
+      code: 'ZA',
+      fiscalYear: '2029-30',
+      currency: 'ZAR',
+      standardDeduction: 0,
+      slabs: [{ from: 0, to: null, rate: 10 }],
+    };
+
+    it('subtracts annual tax credits after slab/surcharge/cess', () => {
+      // slab tax = 100,000 * 10% = 10,000; credit 1,700 → 8,300
+      expect(
+        computeRegimeTax(100000, {
+          ...flat10,
+          taxCredits: [{ code: 'PRIMARY_REBATE', amount: 1700 }],
+        }),
+      ).toBe(8300);
+    });
+
+    it('floors at 0 when credits exceed the computed tax', () => {
+      expect(
+        computeRegimeTax(10000, {
+          ...flat10,
+          taxCredits: [{ code: 'PRIMARY_REBATE', amount: 99999 }],
+        }),
+      ).toBe(0);
+    });
+
+    it('is inert when taxCredits is absent (India numbers unchanged)', () => {
+      expect(computeRegimeTax(100000, flat10)).toBe(10000);
+    });
+  });
 });
 
 describe('computeBonusTax', () => {

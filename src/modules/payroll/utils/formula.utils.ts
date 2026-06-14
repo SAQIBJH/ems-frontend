@@ -73,7 +73,11 @@ export function computeRegimeTax(taxableAnnual: number, regime: TaxRegime): numb
   }
 
   if (regime.cess) tax += tax * (regime.cess.rate / 100);
-  return tax;
+
+  // Annual credits/rebates apply last, after slab+surcharge+cess; floor at 0.
+  // Mirrors the backend order exactly. Inert when absent (India unchanged).
+  const credits = (regime.taxCredits ?? []).reduce((sum, c) => sum + c.amount, 0);
+  return Math.max(0, tax - credits);
 }
 
 /**

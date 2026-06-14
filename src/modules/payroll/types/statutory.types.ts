@@ -29,6 +29,15 @@ export interface TaxSlab {
   to: number | null;
   /** Marginal rate, percent. */
   rate: number;
+  /** Precomputed cumulative tax up to `from`, minor units. Optional — backend may send it. */
+  base?: number;
+}
+
+/** Annual tax credit / rebate (e.g. SA primary rebate, KE personal relief). Minor units. */
+export interface TaxCredit {
+  code: string;
+  /** Annual credit amount, minor units. */
+  amount: number;
 }
 
 export interface TaxSurcharge {
@@ -39,6 +48,8 @@ export interface TaxSurcharge {
 
 export interface TaxRegime {
   code: string;
+  /** Human label, e.g. "Philippines TRAIN". Optional — newer backend field. */
+  name?: string;
   /** e.g. "2026-27" (IN) or "2026" (US). */
   fiscalYear: string;
   /** ISO 4217. */
@@ -48,6 +59,12 @@ export interface TaxRegime {
   slabs: TaxSlab[];
   surcharge?: TaxSurcharge[];
   cess?: { rate: number } | null;
+  /** Annual rebates/credits subtracted after slab+surcharge+cess (SA, KE). */
+  taxCredits?: TaxCredit[];
+  /** Deduction line code the tax posts to, e.g. "WITHHOLDING_TAX" (not hardcoded "TDS"). */
+  taxCode?: string;
+  /** Deduction line display name. */
+  taxName?: string;
   allowedExemptions?: string[];
 }
 
@@ -75,6 +92,12 @@ export interface ContributionScheme {
    * backend may omit it (verified 2026-06-09 against the live statutory-packs API).
    */
   applicability?: string;
+  /**
+   * How a monthly-capped contribution apportions across sub-monthly cycles.
+   * `MONTHLY_TOTAL` = the cap is monthly; cycles share it. Optional additive field
+   * (absent on existing IN packs, verified live 2026-06-14).
+   */
+  apportionmentMode?: 'MONTHLY_TOTAL' | 'PER_CYCLE';
 }
 
 /* Sub-national / local flat-amount tax (professional tax, LWF, city tax). */
