@@ -421,7 +421,19 @@ export const timesheetHandlers = [
       return HttpResponse.json(
         {
           success: false,
-          error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
+          error: {
+            code: 'TIMESHEET_LOCKED',
+            message: 'This week is submitted and cannot be edited.',
+          },
+        },
+        { status: 422 },
+      );
+    }
+    if (timesheetSettings.requireTaskOnEntry && !body.taskId) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'TASK_REQUIRED', message: 'A task is required on every time entry.' },
         },
         { status: 422 },
       );
@@ -463,7 +475,20 @@ export const timesheetHandlers = [
       return HttpResponse.json(
         {
           success: false,
-          error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
+          error: {
+            code: 'TIMESHEET_LOCKED',
+            message: 'This week is submitted and cannot be edited.',
+          },
+        },
+        { status: 422 },
+      );
+    }
+    // Only enforced when the patch actually touches taskId (matches live behaviour).
+    if (timesheetSettings.requireTaskOnEntry && 'taskId' in body && !body.taskId) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'TASK_REQUIRED', message: 'A task is required on every time entry.' },
         },
         { status: 422 },
       );
@@ -489,7 +514,10 @@ export const timesheetHandlers = [
       return HttpResponse.json(
         {
           success: false,
-          error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
+          error: {
+            code: 'TIMESHEET_LOCKED',
+            message: 'This week is submitted and cannot be edited.',
+          },
         },
         { status: 422 },
       );

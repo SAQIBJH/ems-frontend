@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 import { useIsClient } from '@/hooks/useIsClient';
 
 import { useMyProjects, useTasks } from '../hooks/useProjects';
+import { useTimesheetSettings } from '../hooks/useTimesheets';
+import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
 import { getWeekDays, getWeekStart } from '../utils/rollups';
 import { useTimerStore } from '../store/timer.slice';
 import { TimeEntryDialog } from './TimeEntryDialog';
@@ -55,6 +57,11 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   const week = getWeekStart(today);
 
   const { data: projects = [] } = useMyProjects(employeeId);
+  // Settings are HR-only; gate the read (employees would 403). When unknown, the
+  // stop→dialog→server path still enforces requireTaskOnEntry.
+  const { canAdmin } = useTimesheetPermissions();
+  const { data: settings } = useTimesheetSettings({ enabled: canAdmin });
+  const requireTask = settings?.requireTaskOnEntry ?? false;
   const { data: tasksData, isLoading: tasksLoading } = useTasks(draft.projectId || null);
   // Keep a stable reference while tasks are loading: `?? []` inline would mint a new
   // array every render, and this array is a useEffect dependency below — an unstable
@@ -97,6 +104,10 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   function handleStart() {
     if (!draft.projectId) {
       toast.error('Pick a project to start the timer');
+      return;
+    }
+    if (requireTask && !draft.taskId) {
+      toast.error('Pick a task to start the timer');
       return;
     }
     const now = Date.now();
@@ -157,17 +168,28 @@ export function TimerBar({ employeeId }: TimerBarProps) {
         >
           <SelectTrigger className="h-8 w-[150px]" aria-label="Task">
             <SelectValue
-              placeholder={!draft.projectId ? 'Task' : tasksLoading ? 'Loading…' : 'No task'}
+              placeholder={
+                !draft.projectId
+                  ? 'Task'
+                  : tasksLoading
+                    ? 'Loading…'
+                    : requireTask
+                      ? 'Select task'
+                      : 'No task'
+              }
             >
               {(v) =>
                 v === NO_TASK || !v
-                  ? 'No task'
-                  : (activeTasks.find((t) => t.id === v)?.name ?? 'No task')
+                  ? requireTask
+                    ? 'Select task'
+                    : 'No task'
+                  : (activeTasks.find((t) => t.id === v)?.name ??
+                    (requireTask ? 'Select task' : 'No task'))
               }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NO_TASK}>No task</SelectItem>
+            {!requireTask && <SelectItem value={NO_TASK}>No task</SelectItem>}
             {activeTasks.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
@@ -210,7 +232,12 @@ export function TimerBar({ employeeId }: TimerBarProps) {
             </Button>
           </>
         ) : (
-          <Button size="sm" className="h-8" onClick={handleStart} disabled={!draft.projectId}>
+          <Button
+            size="sm"
+            className="h-8"
+            onClick={handleStart}
+            disabled={!draft.projectId || (requireTask && !draft.taskId)}
+          >
             <PlayIcon className="size-3.5" aria-hidden />
             Start
           </Button>

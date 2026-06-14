@@ -129,11 +129,16 @@ export function useTimesheetSummary(range: TimesheetSummaryRange = '30d', employ
   });
 }
 
-/** Tenant timesheet settings (standard hours, overtime, rounding, policies). */
-export function useTimesheetSettings() {
+/**
+ * Tenant timesheet settings (standard hours, overtime, rounding, policies).
+ * The endpoint is HR_ADMIN/SUPER_ADMIN-only, so callers in employee-facing flows
+ * must gate the fetch via `enabled` to avoid a guaranteed 403.
+ */
+export function useTimesheetSettings(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: TIMESHEET_KEYS.settings,
     queryFn: () => timesheetsApi.getSettings(),
+    enabled: options?.enabled ?? true,
   });
 }
 

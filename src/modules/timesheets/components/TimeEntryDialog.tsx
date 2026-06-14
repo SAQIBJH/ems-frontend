@@ -28,7 +28,8 @@ import { Switch } from '@/components/ui/switch';
 import type { ApiError } from '@/types/api';
 
 import { useMyProjects, useTasks } from '../hooks/useProjects';
-import { useUpsertTimeEntry } from '../hooks/useTimesheets';
+import { useTimesheetSettings, useUpsertTimeEntry } from '../hooks/useTimesheets';
+import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
 import { timeEntrySchema, type TimeEntryFormValues } from '../validations/timeEntry.schema';
 import type { TimeEntry, TimeEntrySource } from '../types/timesheet.types';
 
@@ -76,6 +77,11 @@ export function TimeEntryDialog({
 }: TimeEntryDialogProps) {
   const { data: projects = [] } = useMyProjects(employeeId);
   const upsert = useUpsertTimeEntry(week, employeeId);
+  // Settings are HR-only; gate the read so employees don't 403. When unknown
+  // (non-admin), the server's 422 TASK_REQUIRED is the enforcement of record.
+  const { canAdmin } = useTimesheetPermissions();
+  const { data: settings } = useTimesheetSettings({ enabled: canAdmin });
+  const requireTask = settings?.requireTaskOnEntry ?? false;
 
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
@@ -132,6 +138,10 @@ export function TimeEntryDialog({
   }
 
   function onSubmit(values: TimeEntryFormValues) {
+    if (requireTask && !values.taskId) {
+      form.setError('taskId', { message: 'This entry needs a task — pick one to continue.' });
+      return;
+    }
     upsert.mutate(
       {
         id: existing?.id,
@@ -155,6 +165,13 @@ export function TimeEntryDialog({
         onError: (err: unknown) => {
           const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
           const status = (err as AxiosError).response?.status;
+          // Server-side enforcement of requireTaskOnEntry (works for all roles).
+          if (status === 422 && apiErr?.code === 'TASK_REQUIRED') {
+            form.setError('taskId', {
+              message: 'This entry needs a task — pick one to continue.',
+            });
+            return;
+          }
           if (status === 422 && Array.isArray(apiErr?.details)) {
             apiErr.details.forEach(({ field, message }) =>
               form.setError(field as keyof TimeEntryFormValues, { message }),
@@ -201,9 +218,9 @@ export function TimeEntryDialog({
             )}
           </div>
 
-          {/* Task — optional (Hybrid model); "No task" logs against the project directly. */}
+          {/* Task — optional by default (Hybrid model); required when requireTaskOnEntry is on. */}
           <div className="space-y-1.5">
-            <Label htmlFor="te-task">Task (optional)</Label>
+            <Label htmlFor="te-task">{requireTask ? 'Task' : 'Task (optional)'}</Label>
             <Select
               value={taskId || NO_TASK}
               onValueChange={(v) =>
@@ -218,18 +235,23 @@ export function TimeEntryDialog({
                       ? 'Select a project first'
                       : tasksLoading
                         ? 'Loading tasks…'
-                        : 'No task'
+                        : requireTask
+                          ? 'Select a task'
+                          : 'No task'
                   }
                 >
                   {(v) =>
                     v === NO_TASK || !v
-                      ? 'No task'
-                      : (activeTasks.find((t) => t.id === v)?.name ?? 'No task')
+                      ? requireTask
+                        ? 'Select a task'
+                        : 'No task'
+                      : (activeTasks.find((t) => t.id === v)?.name ??
+                        (requireTask ? 'Select a task' : 'No task'))
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_TASK}>No task</SelectItem>
+                {!requireTask && <SelectItem value={NO_TASK}>No task</SelectItem>}
                 {activeTasks.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
@@ -237,6 +259,11 @@ export function TimeEntryDialog({
                 ))}
               </SelectContent>
             </Select>
+            {requireTask && projectId && !tasksLoading && activeTasks.length === 0 && (
+              <p className="text-xs text-fg-muted">
+                This project has no tasks yet — an admin must add one before time can be logged.
+              </p>
+            )}
             {form.formState.errors.taskId && (
               <p className="text-xs text-danger">{form.formState.errors.taskId.message}</p>
             )}
