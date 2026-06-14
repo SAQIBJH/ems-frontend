@@ -11,7 +11,14 @@ export interface Country {
   fiscalYearStartMonth: number;
 }
 
-/** Coarse work-week pattern (as shipped by the backend) — the proration denominator. */
+/** A day of the week (ISO-ish, Sunday-first to match calendar grids). */
+export type WeekDay = 'SUN' | 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
+
+/**
+ * Legacy coarse work-week enum shipped by older backends. Superseded by the fully
+ * configurable `workWeekDays[]`; retained only to derive days on back-compat reads
+ * and to send a best-effort value to a backend that still expects it.
+ */
 export type WorkWeekPattern = 'MON-FRI' | 'MON-SAT';
 
 export interface LegalEntity {
@@ -22,8 +29,12 @@ export interface LegalEntity {
   /** ISO 4217 default pay currency */
   currency: string;
   fiscalYearStartMonth: number;
-  /** Working days per week — drives the working-days proration denominator. */
-  workWeekPattern: WorkWeekPattern;
+  /** The working days for this entity — ANY pattern (UAE Sun–Thu, 4-day, …). Proration denominator. */
+  workWeekDays: WeekDay[];
+  /** Standard paid hours per working day — OT hourly rate + proration. */
+  hoursPerDay: number;
+  /** Legacy coarse enum from older backends; kept only for back-compat reads. */
+  workWeekPattern?: WorkWeekPattern;
   timezone: string;
   locale: string;
   /** Country-defined registration identifiers (PF, ESI, PAN, EIN, …). */
@@ -40,7 +51,9 @@ export interface LegalEntityInput {
   country: string;
   currency: string;
   fiscalYearStartMonth: number;
-  workWeekPattern: WorkWeekPattern;
+  /** The working days for this entity — ANY pattern. */
+  workWeekDays: WeekDay[];
+  hoursPerDay: number;
   timezone: string;
   locale: string;
   registrationIds: Record<string, string>;

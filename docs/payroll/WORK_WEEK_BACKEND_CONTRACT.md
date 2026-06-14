@@ -1,10 +1,18 @@
 # Payroll Global-Readiness — Work-Week / Working-Days Backend Contract
 
 > **Audience:** backend team (separate repo).
-> **Status:** defect spec. Not implemented.
-> **Found via:** live staging test, 2026-06-13 (`superadmin@acme.test`).
-> **Depends on / blocks:** this is a prerequisite for sub-monthly payroll
-> (`SUBMONTHLY_PAYROLL_BACKEND_CONTRACT.md`) — the cycle proration denominator needs it.
+> **Status:** **FE IMPLEMENTED (2026-06-14), backend still owes the array.** The backend
+> shipped only a coarse `workWeekPattern: 'MON-FRI' | 'MON-SAT'` enum — which cannot express
+> a UAE Sun–Thu, a 4-day week, etc. The frontend is now fully configurable: the Legal Entity
+> form edits `workWeekDays: WeekDay[]` (7-day toggle) + `hoursPerDay`, and **sends both
+> `workWeekDays` + `hoursPerDay` AND a best-effort derived `workWeekPattern`** so today's
+> backend keeps working. \*\*Backend ask (unchanged): accept + persist + return `workWeekDays[]`
+>
+> - `hoursPerDay` per §2.1 and compute working days from them (§2.2).** Until then, arbitrary
+>   weeks (e.g. UAE Sun–Thu) cannot round-trip against live — the coarse enum loses them.
+>   **Found via:** live staging test, 2026-06-13 (`superadmin@acme.test`).
+>   **Depends on / blocks:\*\* this is a prerequisite for sub-monthly payroll
+>   (`SUBMONTHLY_PAYROLL_BACKEND_CONTRACT.md`) — the cycle proration denominator needs it.
 
 ---
 

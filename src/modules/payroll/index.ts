@@ -139,7 +139,20 @@ export type {
 } from './types/payroll.types';
 
 // Localization types
-export type { BankField, Country, LegalEntity, LegalEntityInput } from './types/localization.types';
+export type {
+  BankField,
+  Country,
+  LegalEntity,
+  LegalEntityInput,
+  WeekDay,
+  WorkWeekPattern,
+} from './types/localization.types';
+export {
+  WEEK_DAYS,
+  deriveWorkWeekDays,
+  deriveWorkWeekPattern,
+  formatWorkWeek,
+} from './utils/work-week.utils';
 
 // Statutory pack types
 export type {

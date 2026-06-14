@@ -21,10 +21,23 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
+import { cn } from '@/lib/utils';
+
 import { useCountries, useCreateLegalEntity, useUpdateLegalEntity } from '../hooks/useLocalization';
 import { legalEntitySchema } from '../validations/legal-entity.schema';
 import type { LegalEntityFormValues } from '../validations/legal-entity.schema';
 import type { LegalEntity } from '../types/localization.types';
+import { WEEK_DAYS, formatWorkWeek } from '../utils/work-week.utils';
+
+const DAY_SHORT: Record<string, string> = {
+  SUN: 'Sun',
+  MON: 'Mon',
+  TUE: 'Tue',
+  WED: 'Wed',
+  THU: 'Thu',
+  FRI: 'Fri',
+  SAT: 'Sat',
+};
 
 const MONTHS = [
   'January',
@@ -80,7 +93,8 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
       country: '',
       currency: '',
       fiscalYearStartMonth: 1,
-      workWeekPattern: 'MON-FRI',
+      workWeekDays: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+      hoursPerDay: 8,
       timezone: '',
       locale: '',
       registrationIds: {},
@@ -96,7 +110,8 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
         country: entity.country,
         currency: entity.currency,
         fiscalYearStartMonth: entity.fiscalYearStartMonth,
-        workWeekPattern: entity.workWeekPattern,
+        workWeekDays: entity.workWeekDays,
+        hoursPerDay: entity.hoursPerDay,
         timezone: entity.timezone,
         locale: entity.locale,
         registrationIds: entity.registrationIds,
@@ -108,6 +123,8 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
         country: '',
         currency: '',
         fiscalYearStartMonth: 1,
+        workWeekDays: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+        hoursPerDay: 8,
         timezone: '',
         locale: '',
         registrationIds: {},
@@ -275,27 +292,65 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
                 )}
               </div>
 
-              {/* Work week — proration denominator */}
+              {/* Hours per working day — OT hourly rate + proration */}
               <div className="space-y-1.5">
-                <Label htmlFor="le-workweek">Work week</Label>
-                <Controller
-                  control={form.control}
-                  name="workWeekPattern"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="le-workweek" className="w-full cursor-pointer">
-                        <SelectValue>
-                          {(v) => (v === 'MON-SAT' ? 'Mon–Sat (6-day)' : 'Mon–Fri (5-day)')}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MON-FRI">Mon–Fri (5-day)</SelectItem>
-                        <SelectItem value="MON-SAT">Mon–Sat (6-day)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
+                <Label htmlFor="le-hpd">Hours / day</Label>
+                <Input
+                  id="le-hpd"
+                  type="number"
+                  min={1}
+                  max={24}
+                  step="any"
+                  {...form.register('hoursPerDay', { valueAsNumber: true })}
                 />
+                {form.formState.errors.hoursPerDay && (
+                  <p className="text-xs text-danger">{form.formState.errors.hoursPerDay.message}</p>
+                )}
               </div>
+            </div>
+
+            {/* Work week — any pattern (UAE Sun–Thu, 4-day, Mon–Sat…); proration denominator */}
+            <div className="space-y-1.5">
+              <Label>Work week</Label>
+              <Controller
+                control={form.control}
+                name="workWeekDays"
+                render={({ field }) => (
+                  <div className="flex flex-wrap gap-1.5">
+                    {WEEK_DAYS.map((d) => {
+                      const on = field.value?.includes(d) ?? false;
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => {
+                            const next = on
+                              ? field.value.filter((x) => x !== d)
+                              : [...field.value, d];
+                            field.onChange(WEEK_DAYS.filter((w) => next.includes(w)));
+                          }}
+                          className={cn(
+                            'cursor-pointer rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                            on
+                              ? 'border-brand bg-brand/10 text-brand'
+                              : 'border-subtle text-fg-muted hover:bg-surface-raised',
+                          )}
+                        >
+                          {DAY_SHORT[d]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              />
+              {form.formState.errors.workWeekDays ? (
+                <p className="text-xs text-danger">{form.formState.errors.workWeekDays.message}</p>
+              ) : (
+                <p className="text-xs text-fg-muted">
+                  Working days: {formatWorkWeek(form.watch('workWeekDays') ?? [])}
+                </p>
+              )}
             </div>
 
             {/* Registration IDs */}

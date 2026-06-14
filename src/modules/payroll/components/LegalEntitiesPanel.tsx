@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useLegalEntities } from '../hooks/useLocalization';
 import { usePayrollStore } from '@/store/payroll.store';
 import { LegalEntityDrawer } from './LegalEntityDrawer';
+import { formatWorkWeek } from '../utils/work-week.utils';
 import type { LegalEntity } from '../types/localization.types';
 
 const MONTH_SHORT = [
@@ -121,7 +122,7 @@ export function LegalEntitiesPanel() {
                       {MONTH_SHORT[entity.fiscalYearStartMonth - 1] ?? entity.fiscalYearStartMonth}
                     </td>
                     <td className="px-3 py-2.5 text-fg-muted">
-                      {entity.workWeekPattern === 'MON-SAT' ? 'Mon–Sat' : 'Mon–Fri'}
+                      {formatWorkWeek(entity.workWeekDays)}
                     </td>
                     <td className="px-3 py-2.5">
                       <span

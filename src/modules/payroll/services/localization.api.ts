@@ -4,8 +4,31 @@ import type {
   Country,
   LegalEntity,
   LegalEntityInput,
+  WeekDay,
 } from '../types/localization.types';
 import type { StatutoryPack, StatutoryPackInput } from '../types/statutory.types';
+import { deriveWorkWeekDays, deriveWorkWeekPattern } from '../utils/work-week.utils';
+
+const DEFAULT_WEEK: WeekDay[] = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+
+/** Ensure an entity always carries workWeekDays/hoursPerDay, deriving from a legacy
+ *  coarse enum when an older backend only returns `workWeekPattern`. */
+function normalizeEntity(e: LegalEntity): LegalEntity {
+  if (e.workWeekDays && e.workWeekDays.length > 0) return e;
+  return {
+    ...e,
+    workWeekDays: e.workWeekPattern ? deriveWorkWeekDays(e.workWeekPattern) : DEFAULT_WEEK,
+    hoursPerDay: e.hoursPerDay ?? 8,
+  };
+}
+
+/** Send a best-effort `workWeekPattern` alongside `workWeekDays` so a backend that still
+ *  expects the coarse enum keeps working (faithful day-set is sent for newer backends). */
+function withDerivedPattern<T extends Partial<LegalEntityInput>>(body: T) {
+  return body.workWeekDays
+    ? { ...body, workWeekPattern: deriveWorkWeekPattern(body.workWeekDays) }
+    : body;
+}
 
 export const localizationApi = {
   listCountries: async (): Promise<Country[]> => {
@@ -22,12 +45,15 @@ export const localizationApi = {
 
   listLegalEntities: async (): Promise<LegalEntity[]> => {
     const { data } = await apiClient.get<{ data: LegalEntity[] }>('/payroll/legal-entities');
-    return data.data;
+    return data.data.map(normalizeEntity);
   },
 
   createLegalEntity: async (input: LegalEntityInput): Promise<LegalEntity> => {
-    const { data } = await apiClient.post<{ data: LegalEntity }>('/payroll/legal-entities', input);
-    return data.data;
+    const { data } = await apiClient.post<{ data: LegalEntity }>(
+      '/payroll/legal-entities',
+      withDerivedPattern(input),
+    );
+    return normalizeEntity(data.data);
   },
 
   updateLegalEntity: async ({
@@ -36,9 +62,9 @@ export const localizationApi = {
   }: { id: string } & Partial<LegalEntityInput>): Promise<LegalEntity> => {
     const { data } = await apiClient.patch<{ data: LegalEntity }>(
       `/payroll/legal-entities/${id}`,
-      body,
+      withDerivedPattern(body),
     );
-    return data.data;
+    return normalizeEntity(data.data);
   },
 
   listStatutoryPacks: async (country?: string): Promise<StatutoryPack[]> => {
