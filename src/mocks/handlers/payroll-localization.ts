@@ -156,6 +156,11 @@ export function getFiscalYearStartMonth(country: string): number {
   return COUNTRIES.find((c) => c.code === country.toUpperCase())?.fiscalYearStartMonth ?? 1;
 }
 
+/** Resolve a legal entity by id (work week, hours/day, currency for the mock engine). */
+export function getLegalEntityById(id: string | null | undefined): LegalEntity | undefined {
+  return id ? legalEntities.find((e) => e.id === id) : undefined;
+}
+
 export const payrollLocalizationHandlers = [
   http.get('/api/payroll/countries', () => {
     return HttpResponse.json({ success: true, data: COUNTRIES });

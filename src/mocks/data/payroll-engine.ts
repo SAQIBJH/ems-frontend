@@ -39,21 +39,35 @@ import {
   registerSlabTables,
   resolveJurisdictions,
 } from '@/modules/payroll/utils/formula.utils';
-import { prorationFactor } from '@/modules/payroll/utils/proration.utils';
+import { prorationFactor, workingDaysInMonth } from '@/modules/payroll/utils/proration.utils';
+import type { WeekDay } from '@/modules/payroll/types/localization.types';
 import { getComponentById, getComponentByCode } from '../handlers/payroll-components';
 import { getGroupById } from '../handlers/payroll-groups';
 import { resolveActivePack } from '../handlers/payroll-statutory';
-import { getFiscalYearStartMonth } from '../handlers/payroll-localization';
+import { getFiscalYearStartMonth, getLegalEntityById } from '../handlers/payroll-localization';
 import { getTaxDeclaration } from '../handlers/payroll-tax-declaration';
 import { loanEmiForPeriod, outstandingLoanBalance } from '../handlers/payroll-loans';
 import { getActiveGarnishments } from '../handlers/payroll-garnishments';
 
 const CURRENCY = 'INR';
 const COMPANY = { name: 'Acme Corp', address: '123 Tech Park, Pune 411001', logoUrl: null };
-const STD_WORKING_DAYS = 22;
-// Standard paid hours per working day — used to derive an hourly rate for overtime.
-// A sensible operational default; moves to the pay calendar in a later step.
+// Fallback paid hours per working day when an entity doesn't specify one.
 const STD_HOURS_PER_DAY = 8;
+
+/**
+ * Resolve an employee's work week + hours/day from their legal entity (config-driven —
+ * UAE Sun–Thu, Mon–Sat, 4-day, …). Falls back to Mon–Fri / 8h when no entity is linked.
+ */
+function resolveWorkPattern(emp: RosterEmployee): {
+  workWeekDays: WeekDay[] | undefined;
+  hoursPerDay: number;
+} {
+  const entity = getLegalEntityById(emp.legalEntityId);
+  return {
+    workWeekDays: entity?.workWeekDays,
+    hoursPerDay: entity?.hoursPerDay ?? STD_HOURS_PER_DAY,
+  };
+}
 // Component codes priced from input hours (× hourly rate × multiplier), never as
 // flat variable-pay amounts — guards against double-pricing.
 const HOURS_PRICED = new Set(['OT', 'SHIFT', 'ONCALL']);
@@ -76,6 +90,8 @@ interface RosterEmployee {
   payGroupId: string;
   annualCtc: number;
   country: string;
+  /** The employee's legal entity — resolves the work week + hours/day for proration. */
+  legalEntityId: string | null;
   lopDays: number;
   /** ISO 3166-2 tax-residence jurisdiction. */
   residenceJurisdiction: string;
@@ -131,6 +147,7 @@ const ROSTER: RosterEmployee[] = (
     payGroupId: 'pg-001',
     annualCtc,
     country: 'IN',
+    legalEntityId: 'le-in',
     lopDays,
     residenceJurisdiction: jurisdiction,
     workLocations: [{ jurisdiction, allocationPct: 100 }],
@@ -148,6 +165,7 @@ const UNCONFIGURED: RosterEmployee = {
   payGroupId: 'pg-missing',
   annualCtc: 0,
   country: 'IN',
+  legalEntityId: 'le-in',
   lopDays: 0,
   residenceJurisdiction: 'IN-MH',
   workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
@@ -304,6 +322,8 @@ function computeEmployeeMonth(
   // LOP comes from the run inputs (attendance) when present, else the roster default.
   const lopDays = input?.lopDays ?? emp.lopDays;
   const { year, month } = parsePeriod(period);
+  const { workWeekDays, hoursPerDay } = resolveWorkPattern(emp);
+  const workingDays = workingDaysInMonth(year, month, workWeekDays);
   const factor = prorationFactor({ basis: 'CALENDAR_DAYS', year, month, lopDays });
   const compByCode = new Map(components.map((c) => [c.code, c]));
   const breakdown = computeComponentBreakdown(components, emp.annualCtc);
@@ -335,7 +355,7 @@ function computeEmployeeMonth(
   // priced as hours × hourly rate × the component's configurable multiplier. No
   // premium rate lives in code — the multiplier is the component's `value` (percent).
   const basicMonthly = breakdown.find((l) => l.code === 'BASIC')?.monthlyAmount ?? 0;
-  const hourlyRate = basicMonthly / (STD_WORKING_DAYS * STD_HOURS_PER_DAY);
+  const hourlyRate = basicMonthly / (workingDays * hoursPerDay);
   function pricePremium(code: string, hours: number, fallbackName: string): void {
     if (hours <= 0) return;
     const comp = getComponentByCode(code);
@@ -543,8 +563,8 @@ function computeEmployeeMonth(
     taxDeducted,
     contributions,
     minWageFloor,
-    workingDays: STD_WORKING_DAYS,
-    presentDays: STD_WORKING_DAYS - lopDays,
+    workingDays,
+    presentDays: workingDays - lopDays,
     lopDays,
   };
 }
@@ -929,6 +949,10 @@ export function computeExtraPayRun(
     const extra = earnings.reduce((s, e) => s + e.amount, 0);
     if (extra <= 0) continue;
 
+    const ewp = resolveWorkPattern(emp);
+    const { year: ewYear, month: ewMonth } = parsePeriod(period);
+    const ewWorkingDays = workingDaysInMonth(ewYear, ewMonth, ewp.workWeekDays);
+
     // Marginal rate: project the employee's annual structural taxable income.
     const components = resolveGroupComponents(emp.payGroupId);
     const breakdown = components ? computeComponentBreakdown(components, emp.annualCtc) : [];
@@ -971,8 +995,8 @@ export function computeExtraPayRun(
       grossEarnings: extra,
       totalDeductions: tax,
       netPay,
-      workingDays: STD_WORKING_DAYS,
-      presentDays: STD_WORKING_DAYS,
+      workingDays: ewWorkingDays,
+      presentDays: ewWorkingDays,
       lopDays: 0,
       status,
       hasAdjustments: false,
@@ -1001,8 +1025,8 @@ export function computeExtraPayRun(
       totalDeductions: tax,
       employerCost: 0,
       netPay,
-      workingDays: STD_WORKING_DAYS,
-      presentDays: STD_WORKING_DAYS,
+      workingDays: ewWorkingDays,
+      presentDays: ewWorkingDays,
       leaveDays: 0,
       lopDays: 0,
       status,
