@@ -53,7 +53,8 @@ export interface TimeEntry {
   timesheetId: string;
   employeeId: string;
   projectId: string;
-  taskId: string;
+  /** Null when logged against the project directly (task is optional — Hybrid model). */
+  taskId: string | null;
   /** YYYY-MM-DD. */
   date: string;
   hours: number;

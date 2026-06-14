@@ -67,6 +67,28 @@ export function useSubmitTimesheet(week: string, employeeId?: string) {
   });
 }
 
+/** Copy last week's rows into the target week (zero hours) — invalidates the target. */
+export function useCopyWeek(week: string, employeeId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { fromWeekStart: string; toWeekStart: string; withNotes?: boolean }) =>
+      timesheetsApi.copyWeek(vars),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(week, employeeId) }),
+  });
+}
+
+/** Recall a submitted week back to DRAFT (owner only). Refreshes week + approval queue. */
+export function useRecallTimesheet(week: string, employeeId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => timesheetsApi.recall(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(week, employeeId) });
+      void qc.invalidateQueries({ queryKey: ['timesheets', 'approvals'] });
+    },
+  });
+}
+
 /** The approval queue (submitted weeks awaiting a decision). */
 export function useTimesheetApprovals(status: Timesheet['status'] = 'SUBMITTED') {
   return useQuery({

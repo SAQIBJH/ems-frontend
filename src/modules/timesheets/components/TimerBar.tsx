@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { PlayIcon, SquareIcon, TimerIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AxiosError } from 'axios';
 
 import {
   Select,
@@ -17,17 +16,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useIsClient } from '@/hooks/useIsClient';
-import type { ApiError } from '@/types/api';
 
 import { useMyProjects, useTasks } from '../hooks/useProjects';
-import { useUpsertTimeEntry } from '../hooks/useTimesheets';
-import { getWeekStart } from '../utils/rollups';
+import { getWeekDays, getWeekStart } from '../utils/rollups';
 import { useTimerStore } from '../store/timer.slice';
+import { TimeEntryDialog } from './TimeEntryDialog';
 
 interface TimerBarProps {
   /** Employee whose entry the timer logs; omit for the signed-in user (self). */
   employeeId?: string;
 }
+
+/** Sentinel for the "No task" Select option (Base UI Select disallows an empty value). */
+const NO_TASK = '__none__';
 
 /** Format a millisecond duration as HH:MM:SS. */
 function fmtElapsed(ms: number): string {
@@ -40,15 +41,18 @@ function fmtElapsed(ms: number): string {
 }
 
 export function TimerBar({ employeeId }: TimerBarProps) {
-  const { running, startedAt, draft, setDraft, start, reset } = useTimerStore();
+  const { running, startedAt, draft, setDraft, start, stop, reset } = useTimerStore();
   const isClient = useIsClient();
   // Lazily seed from the current time so a timer restored on refresh shows the
   // correct elapsed immediately; the interval keeps it ticking from there.
   const [nowTick, setNowTick] = useState(() => Date.now());
+  // On Stop we freeze the clock and open a confirm dialog pre-filled with the elapsed
+  // duration, so the user can correct hours / pick the day / discard before it's saved.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [stoppedHours, setStoppedHours] = useState(0);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const week = getWeekStart(today);
-  const upsert = useUpsertTimeEntry(week, employeeId);
 
   const { data: projects = [] } = useMyProjects(employeeId);
   const { data: tasksData, isLoading: tasksLoading } = useTasks(draft.projectId || null);
@@ -91,8 +95,8 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   }
 
   function handleStart() {
-    if (!draft.projectId || !draft.taskId) {
-      toast.error('Pick a project and task to start the timer');
+    if (!draft.projectId) {
+      toast.error('Pick a project to start the timer');
       return;
     }
     const now = Date.now();
@@ -103,134 +107,138 @@ export function TimerBar({ employeeId }: TimerBarProps) {
   function handleStop() {
     if (!startedAt) return;
     const hours = Math.round((Date.now() - startedAt) / 36_000) / 100; // ms → hours, 2 dp
+    stop(); // freeze the clock; the draft is kept for the confirm dialog
     if (hours < 0.01) {
       toast.info('Timer too short to log');
       reset();
       return;
     }
-    upsert.mutate(
-      {
-        input: {
-          weekStart: week,
-          projectId: draft.projectId,
-          taskId: draft.taskId,
-          date: today,
-          hours,
-          billable: draft.billable,
-          note: draft.note,
-          source: 'TIMER',
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.success(`Logged ${hours}h`);
-          reset();
-        },
-        onError: (err: unknown) => {
-          // Keep the timer running so the user can retry (e.g. week got locked).
-          const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
-          toast.error(apiErr?.message ?? 'Failed to log timer entry');
-        },
-      },
-    );
+    setStoppedHours(hours);
+    setConfirmOpen(true);
   }
 
   return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center gap-2 rounded-xl border bg-surface px-3 py-2.5',
-        running ? 'border-brand/40' : 'border-subtle',
-      )}
-    >
-      <TimerIcon
-        className={cn('size-4 shrink-0', running ? 'text-brand' : 'text-fg-muted')}
-        aria-hidden
-      />
-
-      <Select
-        value={draft.projectId}
-        onValueChange={(v) => setDraft({ projectId: v ?? '', taskId: '' })}
-        disabled={running}
-      >
-        <SelectTrigger className="h-8 w-[180px]" aria-label="Project">
-          <SelectValue placeholder="Project">
-            {(v) => activeProjects.find((p) => p.id === v)?.name ?? 'Project'}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {activeProjects.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.name}
-              <span className="ml-1.5 font-mono text-xs text-fg-muted">{p.code}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={draft.taskId}
-        onValueChange={(v) => setDraft({ taskId: v ?? '' })}
-        disabled={running || !draft.projectId || tasksLoading}
-      >
-        <SelectTrigger className="h-8 w-[150px]" aria-label="Task">
-          <SelectValue placeholder={!draft.projectId ? 'Task' : tasksLoading ? 'Loading…' : 'Task'}>
-            {(v) => activeTasks.find((t) => t.id === v)?.name ?? 'Task'}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {activeTasks.map((t) => (
-            <SelectItem key={t.id} value={t.id}>
-              {t.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Input
-        value={draft.note}
-        onChange={(e) => setDraft({ note: e.target.value })}
-        placeholder="What are you working on?"
-        className="h-8 min-w-[140px] flex-1"
-        aria-label="Note"
-      />
-
-      <span
+    <>
+      <div
         className={cn(
-          'min-w-[84px] text-center font-mono text-sm tabular-nums',
-          running ? 'font-semibold text-fg' : 'text-fg-muted',
+          'flex flex-wrap items-center gap-2 rounded-xl border bg-surface px-3 py-2.5',
+          running ? 'border-brand/40' : 'border-subtle',
         )}
       >
-        {fmtElapsed(elapsedMs)}
-      </span>
+        <TimerIcon
+          className={cn('size-4 shrink-0', running ? 'text-brand' : 'text-fg-muted')}
+          aria-hidden
+        />
 
-      {running ? (
-        <>
-          <Button size="sm" className="h-8" onClick={handleStop} disabled={upsert.isPending}>
-            <SquareIcon className="size-3.5" aria-hidden />
-            {upsert.isPending ? 'Saving…' : 'Stop'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-fg-muted hover:text-danger"
-            onClick={reset}
-            disabled={upsert.isPending}
-            aria-label="Discard timer"
-          >
-            <XIcon className="size-4" aria-hidden />
-          </Button>
-        </>
-      ) : (
-        <Button
-          size="sm"
-          className="h-8"
-          onClick={handleStart}
-          disabled={!draft.projectId || !draft.taskId}
+        <Select
+          value={draft.projectId}
+          onValueChange={(v) => setDraft({ projectId: v ?? '', taskId: '' })}
+          disabled={running}
         >
-          <PlayIcon className="size-3.5" aria-hidden />
-          Start
-        </Button>
+          <SelectTrigger className="h-8 w-[180px]" aria-label="Project">
+            <SelectValue placeholder="Project">
+              {(v) => activeProjects.find((p) => p.id === v)?.name ?? 'Project'}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {activeProjects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+                <span className="ml-1.5 font-mono text-xs text-fg-muted">{p.code}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={draft.taskId || NO_TASK}
+          onValueChange={(v) => setDraft({ taskId: v === NO_TASK ? '' : (v ?? '') })}
+          disabled={running || !draft.projectId || tasksLoading}
+        >
+          <SelectTrigger className="h-8 w-[150px]" aria-label="Task">
+            <SelectValue
+              placeholder={!draft.projectId ? 'Task' : tasksLoading ? 'Loading…' : 'No task'}
+            >
+              {(v) =>
+                v === NO_TASK || !v
+                  ? 'No task'
+                  : (activeTasks.find((t) => t.id === v)?.name ?? 'No task')
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_TASK}>No task</SelectItem>
+            {activeTasks.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Input
+          value={draft.note}
+          onChange={(e) => setDraft({ note: e.target.value })}
+          placeholder="What are you working on?"
+          className="h-8 min-w-[140px] flex-1"
+          aria-label="Note"
+        />
+
+        <span
+          className={cn(
+            'min-w-[84px] text-center font-mono text-sm tabular-nums',
+            running ? 'font-semibold text-fg' : 'text-fg-muted',
+          )}
+        >
+          {fmtElapsed(elapsedMs)}
+        </span>
+
+        {running ? (
+          <>
+            <Button size="sm" className="h-8" onClick={handleStop}>
+              <SquareIcon className="size-3.5" aria-hidden />
+              Stop
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-fg-muted hover:text-danger"
+              onClick={reset}
+              aria-label="Discard timer"
+            >
+              <XIcon className="size-4" aria-hidden />
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" className="h-8" onClick={handleStart} disabled={!draft.projectId}>
+            <PlayIcon className="size-3.5" aria-hidden />
+            Start
+          </Button>
+        )}
+      </div>
+
+      {confirmOpen && (
+        <TimeEntryDialog
+          open={confirmOpen}
+          onOpenChange={(open) => {
+            setConfirmOpen(open);
+            if (!open) reset(); // closing the confirm (save or cancel) clears the draft
+          }}
+          week={week}
+          employeeId={employeeId}
+          weekDays={getWeekDays(week)}
+          prefill={{
+            projectId: draft.projectId,
+            taskId: draft.taskId || null,
+            date: today,
+            hours: stoppedHours,
+            billable: draft.billable,
+            note: draft.note,
+          }}
+          source="TIMER"
+          title="Log timed entry"
+        />
       )}
-    </div>
+    </>
   );
 }

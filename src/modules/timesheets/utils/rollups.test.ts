@@ -132,4 +132,22 @@ describe('rollupRows', () => {
     expect(r2.total).toBe(2);
     expect(r2.billable).toBe(false);
   });
+
+  it('keeps task-less entries (taskId null) as their own row, separate from tasked rows', () => {
+    const entries = [
+      entry({ id: 'a', projectId: 'prj-1', taskId: 'tsk-1', date: '2026-06-08', hours: 3 }),
+      entry({ id: 'b', projectId: 'prj-1', taskId: null, date: '2026-06-08', hours: 2 }),
+      entry({ id: 'c', projectId: 'prj-1', taskId: null, date: '2026-06-09', hours: 4 }),
+    ];
+    const rows = rollupRows(entries);
+    expect(rows).toHaveLength(2);
+
+    const noTaskRow = rows.find((r) => r.projectId === 'prj-1' && r.taskId === null)!;
+    expect(noTaskRow).toBeDefined();
+    expect(noTaskRow.total).toBe(6);
+    expect(noTaskRow.byDay).toEqual({ '2026-06-08': 2, '2026-06-09': 4 });
+
+    const taskedRow = rows.find((r) => r.taskId === 'tsk-1')!;
+    expect(taskedRow.total).toBe(3);
+  });
 });

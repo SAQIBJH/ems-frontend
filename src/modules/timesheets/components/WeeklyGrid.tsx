@@ -3,10 +3,20 @@
 import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { format, isWithinInterval, parseISO } from 'date-fns';
-import { ChevronLeftIcon, ChevronRightIcon, ClockIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CopyIcon,
+  LockIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
+import type { ApiError } from '@/types/api';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -15,7 +25,7 @@ import { cn } from '@/lib/utils';
 
 import { useMyProjects, TIMESHEET_KEYS } from '../hooks/useProjects';
 import { projectsApi } from '../services/projects.api';
-import { useWeekTimesheet, useDeleteTimeEntry } from '../hooks/useTimesheets';
+import { useWeekTimesheet, useDeleteTimeEntry, useCopyWeek } from '../hooks/useTimesheets';
 import {
   getWeekStart,
   getWeekDays,
@@ -50,11 +60,12 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
   const { data: timesheet, isLoading, isError, refetch } = useWeekTimesheet(week, employeeId);
   const { data: projects = [] } = useMyProjects(employeeId);
   const deleteEntry = useDeleteTimeEntry(week, employeeId);
+  const copyWeek = useCopyWeek(week, employeeId);
 
   const [dialog, setDialog] = useState<{
     open: boolean;
     existing: TimeEntry | null;
-    prefill?: { projectId?: string; taskId?: string; date?: string };
+    prefill?: { projectId?: string; taskId?: string | null; date?: string };
   }>({ open: false, existing: null });
 
   const weekDays = useMemo(() => getWeekDays(week), [week]);
@@ -109,6 +120,18 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
       onError: () => toast.error('Failed to remove entry'),
     });
   }
+  function handleCopyLastWeek() {
+    copyWeek.mutate(
+      { fromWeekStart: shiftWeek(week, -1), toWeekStart: week },
+      {
+        onSuccess: () => toast.success("Copied last week's rows — fill in the hours"),
+        onError: (err: unknown) => {
+          const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
+          toast.error(apiErr?.message ?? "Couldn't copy last week");
+        },
+      },
+    );
+  }
 
   /* ── Week navigation bar (shared across states) ─────────────────────────────── */
   const nav = (
@@ -144,10 +167,21 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
         <TimesheetStatusBadge status={status} />
       </div>
       {editable && (
-        <Button size="sm" onClick={openNew}>
-          <PlusIcon className="size-3.5" aria-hidden />
-          Log time
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopyLastWeek}
+            disabled={copyWeek.isPending}
+          >
+            <CopyIcon className="size-3.5" aria-hidden />
+            {copyWeek.isPending ? 'Copying…' : 'Copy last week'}
+          </Button>
+          <Button size="sm" onClick={openNew}>
+            <PlusIcon className="size-3.5" aria-hidden />
+            Log time
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -202,6 +236,16 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
         />
       )}
 
+      {/* Read-only clarity (B5): locked weeks disable cells — say why so clicks aren't a mystery. */}
+      {!editable && rows.length > 0 && (
+        <p className="flex items-center gap-1.5 text-xs text-fg-muted">
+          <LockIcon className="size-3.5" aria-hidden />
+          {status === 'APPROVED'
+            ? 'This week is approved and read-only.'
+            : 'This week is submitted for approval and read-only until a decision is made.'}
+        </p>
+      )}
+
       {/* Grid */}
       {rows.length === 0 ? (
         <div className="rounded-xl border border-subtle bg-surface">
@@ -242,16 +286,18 @@ export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
             <tbody>
               {rows.map((row) => {
                 const project = projectMap.get(row.projectId);
-                const task = taskMap.get(row.taskId);
+                const task = row.taskId ? taskMap.get(row.taskId) : undefined;
                 const rowEntryForDelete = Object.values(row.entryByDay)[0];
                 return (
                   <tr
-                    key={`${row.projectId}::${row.taskId}`}
+                    key={`${row.projectId}::${row.taskId ?? ''}`}
                     className="border-b border-subtle last:border-0"
                   >
                     <td className="px-4 py-2.5">
                       <div className="font-medium text-fg">{project?.name ?? 'Project'}</div>
-                      <div className="text-xs text-fg-muted">{task?.name ?? 'Task'}</div>
+                      <div className="text-xs text-fg-muted">
+                        {row.taskId ? (task?.name ?? 'Task') : 'No task'}
+                      </div>
                     </td>
                     {weekDays.map((d) => {
                       const hours = row.byDay[d];

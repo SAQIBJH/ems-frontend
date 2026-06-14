@@ -61,7 +61,8 @@ export function rollupByDay(entries: TimeEntry[]): Record<string, number> {
 /** One grid row per project+task, with per-day hours and the entry that backs each cell. */
 export interface GridRow {
   projectId: string;
-  taskId: string;
+  /** Null when the row's entries have no task (logged against the project directly). */
+  taskId: string | null;
   /** Hours per day keyed by YYYY-MM-DD. */
   byDay: Record<string, number>;
   /** The entry backing each day cell (so a cell click can edit it). */
@@ -76,7 +77,7 @@ export interface GridRow {
 export function rollupRows(entries: TimeEntry[]): GridRow[] {
   const rows = new Map<string, GridRow>();
   for (const e of entries) {
-    const key = `${e.projectId}::${e.taskId}`;
+    const key = `${e.projectId}::${e.taskId ?? ''}`;
     let row = rows.get(key);
     if (!row) {
       row = {

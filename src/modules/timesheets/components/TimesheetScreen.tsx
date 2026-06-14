@@ -10,6 +10,7 @@ import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
 import { ApprovalsTab } from './ApprovalsTab';
 import { ProjectsPanel } from './ProjectsPanel';
 import { TimerBar } from './TimerBar';
+import { TimesheetReminderBanner } from './TimesheetReminderBanner';
 import { WeeklyGrid } from './WeeklyGrid';
 
 export function TimesheetScreen() {
@@ -44,6 +45,7 @@ export function TimesheetScreen() {
           </TabsList>
 
           <TabsContent value="my" className="space-y-4">
+            <TimesheetReminderBanner employeeId={user?.employeeId ?? undefined} />
             <TimerBar employeeId={user?.employeeId ?? undefined} />
             <WeeklyGrid employeeId={user?.employeeId ?? undefined} />
           </TabsContent>
