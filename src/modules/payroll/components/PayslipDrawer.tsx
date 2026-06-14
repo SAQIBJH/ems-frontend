@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { cn } from '@/lib/utils';
 
 import { useRunPayslip, useEmployeePayslip, usePayslipTemplate } from '@/modules/payroll';
-import { DEFAULT_PAYSLIP_TEMPLATE } from '@/modules/payroll';
+import { DEFAULT_PAYSLIP_TEMPLATE, formatMajor } from '@/modules/payroll';
 import type {
   Payslip,
   PayslipTemplate,
@@ -19,10 +19,13 @@ import type {
   PayslipHeaderFieldKey,
 } from '@/modules/payroll';
 
-function makeFmt(locale: string) {
-  return (amount: number, currency = 'INR'): string =>
-    amount.toLocaleString(locale, { style: 'currency', currency, maximumFractionDigits: 0 });
-}
+/**
+ * Income-tax deduction line codes across countries (IN TDS, PH withholding, ZA/UK PAYE, …).
+ * Used to surface the period tax in the YTD summary without hardcoding a single country's
+ * code. Deliberately excludes local taxes like PROF_TAX. Ideally the backend tags the tax
+ * line; until then this is the country-agnostic fallback.
+ */
+const INCOME_TAX_CODES = new Set(['TDS', 'WITHHOLDING_TAX', 'WHT', 'PAYE', 'INCOME_TAX', 'IT']);
 
 interface PayslipDrawerProps {
   open: boolean;
@@ -104,12 +107,17 @@ export function PayslipDrawer({
 
 function PayslipContent({ payslip, template }: { payslip: Payslip; template: PayslipTemplate }) {
   const { currency } = payslip;
-  const locale = template.locale || 'en-IN';
-  const fmtCurrency = makeFmt(locale);
+  // Template locale if configured, else formatMajor derives one from the currency
+  // (never a hardcoded India locale). formatMajor is also guarded against non-ISO codes.
+  const locale = template.locale || undefined;
+  const fmtCurrency = (amount: number, cur: string = currency): string =>
+    formatMajor(amount, cur, { locale, fractionDigits: 0 });
   const periodTaxable = payslip.earnings
     .filter((line) => line.taxable)
     .reduce((sum, line) => sum + line.amount, 0);
-  const periodTax = payslip.deductions.find((line) => line.code === 'TDS')?.amount ?? 0;
+  // The income-tax line varies by country (TDS / WITHHOLDING_TAX / PAYE / …), never just "TDS".
+  const periodTax =
+    payslip.deductions.find((line) => INCOME_TAX_CODES.has(line.code.toUpperCase()))?.amount ?? 0;
 
   // Section ordering/visibility is config. Money sections render first, then the always-on
   // Net Pay box, then informational sections — each group honouring template order.
