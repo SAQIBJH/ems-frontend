@@ -26,7 +26,26 @@ const TYPE_COLOR: Record<string, string> = {
   EMPLOYEE_CREATED: 'bg-brand',
   DOCUMENT_UPLOADED: 'bg-info',
   SYSTEM: 'bg-fg-muted',
+  timesheet_submit_reminder: 'bg-warning',
+  timesheet_approval_reminder: 'bg-info',
 };
+
+/**
+ * Where a notification navigates on click. Prefer the server-provided `actionUrl`;
+ * otherwise derive a target for the timesheet reminders from their type + metadata
+ * (the reminder shape carries `metadata.weekStart` and may omit `actionUrl`).
+ */
+function resolveActionUrl(n: Notification): string | undefined {
+  if (n.actionUrl) return n.actionUrl;
+  const weekStart = typeof n.metadata?.weekStart === 'string' ? n.metadata.weekStart : undefined;
+  if (n.type === 'timesheet_submit_reminder') {
+    return weekStart ? `/timesheets?tab=my&week=${weekStart}` : '/timesheets?tab=my';
+  }
+  if (n.type === 'timesheet_approval_reminder') {
+    return '/timesheets?tab=approvals';
+  }
+  return undefined;
+}
 
 function NotificationItem({
   notification,
@@ -59,7 +78,9 @@ function NotificationItem({
         >
           {notification.title}
         </span>
-        <span className="text-xs text-fg-muted line-clamp-2">{notification.body}</span>
+        <span className="text-xs text-fg-muted line-clamp-2">
+          {notification.body || notification.message}
+        </span>
         <span className="text-[10px] text-fg-subtle mt-0.5">{timeAgo}</span>
       </span>
     </button>
@@ -92,7 +113,8 @@ export function NotificationBell() {
   function handleAction(n: Notification) {
     if (!n.isRead) markRead.mutate(n.id);
     setOpen(false);
-    if (n.actionUrl) router.push(n.actionUrl);
+    const url = resolveActionUrl(n);
+    if (url) router.push(url);
   }
 
   function handleMarkAllRead() {

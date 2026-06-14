@@ -1,14 +1,20 @@
 'use client';
 
 import { format, parseISO } from 'date-fns';
-import { AlertTriangleIcon, CheckCircle2Icon, ClockIcon, SendIcon } from 'lucide-react';
+import {
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  ClockIcon,
+  RotateCcwIcon,
+  SendIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 import { Button } from '@/components/ui/button';
 import type { ApiError } from '@/types/api';
 
-import { useSubmitTimesheet } from '../hooks/useTimesheets';
+import { useSubmitTimesheet, useRecallTimesheet } from '../hooks/useTimesheets';
 import type { Timesheet } from '../types/timesheet.types';
 
 interface TimesheetSubmitBarProps {
@@ -34,6 +40,7 @@ export function TimesheetSubmitBar({
   canWrite,
 }: TimesheetSubmitBarProps) {
   const submit = useSubmitTimesheet(week, employeeId);
+  const recall = useRecallTimesheet(week, employeeId);
   const { status, totalHours, billableHours, overtimeHours } = timesheet;
   const editable = status === 'DRAFT' || status === 'REJECTED';
   const empty = totalHours <= 0;
@@ -49,6 +56,16 @@ export function TimesheetSubmitBar({
       onError: (err: unknown) => {
         const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
         toast.error(apiErr?.message ?? 'Failed to submit timesheet');
+      },
+    });
+  }
+
+  function handleRecall() {
+    recall.mutate(timesheet.id, {
+      onSuccess: () => toast.success('Timesheet recalled — you can edit and resubmit'),
+      onError: (err: unknown) => {
+        const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
+        toast.error(apiErr?.message ?? 'Failed to recall timesheet');
       },
     });
   }
@@ -85,15 +102,28 @@ export function TimesheetSubmitBar({
             {submit.isPending ? 'Submitting…' : status === 'REJECTED' ? 'Resubmit' : 'Submit week'}
           </Button>
         ) : status === 'SUBMITTED' ? (
-          <span className="inline-flex items-center gap-1.5 text-sm text-info">
-            <ClockIcon className="size-4" aria-hidden />
-            Awaiting approval
-            {timesheet.submittedAt && (
-              <span className="text-fg-muted">
-                · submitted {format(parseISO(timesheet.submittedAt), 'MMM d')}
-              </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-sm text-info">
+              <ClockIcon className="size-4" aria-hidden />
+              Awaiting approval
+              {timesheet.submittedAt && (
+                <span className="text-fg-muted">
+                  · submitted {format(parseISO(timesheet.submittedAt), 'MMM d')}
+                </span>
+              )}
+            </span>
+            {canWrite && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRecall}
+                disabled={recall.isPending}
+              >
+                <RotateCcwIcon className="size-3.5" aria-hidden />
+                {recall.isPending ? 'Recalling…' : 'Recall'}
+              </Button>
             )}
-          </span>
+          </div>
         ) : (
           <span className="inline-flex items-center gap-1.5 text-sm text-success">
             <CheckCircle2Icon className="size-4" aria-hidden />

@@ -4,7 +4,8 @@ import { z } from 'zod';
  *  string in the form and converted to a number at submit. */
 export const timeEntrySchema = z.object({
   projectId: z.string().min(1, 'Select a project'),
-  taskId: z.string().min(1, 'Select a task'),
+  // Task is optional (Hybrid model) — empty means "log against the project directly".
+  taskId: z.string(),
   date: z.string().min(1, 'Select a day'),
   hours: z
     .string()

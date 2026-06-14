@@ -1990,10 +1990,14 @@ Final verification gate for the phase:
 - `GET /timesheets?week=YYYY-MM-DD&employeeId=` → `Timesheet` for that week (self if
   `employeeId` omitted). Returns a synthesized `DRAFT` (empty `entries`) when none
   exists yet, so the grid always has a week to edit.
-- `POST /timesheets/entries` — body `{ weekStart, projectId, taskId, date, hours, billable?, note?, source? }`
+- `POST /timesheets/entries` — body `{ weekStart, projectId, taskId?, date, hours, billable?, note?, source? }`
   → `TimeEntry` (201). Creates/attaches to the week's timesheet; `422` if the week is
   not `DRAFT`/`REJECTED` (can't edit a submitted/approved week). `source ∈ MANUAL | TIMER`
   (default `MANUAL`); the timer's **Stop** (Step T4) posts here with `source: "TIMER"`.
+  **`taskId` is OPTIONAL (Hybrid model):** omit it to log against the project directly;
+  the entry's `taskId` is then `null`. Clients must **omit** the key when there is no
+  task — sending an explicit `taskId: null` is rejected (verified: live backend `500`s
+  on a null FK). `TimeEntry.taskId` is therefore `string | null` on reads.
 - `PATCH /timesheets/entries/:id` → `TimeEntry`.
 - `DELETE /timesheets/entries/:id` → `{ id }`.
 - `POST /timesheets/:id/submit` → `Timesheet` (`DRAFT`/`REJECTED` → `SUBMITTED`).
@@ -2052,3 +2056,39 @@ byEmployee: { employeeId, employeeName, hours, utilizationPct }[] }`.
   from unpaid **leave** is unchanged (leave-driven). Never edits a `PAID` run. Audit:
   `INPUTS_FROM_TIMESHEETS`. Surfaced as an **"Import from timesheets"** action on the
   run **Inputs** panel.
+
+### G.7 — Self-service & lifecycle additions (workflow redesign, 2026-06-14)
+
+> Built frontend-first (MSW). **LIVE STATUS (re-verified 2026-06-14, authed HR, read-only
+> probes):** both endpoints have since **SHIPPED on the backend** — `copy-week` returns
+> `422 VALIDATION_ERROR` on an empty body, `recall` returns `404 NOT_FOUND "Timesheet not
+> found"` on a fake id (both real route hits, vs the `404 "Route … not found"` a missing
+> route gives). Their **response bodies / state-machine are not yet exercised on prod**
+> (mutating) — verify on a non-prod tenant. Field casing camelCase.
+
+- **`POST /timesheets/copy-week`** (M5) — body `{ fromWeekStart, toWeekStart, withNotes? }`
+  → `Timesheet` (201, target week). Copies each **unique project/task row** from the
+  source week into the target with `hours: 0` (user fills the numbers). **Idempotent** —
+  skips rows the target already has. `withNotes` (default false) carries entry notes.
+  `422 WEEK_LOCKED` if the target week is not `DRAFT`/`REJECTED`. `meta.copied` = row count.
+- **`POST /timesheets/:id/recall`** (M6) — no body → `Timesheet` (`SUBMITTED → DRAFT`,
+  clears `submittedAt`/decision fields). **Owner only.** `404` if not found; `422 NOT_RECALLABLE`
+  if the week isn't `SUBMITTED` (can't recall an already-approved/rejected week). Surfaced
+  as a **Recall** button next to "Awaiting approval" on the submit bar.
+- **Timer Stop → confirm dialog** (M3, UI-only): the timer no longer posts directly on
+  stop; it opens the entry dialog pre-filled with the elapsed duration so the user can
+  correct hours / pick the day (backfill within the week) / discard before it saves via
+  `POST /timesheets/entries` (`source: "TIMER"`). No new endpoint.
+
+### G.8 — Submit reminders (M7)
+
+- **In-app nudge (built, FE-only):** the My-Timesheet tab shows a dismissible banner when
+  last week is `REJECTED` or a `DRAFT` with logged hours — pure client logic over
+  `GET /timesheets?week=`, no endpoint.
+- **BACKEND REQUEST — email/push reminders (not built — live-confirmed 2026-06-14):** a
+  scheduled job that emails employees with an unsubmitted `DRAFT`/`REJECTED` prior week
+  near the period cutoff, and managers with pending approvals. Config knob
+  `submitReminderDay` to live on `TimesheetSettings` when implemented — confirmed **absent**
+  from the live `GET /timesheets/settings` response (which also still lacks
+  `requireTaskOnEntry`). This is the only genuinely outstanding backend item from the
+  overhaul. No frontend work until the backend exposes it.

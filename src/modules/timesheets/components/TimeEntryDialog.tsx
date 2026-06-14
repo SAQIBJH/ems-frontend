@@ -28,9 +28,13 @@ import { Switch } from '@/components/ui/switch';
 import type { ApiError } from '@/types/api';
 
 import { useMyProjects, useTasks } from '../hooks/useProjects';
-import { useUpsertTimeEntry } from '../hooks/useTimesheets';
+import { useTimesheetSettings, useUpsertTimeEntry } from '../hooks/useTimesheets';
+import { useTimesheetPermissions } from '../hooks/useTimesheetPermissions';
 import { timeEntrySchema, type TimeEntryFormValues } from '../validations/timeEntry.schema';
-import type { TimeEntry } from '../types/timesheet.types';
+import type { TimeEntry, TimeEntrySource } from '../types/timesheet.types';
+
+/** Sentinel for the "No task" Select option (Base UI Select disallows an empty value). */
+const NO_TASK = '__none__';
 
 interface TimeEntryDialogProps {
   open: boolean;
@@ -42,8 +46,21 @@ interface TimeEntryDialogProps {
   weekDays: string[];
   /** When editing an existing cell. */
   existing?: TimeEntry | null;
-  /** Prefill for a fresh entry (e.g. the clicked cell's project/task/date). */
-  prefill?: { projectId?: string; taskId?: string; date?: string };
+  /** Prefill for a fresh entry (e.g. the clicked cell, or a stopped timer's duration). */
+  prefill?: {
+    projectId?: string;
+    taskId?: string | null;
+    date?: string;
+    hours?: number;
+    billable?: boolean;
+    note?: string;
+  };
+  /** Source recorded on the entry (TIMER when this confirms a stopped timer). */
+  source?: TimeEntrySource;
+  /** Dialog heading override (e.g. "Log timed entry" for the timer confirm). */
+  title?: string;
+  /** Called after a successful save, before the dialog closes. */
+  onSaved?: () => void;
 }
 
 export function TimeEntryDialog({
@@ -54,9 +71,17 @@ export function TimeEntryDialog({
   weekDays,
   existing,
   prefill,
+  source,
+  title,
+  onSaved,
 }: TimeEntryDialogProps) {
   const { data: projects = [] } = useMyProjects(employeeId);
   const upsert = useUpsertTimeEntry(week, employeeId);
+  // Settings are HR-only; gate the read so employees don't 403. When unknown
+  // (non-admin), the server's 422 TASK_REQUIRED is the enforcement of record.
+  const { canAdmin } = useTimesheetPermissions();
+  const { data: settings } = useTimesheetSettings({ enabled: canAdmin });
+  const requireTask = settings?.requireTaskOnEntry ?? false;
 
   const form = useForm<TimeEntryFormValues>({
     resolver: zodResolver(timeEntrySchema),
@@ -64,9 +89,13 @@ export function TimeEntryDialog({
       projectId: existing?.projectId ?? prefill?.projectId ?? '',
       taskId: existing?.taskId ?? prefill?.taskId ?? '',
       date: existing?.date ?? prefill?.date ?? weekDays[0] ?? '',
-      hours: existing ? String(existing.hours) : '',
-      billable: existing?.billable ?? true,
-      note: existing?.note ?? '',
+      hours: existing
+        ? String(existing.hours)
+        : prefill?.hours != null
+          ? String(prefill.hours)
+          : '',
+      billable: existing?.billable ?? prefill?.billable ?? true,
+      note: existing?.note ?? prefill?.note ?? '',
     },
   });
 
@@ -109,6 +138,10 @@ export function TimeEntryDialog({
   }
 
   function onSubmit(values: TimeEntryFormValues) {
+    if (requireTask && !values.taskId) {
+      form.setError('taskId', { message: 'This entry needs a task — pick one to continue.' });
+      return;
+    }
     upsert.mutate(
       {
         id: existing?.id,
@@ -120,16 +153,25 @@ export function TimeEntryDialog({
           hours: Number(values.hours),
           billable: values.billable,
           note: values.note,
+          source,
         },
       },
       {
         onSuccess: () => {
           toast.success(existing ? 'Entry updated' : 'Time logged');
+          onSaved?.();
           handleClose();
         },
         onError: (err: unknown) => {
           const apiErr = (err as AxiosError<ApiError>).response?.data?.error;
           const status = (err as AxiosError).response?.status;
+          // Server-side enforcement of requireTaskOnEntry (works for all roles).
+          if (status === 422 && apiErr?.code === 'TASK_REQUIRED') {
+            form.setError('taskId', {
+              message: 'This entry needs a task — pick one to continue.',
+            });
+            return;
+          }
           if (status === 422 && Array.isArray(apiErr?.details)) {
             apiErr.details.forEach(({ field, message }) =>
               form.setError(field as keyof TimeEntryFormValues, { message }),
@@ -146,7 +188,7 @@ export function TimeEntryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{existing ? 'Edit time entry' : 'Log time'}</DialogTitle>
+          <DialogTitle>{title ?? (existing ? 'Edit time entry' : 'Log time')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-1">
@@ -176,12 +218,14 @@ export function TimeEntryDialog({
             )}
           </div>
 
-          {/* Task */}
+          {/* Task — optional by default (Hybrid model); required when requireTaskOnEntry is on. */}
           <div className="space-y-1.5">
-            <Label htmlFor="te-task">Task</Label>
+            <Label htmlFor="te-task">{requireTask ? 'Task' : 'Task (optional)'}</Label>
             <Select
-              value={taskId}
-              onValueChange={(v) => form.setValue('taskId', v ?? '', { shouldValidate: true })}
+              value={taskId || NO_TASK}
+              onValueChange={(v) =>
+                form.setValue('taskId', v === NO_TASK ? '' : (v ?? ''), { shouldValidate: true })
+              }
               disabled={!projectId || tasksLoading}
             >
               <SelectTrigger id="te-task">
@@ -191,13 +235,23 @@ export function TimeEntryDialog({
                       ? 'Select a project first'
                       : tasksLoading
                         ? 'Loading tasks…'
-                        : 'Select a task'
+                        : requireTask
+                          ? 'Select a task'
+                          : 'No task'
                   }
                 >
-                  {(v) => activeTasks.find((t) => t.id === v)?.name ?? 'Select a task'}
+                  {(v) =>
+                    v === NO_TASK || !v
+                      ? requireTask
+                        ? 'Select a task'
+                        : 'No task'
+                      : (activeTasks.find((t) => t.id === v)?.name ??
+                        (requireTask ? 'Select a task' : 'No task'))
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
+                {!requireTask && <SelectItem value={NO_TASK}>No task</SelectItem>}
                 {activeTasks.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
@@ -205,6 +259,11 @@ export function TimeEntryDialog({
                 ))}
               </SelectContent>
             </Select>
+            {requireTask && projectId && !tasksLoading && activeTasks.length === 0 && (
+              <p className="text-xs text-fg-muted">
+                This project has no tasks yet — an admin must add one before time can be logged.
+              </p>
+            )}
             {form.formState.errors.taskId && (
               <p className="text-xs text-danger">{form.formState.errors.taskId.message}</p>
             )}

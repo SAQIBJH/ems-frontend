@@ -67,6 +67,28 @@ export function useSubmitTimesheet(week: string, employeeId?: string) {
   });
 }
 
+/** Copy last week's rows into the target week (zero hours) — invalidates the target. */
+export function useCopyWeek(week: string, employeeId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { fromWeekStart: string; toWeekStart: string; withNotes?: boolean }) =>
+      timesheetsApi.copyWeek(vars),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(week, employeeId) }),
+  });
+}
+
+/** Recall a submitted week back to DRAFT (owner only). Refreshes week + approval queue. */
+export function useRecallTimesheet(week: string, employeeId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => timesheetsApi.recall(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: TIMESHEET_KEYS.week(week, employeeId) });
+      void qc.invalidateQueries({ queryKey: ['timesheets', 'approvals'] });
+    },
+  });
+}
+
 /** The approval queue (submitted weeks awaiting a decision). */
 export function useTimesheetApprovals(status: Timesheet['status'] = 'SUBMITTED') {
   return useQuery({
@@ -107,11 +129,16 @@ export function useTimesheetSummary(range: TimesheetSummaryRange = '30d', employ
   });
 }
 
-/** Tenant timesheet settings (standard hours, overtime, rounding, policies). */
-export function useTimesheetSettings() {
+/**
+ * Tenant timesheet settings (standard hours, overtime, rounding, policies).
+ * The endpoint is HR_ADMIN/SUPER_ADMIN-only, so callers in employee-facing flows
+ * must gate the fetch via `enabled` to avoid a guaranteed 403.
+ */
+export function useTimesheetSettings(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: TIMESHEET_KEYS.settings,
     queryFn: () => timesheetsApi.getSettings(),
+    enabled: options?.enabled ?? true,
   });
 }
 

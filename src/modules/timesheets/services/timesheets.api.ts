@@ -15,7 +15,9 @@ export interface TimeEntryInput {
   /** Monday of the target week (YYYY-MM-DD). */
   weekStart: string;
   projectId: string;
-  taskId: string;
+  /** Optional — omit entirely when logging against the project directly. The backend
+   *  500s on an explicit `null` (FK validation), so empty values are stripped, not nulled. */
+  taskId?: string;
   /** Day the time is logged against (YYYY-MM-DD). */
   date: string;
   hours: number;
@@ -28,6 +30,17 @@ export interface TimeEntryInput {
 /** Patchable fields on an existing entry (the week it belongs to never changes). */
 export type TimeEntryPatch = Partial<Omit<TimeEntryInput, 'weekStart'>>;
 
+/**
+ * Drop an empty/missing `taskId` from a payload. The backend treats an omitted task as
+ * "no task" (201) but 500s on an explicit `null` FK — so we strip rather than null.
+ */
+function stripEmptyTaskId<T extends { taskId?: string | null }>(body: T): T {
+  if (body.taskId) return body;
+  const rest = { ...body };
+  delete rest.taskId;
+  return rest;
+}
+
 export const timesheetsApi = {
   /** Fetch (or synthesize an empty DRAFT for) the week's timesheet. */
   getWeek: async (week: string, employeeId?: string): Promise<Timesheet> => {
@@ -38,17 +51,43 @@ export const timesheetsApi = {
   },
 
   createEntry: async (input: TimeEntryInput): Promise<TimeEntry> => {
-    const { data } = await apiClient.post<{ data: TimeEntry }>('/timesheets/entries', input);
+    const { data } = await apiClient.post<{ data: TimeEntry }>(
+      '/timesheets/entries',
+      stripEmptyTaskId(input),
+    );
     return data.data;
   },
 
   updateEntry: async (id: string, patch: TimeEntryPatch): Promise<TimeEntry> => {
-    const { data } = await apiClient.patch<{ data: TimeEntry }>(`/timesheets/entries/${id}`, patch);
+    const { data } = await apiClient.patch<{ data: TimeEntry }>(
+      `/timesheets/entries/${id}`,
+      stripEmptyTaskId(patch),
+    );
     return data.data;
   },
 
   deleteEntry: async (id: string): Promise<{ id: string }> => {
     const { data } = await apiClient.delete<{ data: { id: string } }>(`/timesheets/entries/${id}`);
+    return data.data;
+  },
+
+  /**
+   * Copy a previous week's rows (project/task/billable) into a target week with zero
+   * hours, so the user just fills numbers. Idempotent on the backend (skips existing
+   * rows). NEW endpoint — frontend-first (MSW); document at Domain G.
+   */
+  copyWeek: async (input: {
+    fromWeekStart: string;
+    toWeekStart: string;
+    withNotes?: boolean;
+  }): Promise<Timesheet> => {
+    const { data } = await apiClient.post<{ data: Timesheet }>('/timesheets/copy-week', input);
+    return data.data;
+  },
+
+  /** Recall a submitted (not yet decided) week back to DRAFT — owner only. NEW endpoint. */
+  recall: async (id: string): Promise<Timesheet> => {
+    const { data } = await apiClient.post<{ data: Timesheet }>(`/timesheets/${id}/recall`, {});
     return data.data;
   },
 

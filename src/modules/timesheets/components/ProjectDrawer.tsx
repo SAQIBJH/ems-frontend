@@ -26,6 +26,7 @@ import type { ApiError } from '@/types/api';
 import { useCreateProject, useUpdateProject } from '../hooks/useProjects';
 import { projectSchema, type ProjectFormValues } from '../validations/project.schema';
 import type { Project } from '../types/timesheet.types';
+import { ProjectTasksSection } from './ProjectTasksSection';
 
 interface ProjectDrawerProps {
   open: boolean;
@@ -122,7 +123,7 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{existing ? 'Edit project' : 'New project'}</DialogTitle>
         </DialogHeader>
@@ -182,6 +183,20 @@ export function ProjectDrawer({ open, onOpenChange, existing }: ProjectDrawerPro
               {form.formState.errors.defaultRate && (
                 <p className="text-xs text-danger">{form.formState.errors.defaultRate.message}</p>
               )}
+            </div>
+          )}
+
+          {/* Tasks — optional breakdown (design M1). Only on an existing project, since
+              a task needs a saved projectId; on create we show a hint instead. */}
+          {existing ? (
+            <ProjectTasksSection projectId={existing.id} projectBillable={billable} />
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Tasks</Label>
+              <p className="rounded-lg border border-dashed border-subtle bg-surface px-3 py-2.5 text-xs text-fg-muted">
+                Save the project first, then reopen it to add tasks. Tasks are optional — employees
+                can log against the project directly.
+              </p>
             </div>
           )}
 

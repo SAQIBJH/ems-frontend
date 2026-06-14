@@ -39,6 +39,8 @@ let timesheetSettings: TimesheetSettings = {
   approvalRequired: true,
   unloggedHoursPolicy: 'FLAG',
   billableDefault: true,
+  submitReminderDay: null,
+  requireTaskOnEntry: false,
   updatedAt: '2026-04-01T00:00:00.000Z',
 };
 
@@ -404,7 +406,7 @@ export const timesheetHandlers = [
     const body = (await request.json()) as {
       weekStart: string;
       projectId: string;
-      taskId: string;
+      taskId?: string | null;
       date: string;
       hours: number;
       billable?: boolean;
@@ -424,6 +426,15 @@ export const timesheetHandlers = [
         { status: 422 },
       );
     }
+    if (timesheetSettings.requireTaskOnEntry && !body.taskId) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'TASK_REQUIRED', message: 'A task is required on every time entry.' },
+        },
+        { status: 422 },
+      );
+    }
     const project = projects.find((p) => p.id === body.projectId);
     const task = tasks.find((t) => t.id === body.taskId);
     const created: TimeEntry = {
@@ -431,7 +442,7 @@ export const timesheetHandlers = [
       timesheetId: ts.id,
       employeeId,
       projectId: body.projectId,
-      taskId: body.taskId,
+      taskId: body.taskId ?? null,
       date: body.date,
       hours: body.hours,
       billable: body.billable ?? task?.billable ?? project?.billable ?? false,
@@ -462,6 +473,16 @@ export const timesheetHandlers = [
         {
           success: false,
           error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
+        },
+        { status: 422 },
+      );
+    }
+    // Only enforced when the patch actually touches taskId (matches live behaviour).
+    if (timesheetSettings.requireTaskOnEntry && 'taskId' in body && !body.taskId) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'TASK_REQUIRED', message: 'A task is required on every time entry.' },
         },
         { status: 422 },
       );
@@ -627,6 +648,98 @@ export const timesheetHandlers = [
     };
     timesheets = timesheets.map((t) => (t.id === id ? updated : t));
     return HttpResponse.json({ success: true, data: updated });
+  }),
+
+  /* Recall a submitted (not-yet-decided) week back to DRAFT — owner only (M6 / Domain G) */
+  http.post(`${BASE}/:id/recall`, ({ params }) => {
+    const { id } = params as { id: string };
+    const ts = timesheets.find((t) => t.id === id);
+    if (!ts) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
+        { status: 404 },
+      );
+    }
+    if (ts.status !== 'SUBMITTED') {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'NOT_RECALLABLE',
+            message: 'Only a week awaiting approval can be recalled.',
+          },
+        },
+        { status: 422 },
+      );
+    }
+    const updated: Timesheet = {
+      ...ts,
+      status: 'DRAFT',
+      submittedAt: null,
+      decidedBy: null,
+      decidedAt: null,
+      comment: null,
+    };
+    timesheets = timesheets.map((t) => (t.id === id ? updated : t));
+    return HttpResponse.json({ success: true, data: updated });
+  }),
+
+  /* Copy a previous week's rows (project/task/billable) into a target week with zero
+     hours, so the user just fills numbers (M5 / Domain G). Idempotent — skips rows the
+     target already has; optionally carries notes. */
+  http.post(`${BASE}/copy-week`, async ({ request }) => {
+    const body = (await request.json()) as {
+      fromWeekStart: string;
+      toWeekStart: string;
+      withNotes?: boolean;
+      employeeId?: string;
+    };
+    const employeeId = body.employeeId || DEFAULT_EMPLOYEE_ID;
+    const from = mondayOf(body.fromWeekStart);
+    const target = ensureTimesheet(employeeId, mondayOf(body.toWeekStart));
+    if (!EDITABLE_STATUSES.includes(target.status)) {
+      return HttpResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'WEEK_LOCKED',
+            message: 'The target week is submitted and cannot be edited.',
+          },
+        },
+        { status: 422 },
+      );
+    }
+    const fromTs = timesheets.find((t) => t.employeeId === employeeId && t.weekStart === from);
+    const sourceEntries = fromTs ? entries.filter((e) => e.timesheetId === fromTs.id) : [];
+    const seen = new Set<string>();
+    let copied = 0;
+    for (const e of sourceEntries) {
+      const key = `${e.projectId}::${e.taskId ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const exists = entries.some(
+        (te) => te.timesheetId === target.id && `${te.projectId}::${te.taskId ?? ''}` === key,
+      );
+      if (exists) continue;
+      entries = [
+        ...entries,
+        {
+          id: `te-${++entryCounter}`,
+          timesheetId: target.id,
+          employeeId,
+          projectId: e.projectId,
+          taskId: e.taskId,
+          date: target.weekStart,
+          hours: 0,
+          billable: e.billable,
+          note: body.withNotes ? e.note : '',
+          source: 'MANUAL',
+        },
+      ];
+      copied += 1;
+    }
+    const fresh = recompute(target);
+    return HttpResponse.json({ success: true, data: fresh, meta: { copied } }, { status: 201 });
   }),
 
   /* Approval queue (G.3) — managers see their team, HR sees all (mock: all) */
