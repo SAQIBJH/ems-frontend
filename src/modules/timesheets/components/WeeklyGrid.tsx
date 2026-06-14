@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { parseAsString, useQueryState } from 'nuqs';
 import { useQueries } from '@tanstack/react-query';
 import { format, isWithinInterval, parseISO } from 'date-fns';
 import {
@@ -56,7 +57,12 @@ function todayStr(): string {
 }
 
 export function WeeklyGrid({ employeeId }: WeeklyGridProps) {
-  const [week, setWeek] = useState(() => getWeekStart(todayStr()));
+  // Seed the week from a `?week=` deep-link (e.g. a reminder notification) once on
+  // mount; week-arrow navigation thereafter is local state. Falls back to this week.
+  const [weekParam] = useQueryState('week', parseAsString);
+  const [week, setWeek] = useState(() =>
+    getWeekStart(weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? weekParam : todayStr()),
+  );
   const { data: timesheet, isLoading, isError, refetch } = useWeekTimesheet(week, employeeId);
   const { data: projects = [] } = useMyProjects(employeeId);
   const deleteEntry = useDeleteTimeEntry(week, employeeId);

@@ -12,6 +12,9 @@ export type NotificationType =
   | 'EMPLOYEE_CREATED'
   | 'DOCUMENT_UPLOADED'
   | 'SYSTEM'
+  // Timesheet reminders (lowercase) — created by the backend scheduled job.
+  | 'timesheet_submit_reminder'
+  | 'timesheet_approval_reminder'
   // fallback for any future types
   | string;
 
@@ -26,6 +29,13 @@ export interface Notification {
   actionUrl: string;
   isRead: boolean;
   createdAt: string;
+  /**
+   * Some notification sources (e.g. timesheet reminders) send `message` instead of
+   * `body` and carry structured `metadata` (e.g. `weekStart` for deep-linking).
+   * Optional + defensive: the live shape is unverified for cron-gated reminders.
+   */
+  message?: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface NotificationsResponse {
