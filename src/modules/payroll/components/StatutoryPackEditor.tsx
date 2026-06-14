@@ -161,6 +161,7 @@ function packToForm(pack: StatutoryPack, mode: 'edit' | 'clone'): StatutoryPackE
       name: s.name,
       wageBaseTag: s.wageBaseTag,
       wageCeiling: s.wageCeiling === null ? null : fromMinor(s.wageCeiling, currency),
+      apportionmentMode: s.apportionmentMode ?? 'MONTHLY_TOTAL',
       applicability: s.applicability ?? '',
       employeeRate: s.employee.rate,
       employeeComponent: s.employee.component,
@@ -226,6 +227,7 @@ function formToInput(v: StatutoryPackEditorValues): StatutoryPackInput {
         component: s.employerComponent,
         split: Object.keys(s.employerSplit).length ? s.employerSplit : undefined,
       },
+      apportionmentMode: s.apportionmentMode,
       applicability: s.applicability || undefined,
     })),
     localTaxes: v.localTaxes.map((t) => ({
@@ -1193,6 +1195,39 @@ export function StatutoryPackEditor({
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
+                            <Label className="text-xs">Apportionment (sub-monthly)</Label>
+                            <Controller
+                              control={form.control}
+                              name={`contributionSchemes.${i}.apportionmentMode`}
+                              render={({ field }) => (
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                  <SelectTrigger className="w-full cursor-pointer">
+                                    <SelectValue>
+                                      {(v) =>
+                                        v === 'PER_CYCLE'
+                                          ? 'Per cycle'
+                                          : 'Monthly total (shared across cycles)'
+                                      }
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="MONTHLY_TOTAL">
+                                      Monthly total (shared across cycles)
+                                    </SelectItem>
+                                    <SelectItem value="PER_CYCLE">Per cycle</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            <p className="text-[11px] text-fg-muted">
+                              How a monthly cap (e.g. SSS) splits across semi-monthly / bi-weekly
+                              cycles.
+                            </p>
+                          </div>
+                          <div className="space-y-1" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
                             <Label className="text-xs">Employee rate %</Label>
                             <Controller
                               control={form.control}
@@ -1295,6 +1330,7 @@ export function StatutoryPackEditor({
                       name: '',
                       wageBaseTag: '',
                       wageCeiling: null,
+                      apportionmentMode: 'MONTHLY_TOTAL',
                       applicability: '',
                       employeeRate: 0,
                       employeeComponent: '',

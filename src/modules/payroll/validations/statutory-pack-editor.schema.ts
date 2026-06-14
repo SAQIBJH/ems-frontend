@@ -54,6 +54,8 @@ const contributionScheme = z.object({
   name: z.string().min(1, 'Required').max(80),
   wageBaseTag: upperCode(40),
   wageCeiling: nullableMoneyMajor,
+  // How a monthly-capped contribution apportions across sub-monthly cycles.
+  apportionmentMode: z.enum(['MONTHLY_TOTAL', 'PER_CYCLE']),
   // Optional — live backend may omit it (verified 2026-06-09). Empty is allowed.
   applicability: z.string().max(60),
   employeeRate: percent,
