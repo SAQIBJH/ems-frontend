@@ -421,10 +421,7 @@ export const timesheetHandlers = [
       return HttpResponse.json(
         {
           success: false,
-          error: {
-            code: 'TIMESHEET_LOCKED',
-            message: 'This week is submitted and cannot be edited.',
-          },
+          error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
         },
         { status: 422 },
       );
@@ -475,10 +472,7 @@ export const timesheetHandlers = [
       return HttpResponse.json(
         {
           success: false,
-          error: {
-            code: 'TIMESHEET_LOCKED',
-            message: 'This week is submitted and cannot be edited.',
-          },
+          error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
         },
         { status: 422 },
       );
@@ -514,10 +508,7 @@ export const timesheetHandlers = [
       return HttpResponse.json(
         {
           success: false,
-          error: {
-            code: 'TIMESHEET_LOCKED',
-            message: 'This week is submitted and cannot be edited.',
-          },
+          error: { code: 'WEEK_LOCKED', message: 'This week is submitted and cannot be edited.' },
         },
         { status: 422 },
       );
