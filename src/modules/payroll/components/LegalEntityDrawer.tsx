@@ -80,6 +80,7 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
       country: '',
       currency: '',
       fiscalYearStartMonth: 1,
+      workWeekPattern: 'MON-FRI',
       timezone: '',
       locale: '',
       registrationIds: {},
@@ -95,6 +96,7 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
         country: entity.country,
         currency: entity.currency,
         fiscalYearStartMonth: entity.fiscalYearStartMonth,
+        workWeekPattern: entity.workWeekPattern,
         timezone: entity.timezone,
         locale: entity.locale,
         registrationIds: entity.registrationIds,
@@ -263,13 +265,37 @@ export function LegalEntityDrawer({ open, onOpenChange, entity }: LegalEntityDra
               </div>
             </div>
 
-            {/* Timezone */}
-            <div className="space-y-1.5">
-              <Label htmlFor="le-tz">Timezone</Label>
-              <Input id="le-tz" {...form.register('timezone')} placeholder="Asia/Kolkata" />
-              {form.formState.errors.timezone && (
-                <p className="text-xs text-danger">{form.formState.errors.timezone.message}</p>
-              )}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Timezone */}
+              <div className="space-y-1.5">
+                <Label htmlFor="le-tz">Timezone</Label>
+                <Input id="le-tz" {...form.register('timezone')} placeholder="Asia/Kolkata" />
+                {form.formState.errors.timezone && (
+                  <p className="text-xs text-danger">{form.formState.errors.timezone.message}</p>
+                )}
+              </div>
+
+              {/* Work week — proration denominator */}
+              <div className="space-y-1.5">
+                <Label htmlFor="le-workweek">Work week</Label>
+                <Controller
+                  control={form.control}
+                  name="workWeekPattern"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="le-workweek" className="w-full cursor-pointer">
+                        <SelectValue>
+                          {(v) => (v === 'MON-SAT' ? 'Mon–Sat (6-day)' : 'Mon–Fri (5-day)')}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MON-FRI">Mon–Fri (5-day)</SelectItem>
+                        <SelectItem value="MON-SAT">Mon–Sat (6-day)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
             </div>
 
             {/* Registration IDs */}

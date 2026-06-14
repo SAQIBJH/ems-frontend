@@ -114,6 +114,7 @@ let legalEntities: LegalEntity[] = [
     country: 'IN',
     currency: 'INR',
     fiscalYearStartMonth: 4,
+    workWeekPattern: 'MON-FRI',
     timezone: 'Asia/Kolkata',
     locale: 'en-IN',
     registrationIds: {
@@ -134,6 +135,7 @@ let legalEntities: LegalEntity[] = [
     country: 'US',
     currency: 'USD',
     fiscalYearStartMonth: 1,
+    workWeekPattern: 'MON-FRI',
     timezone: 'America/New_York',
     locale: 'en-US',
     registrationIds: { EIN: '12-3456789' },

@@ -11,6 +11,7 @@ export const legalEntitySchema = z.object({
     .length(3, 'Currency is required')
     .regex(/^[A-Z]{3}$/, 'Must be an ISO 4217 code'),
   fiscalYearStartMonth: z.number().int().min(1).max(12),
+  workWeekPattern: z.enum(['MON-FRI', 'MON-SAT']),
   timezone: z.string().min(1, 'Timezone is required').max(60),
   locale: z.string().min(2, 'Locale is required').max(20),
   registrationIds: z.record(z.string(), z.string()),

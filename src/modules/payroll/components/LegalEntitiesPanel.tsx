@@ -93,6 +93,7 @@ export function LegalEntitiesPanel() {
                 <th className="px-3 py-2 text-left text-xs font-medium text-fg-muted">Country</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-fg-muted">Currency</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-fg-muted">FY start</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-fg-muted">Work week</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-fg-muted">Status</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-fg-muted" />
               </tr>
@@ -118,6 +119,9 @@ export function LegalEntitiesPanel() {
                     </td>
                     <td className="px-3 py-2.5 text-fg-muted">
                       {MONTH_SHORT[entity.fiscalYearStartMonth - 1] ?? entity.fiscalYearStartMonth}
+                    </td>
+                    <td className="px-3 py-2.5 text-fg-muted">
+                      {entity.workWeekPattern === 'MON-SAT' ? 'Mon–Sat' : 'Mon–Fri'}
                     </td>
                     <td className="px-3 py-2.5">
                       <span

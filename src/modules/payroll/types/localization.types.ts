@@ -11,6 +11,9 @@ export interface Country {
   fiscalYearStartMonth: number;
 }
 
+/** Coarse work-week pattern (as shipped by the backend) — the proration denominator. */
+export type WorkWeekPattern = 'MON-FRI' | 'MON-SAT';
+
 export interface LegalEntity {
   id: string;
   name: string;
@@ -19,6 +22,8 @@ export interface LegalEntity {
   /** ISO 4217 default pay currency */
   currency: string;
   fiscalYearStartMonth: number;
+  /** Working days per week — drives the working-days proration denominator. */
+  workWeekPattern: WorkWeekPattern;
   timezone: string;
   locale: string;
   /** Country-defined registration identifiers (PF, ESI, PAN, EIN, …). */
@@ -35,6 +40,7 @@ export interface LegalEntityInput {
   country: string;
   currency: string;
   fiscalYearStartMonth: number;
+  workWeekPattern: WorkWeekPattern;
   timezone: string;
   locale: string;
   registrationIds: Record<string, string>;
