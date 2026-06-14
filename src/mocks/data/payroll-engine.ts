@@ -450,12 +450,15 @@ function computeEmployeeMonth(
       .reduce((s, it) => s + it.amount, 0);
     const annualTaxable = Math.max(0, annualStructural - exemptions);
     taxDeducted = withholdingForMonth(annualTaxable, regime, monthIndex, totalMonths);
-    const tdsLine = deductions.find((d) => d.code === 'TDS');
-    if (tdsLine) tdsLine.amount = taxDeducted;
+    // The income-tax line code comes from the regime (e.g. WITHHOLDING_TAX for PH), not "TDS".
+    const taxCode = regime.taxCode ?? 'TDS';
+    const taxName = regime.taxName ?? 'Income Tax (TDS)';
+    const taxLine = deductions.find((d) => d.code === taxCode);
+    if (taxLine) taxLine.amount = taxDeducted;
     else if (taxDeducted > 0)
       deductions.push({
-        code: 'TDS',
-        name: 'Income Tax (TDS)',
+        code: taxCode,
+        name: taxName,
         amount: taxDeducted,
         taxable: false,
       });
@@ -635,6 +638,9 @@ export function computeFnf(
   const noticeRecovery = Math.round(dailyWage * params.noticeShortfallDays);
   const loanRecovery = outstandingLoanBalance(employeeId);
   const finalTax = month.taxDeducted;
+  // Tax line code from the resolved pack's regime (e.g. WITHHOLDING_TAX), not hardcoded TDS.
+  const fnfTaxCode = pack?.taxRegimes[0]?.taxCode ?? 'TDS';
+  const fnfTaxName = pack?.taxRegimes[0]?.taxName ?? 'Final tax (TDS)';
 
   const earnings: FnfLine[] = [
     { code: 'FNF_SALARY', label: 'Pro-rated salary', amount: proratedSalary },
@@ -645,7 +651,7 @@ export function computeFnf(
   const deductions: FnfLine[] = [
     { code: 'FNF_NOTICE', label: 'Notice-period recovery', amount: noticeRecovery },
     { code: 'FNF_LOAN', label: 'Loan recovery', amount: loanRecovery },
-    { code: 'TDS', label: 'Final tax (TDS)', amount: finalTax },
+    { code: fnfTaxCode, label: fnfTaxName, amount: finalTax },
   ].filter((l) => l.amount > 0);
 
   const grossPayable = earnings.reduce((s, l) => s + l.amount, 0);
@@ -941,7 +947,16 @@ export function computeExtraPayRun(
     const tax = regime ? Math.round(computeBonusTax(annualTaxable, taxableExtra, regime)) : 0;
 
     const deductions: PayslipLine[] =
-      tax > 0 ? [{ code: 'TDS', name: 'Income Tax (TDS)', amount: tax, taxable: false }] : [];
+      tax > 0
+        ? [
+            {
+              code: regime?.taxCode ?? 'TDS',
+              name: regime?.taxName ?? 'Income Tax (TDS)',
+              amount: tax,
+              taxable: false,
+            },
+          ]
+        : [];
     const netPay = extra - tax;
     const slipId = `slip-${runId}-${emp.employeeId}`;
 

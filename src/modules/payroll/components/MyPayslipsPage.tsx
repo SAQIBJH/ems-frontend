@@ -22,7 +22,7 @@ import { PageHeader } from '@/shared/layouts/PageHeader';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers';
 
-import { useEmployeePayslips } from '@/modules/payroll';
+import { useEmployeePayslips, formatMajor } from '@/modules/payroll';
 import { PayslipDrawer } from './PayslipDrawer';
 import { CompStatementCard } from './CompStatementCard';
 import { TaxDeclarationCard } from './TaxDeclarationCard';
@@ -46,12 +46,9 @@ const TABS = [
   { value: 'forms', label: 'Tax Forms' },
 ] as const;
 
+// Guarded + currency-derived locale (not forced en-IN); payslip currency is ISO per row.
 function fmtCurrency(amount: number, currency = 'INR'): string {
-  return amount.toLocaleString('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
+  return formatMajor(amount, currency, { fractionDigits: 0 });
 }
 
 const YEAR_OPTIONS = (() => {
