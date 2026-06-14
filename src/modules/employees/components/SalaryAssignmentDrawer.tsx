@@ -30,9 +30,28 @@ import {
   useLegalEntities,
 } from '@/modules/payroll';
 import { usePayrollStore } from '@/store/payroll.store';
-import type { EmployeeSalary } from '@/modules/payroll';
+import type { EmployeeSalary, BankField } from '@/modules/payroll';
 
 /* ── schema ───────────────────────────────────────────────────────────────── */
+
+/**
+ * Generic bank fields used when the backend returns no schema for a country
+ * (some live countries have no per-country schema configured yet) — so the form
+ * is never an empty box the user can't fill.
+ */
+const FALLBACK_BANK_SCHEMA: BankField[] = [
+  { key: 'accountName', label: 'Account holder name', type: 'text', required: true },
+  { key: 'accountNumber', label: 'Account number', type: 'text', required: true },
+  { key: 'bankName', label: 'Bank name', type: 'text', required: false },
+];
+
+/**
+ * A bank field whose validation regex is uppercase-only (e.g. IFSC, IBAN, BIC) —
+ * we auto-uppercase the input so a user typing lowercase isn't told it's invalid.
+ */
+function isUppercaseField(field: BankField): boolean {
+  return !!field.regex && /A-Z/.test(field.regex) && !/a-z/.test(field.regex);
+}
 
 const salaryAssignmentSchema = z.object({
   payGroupId: z.string().min(1, 'Pay group is required'),
@@ -90,6 +109,8 @@ export function SalaryAssignmentDrawer({
 
   const country = form.watch('country');
   const { data: bankSchema = [], isLoading: schemaLoading } = useBankSchema(country);
+  // Fall back to generic fields when the backend has no schema for this country.
+  const effectiveBankSchema = bankSchema.length > 0 ? bankSchema : FALLBACK_BANK_SCHEMA;
 
   /* Populate form when opening */
   useEffect(() => {
@@ -135,8 +156,11 @@ export function SalaryAssignmentDrawer({
     // Validate bank fields against the country schema (required + regex).
     form.clearErrors('bankAccount');
     let hasError = false;
-    for (const field of bankSchema) {
-      const value = (values.bankAccount[field.key] ?? '').trim();
+    for (const field of effectiveBankSchema) {
+      const raw = (values.bankAccount[field.key] ?? '').trim();
+      const value = isUppercaseField(field) ? raw.toUpperCase() : raw;
+      // Persist the normalized (uppercased) value so what we validate is what we send.
+      values.bankAccount[field.key] = value;
       const path = `bankAccount.${field.key}` as Path<FormValues>;
       if (field.required && !value) {
         form.setError(path, { message: `${field.label} is required` });
@@ -197,7 +221,12 @@ export function SalaryAssignmentDrawer({
                     className="w-full cursor-pointer"
                     disabled={groupsLoading}
                   >
-                    <SelectValue placeholder="Select pay group…" />
+                    <SelectValue placeholder="Select pay group…">
+                      {(v) => {
+                        const g = payGroups.find((pg) => pg.id === v);
+                        return g ? `${g.name} (${g.currency})` : 'Select pay group…';
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {payGroups
@@ -317,22 +346,33 @@ export function SalaryAssignmentDrawer({
                   ))}
                 </div>
               ) : (
-                bankSchema.map((bf) => (
-                  <div key={bf.key} className="space-y-1.5">
-                    <Label htmlFor={`sal-bank-${bf.key}`}>
-                      {bf.label}
-                      {bf.required && ' *'}
-                    </Label>
-                    <Input
-                      id={`sal-bank-${bf.key}`}
-                      placeholder={bf.placeholder}
-                      {...form.register(`bankAccount.${bf.key}` as Path<FormValues>)}
-                    />
-                    {bankErrors?.[bf.key]?.message && (
-                      <p className="text-xs text-danger">{bankErrors[bf.key]?.message}</p>
-                    )}
-                  </div>
-                ))
+                effectiveBankSchema.map((bf) => {
+                  const upper = isUppercaseField(bf);
+                  return (
+                    <div key={bf.key} className="space-y-1.5">
+                      <Label htmlFor={`sal-bank-${bf.key}`}>
+                        {bf.label}
+                        {bf.required && ' *'}
+                      </Label>
+                      <Input
+                        id={`sal-bank-${bf.key}`}
+                        placeholder={bf.placeholder}
+                        className={upper ? 'uppercase' : undefined}
+                        {...form.register(`bankAccount.${bf.key}` as Path<FormValues>, {
+                          onChange: upper
+                            ? (e) => {
+                                const el = e.target as HTMLInputElement;
+                                el.value = el.value.toUpperCase();
+                              }
+                            : undefined,
+                        })}
+                      />
+                      {bankErrors?.[bf.key]?.message && (
+                        <p className="text-xs text-danger">{bankErrors[bf.key]?.message}</p>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
