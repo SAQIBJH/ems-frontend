@@ -170,6 +170,10 @@ export interface EmployeeSalary {
   effectiveTo: string | null;
   /** ISO 3166-1 alpha-2 — determines the bank-account field schema. */
   country: string;
+  /** Authoritative legal entity — backend derives currency + pay calendar from it. */
+  legalEntityId: string | null;
+  /** ISO 4217 — present on the live response (null until the FE sends it on write). */
+  currency: string | null;
   /** ISO 3166-2 tax-residence jurisdiction (drives local-tax resolution). */
   residenceJurisdiction: string;
   /** Work-location jurisdictions; the engine taxes the resolved set (§3.6). */
@@ -190,6 +194,14 @@ export interface EmployeeSalaryInput {
   annualCtc: number;
   effectiveFrom: string;
   country: string;
+  /**
+   * Authoritative legal entity. Correctness-critical for multi-frequency tenants —
+   * the engine apportions monthly-capped statutory across sub-monthly cycles from the
+   * resolved pay calendar. Optional on the type so single-entity flows still compile.
+   */
+  legalEntityId?: string;
+  /** ISO 4217; defaults from the chosen legal entity. */
+  currency?: string;
   residenceJurisdiction?: string;
   workLocations?: WorkLocation[];
   bankAccount: Record<string, string>;

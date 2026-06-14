@@ -36,9 +36,11 @@ import type { EmployeeSalary } from '@/modules/payroll';
 
 const salaryAssignmentSchema = z.object({
   payGroupId: z.string().min(1, 'Pay group is required'),
+  legalEntityId: z.string().min(1, 'Legal entity is required'),
   annualCtc: z.number().min(1, 'CTC must be greater than 0'),
   effectiveFrom: z.string().min(1, 'Effective date is required'),
   country: z.string().min(2, 'Country is required'),
+  currency: z.string().min(3, 'Currency is required'),
   residenceJurisdiction: z.string(),
   bankAccount: z.record(z.string(), z.string()),
 });
@@ -68,16 +70,19 @@ export function SalaryAssignmentDrawer({
   const activeEntityId = usePayrollStore((s) => s.activeLegalEntityId);
   const assignMutation = useAssignSalary();
 
-  const defaultCountry =
-    entities.find((e) => e.id === activeEntityId)?.country ?? entities[0]?.country ?? 'IN';
+  const defaultEntity = entities.find((e) => e.id === activeEntityId) ?? entities[0];
+  const defaultCountry = defaultEntity?.country ?? 'IN';
+  const defaultCurrency = defaultEntity?.currency ?? 'INR';
 
   const form = useForm<FormValues>({
     resolver: zodResolver(salaryAssignmentSchema),
     defaultValues: {
       payGroupId: '',
+      legalEntityId: '',
       annualCtc: 0,
       effectiveFrom: '',
       country: 'IN',
+      currency: 'INR',
       residenceJurisdiction: '',
       bankAccount: {},
     },
@@ -92,28 +97,38 @@ export function SalaryAssignmentDrawer({
     if (existing) {
       form.reset({
         payGroupId: existing.payGroupId,
+        legalEntityId: existing.legalEntityId ?? defaultEntity?.id ?? '',
         annualCtc: existing.annualCtc,
         effectiveFrom: existing.effectiveFrom,
         country: existing.country || defaultCountry,
+        currency: existing.currency || defaultCurrency,
         residenceJurisdiction: existing.residenceJurisdiction ?? '',
         bankAccount: existing.bankAccount ?? {},
       });
     } else {
       form.reset({
         payGroupId: payGroups[0]?.id ?? '',
+        legalEntityId: defaultEntity?.id ?? '',
         annualCtc: 0,
         effectiveFrom: new Date().toISOString().slice(0, 10),
         country: defaultCountry,
+        currency: defaultCurrency,
         residenceJurisdiction: '',
         bankAccount: {},
       });
     }
-  }, [open, existing, payGroups, defaultCountry, form]);
+  }, [open, existing, payGroups, defaultEntity, defaultCountry, defaultCurrency, form]);
 
-  function handleCountryChange(value: string) {
-    form.setValue('country', value);
-    form.setValue('bankAccount', {});
-    form.clearErrors('bankAccount');
+  /** Selecting a legal entity is authoritative: it sets country + currency and resets bank fields. */
+  function handleEntityChange(entityId: string) {
+    form.setValue('legalEntityId', entityId);
+    const ent = entities.find((e) => e.id === entityId);
+    if (ent) {
+      form.setValue('country', ent.country);
+      form.setValue('currency', ent.currency);
+      form.setValue('bankAccount', {});
+      form.clearErrors('bankAccount');
+    }
   }
 
   async function onSubmit(values: FormValues) {
@@ -147,8 +162,13 @@ export function SalaryAssignmentDrawer({
       toast.success(isEdit ? 'Salary updated' : 'Salary assigned');
       onOpenChange(false);
     } catch (err) {
-      const apiErr = (err as AxiosError<{ error: { message: string } }>).response?.data?.error;
-      toast.error(apiErr?.message ?? 'Failed to save salary configuration');
+      const apiErr = (err as AxiosError<{ error: { code?: string; message: string } }>).response
+        ?.data?.error;
+      if (apiErr?.code === 'NO_ACTIVE_SALARY') {
+        toast.error('Configure an active salary before assigning this worker to a run.');
+      } else {
+        toast.error(apiErr?.message ?? 'Failed to save salary configuration');
+      }
     }
   }
 
@@ -194,6 +214,42 @@ export function SalaryAssignmentDrawer({
             {form.formState.errors.payGroupId && (
               <p className="text-xs text-danger">{form.formState.errors.payGroupId.message}</p>
             )}
+          </div>
+
+          {/* Legal Entity — authoritative; backend derives currency + pay calendar from it */}
+          <div className="space-y-1.5">
+            <Label htmlFor="sal-entity">Legal Entity *</Label>
+            <Controller
+              control={form.control}
+              name="legalEntityId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={(v) => handleEntityChange(v ?? '')}
+                >
+                  <SelectTrigger id="sal-entity" className="w-full cursor-pointer">
+                    <SelectValue placeholder="Select legal entity…">
+                      {(v) => entities.find((e) => e.id === v)?.name ?? 'Select legal entity…'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {entities
+                      .filter((e) => e.active)
+                      .map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name} ({e.country} · {e.currency})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {form.formState.errors.legalEntityId && (
+              <p className="text-xs text-danger">{form.formState.errors.legalEntityId.message}</p>
+            )}
+            <p className="text-xs text-fg-muted">
+              Sets currency and pay calendar — required for correct statutory apportionment.
+            </p>
           </div>
 
           {/* Annual CTC */}
@@ -248,27 +304,9 @@ export function SalaryAssignmentDrawer({
               <p className="text-xs font-semibold uppercase tracking-widest text-fg-muted">
                 Bank Details
               </p>
-              <Controller
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <Select
-                    value={field.value || undefined}
-                    onValueChange={(v) => handleCountryChange(v ?? '')}
-                  >
-                    <SelectTrigger className="h-7 w-[140px] cursor-pointer text-xs">
-                      <SelectValue placeholder="Country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+              <span className="text-xs font-medium text-fg-muted">
+                {countries.find((c) => c.code === country)?.name ?? country}
+              </span>
             </div>
 
             <div key={country} className="space-y-4">

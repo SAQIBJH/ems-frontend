@@ -23,6 +23,8 @@ const SALARY_RECORDS: Record<string, EmployeeSalary> = {
     effectiveFrom: '2024-01-01',
     effectiveTo: null,
     country: 'IN',
+    legalEntityId: 'le-in',
+    currency: 'INR',
     residenceJurisdiction: 'IN-MH',
     workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
     bankAccount: {
@@ -106,6 +108,8 @@ const SALARY_RECORDS: Record<string, EmployeeSalary> = {
     effectiveFrom: '2024-01-01',
     effectiveTo: null,
     country: 'IN',
+    legalEntityId: 'le-in',
+    currency: 'INR',
     residenceJurisdiction: 'IN-MH',
     workLocations: [{ jurisdiction: 'IN-MH', allocationPct: 100 }],
     bankAccount: {
@@ -277,6 +281,8 @@ export const payrollEmployeeHandlers = [
       effectiveFrom: (body as Record<string, string>).effectiveFrom ?? now.slice(0, 10),
       effectiveTo: null,
       country: (body as Record<string, string>).country ?? 'IN',
+      legalEntityId: (body as Record<string, string>).legalEntityId ?? null,
+      currency: (body as Record<string, string>).currency ?? null,
       residenceJurisdiction:
         (body as { residenceJurisdiction?: string }).residenceJurisdiction ?? 'IN-MH',
       workLocations: (body as { workLocations?: EmployeeSalary['workLocations'] })
