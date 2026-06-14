@@ -12,8 +12,9 @@
 > and _config-only_. Money is integer **minor units** (paise / centavos / cents); displayed here
 > in major units.
 >
-> **Source test:** `src/modules/payroll/utils/payroll-global-litmus.test.ts` — **23/23 PASS**
-> (3 base countries + 4 depth cases; re-run: `pnpm test payroll-global-litmus`). Generated 2026-06-14.
+> **Source test:** `src/modules/payroll/utils/payroll-global-litmus.test.ts` — **24/24 PASS**
+> (3 base countries + 4 depth cases incl. §87A across 3 income zones; re-run:
+> `pnpm test payroll-global-litmus`). Generated 2026-06-14.
 
 ---
 
@@ -149,13 +150,21 @@ Income > ₹50L triggers the 10% surcharge band (on tax), before cess:
 
 The engine's `surcharge` bands (10% / 15% / 25%) pick the highest applicable and apply it before cess — correct.
 
-### 5. India — §87A rebate ✅ … and a real ENGINE GAP ⚠️
+### 5. India — §87A rebate ✅ (income-conditional + marginal relief — **gap now CLOSED**)
 
-- **Inside the rebate zone (₹10,00,000):** a configured §87A credit floors tax to **₹0** ✅ — correct.
-- **GAP — the flat credit can't turn §87A _off_ above ₹12L.** At ₹15,00,000 the correct tax (no §87A) is **₹97,500**, but the same flat ₹60,000 credit yields **₹37,500**. §87A is **income-conditional** and carries **marginal relief** just above the threshold — neither is expressible with the current unconditional `taxCredits` primitive.
-  - **Recommended engine enhancement:** a _threshold-capped / conditional_ credit (e.g. `taxCredits[].appliesUpToIncome` + a marginal-relief rule), or a `REBATE()` formula function. Until then, India §87A can only be modelled correctly for the ≤₹12L population.
+The litmus first surfaced a real gap (a flat credit couldn't turn §87A _off_ above ₹12L); the engine
+was then enhanced with an **income-conditional credit** (`TaxCredit.maxIncome` + `marginalRelief`),
+and the litmus now verifies all three regimes of §87A:
 
-> This is the one genuine finding from the whole litmus — worth a backend/engine ticket. Everything else is correct as configured.
+| Income (taxable)        | Behaviour                                      | Tax            |
+| ----------------------- | ---------------------------------------------- | -------------- |
+| ₹9,25,000 (≤ ₹12L)      | rebate applies → floored to 0                  | **₹0** ✅      |
+| ₹12,10,000 (just above) | **marginal relief** → capped at income − ₹12L  | **₹10,000** ✅ |
+| ₹14,25,000 (well above) | rebate OFF → full tax (identical to no-rebate) | **₹97,500** ✅ |
+
+> Config stays generic: `taxCredits: [{ code:'REBATE_87A', amount:60000, maxIncome:1200000, marginalRelief:true }]`.
+> An **unconditional** credit (omit `maxIncome`, e.g. SA primary rebate) is unchanged. The income
+> comparison uses taxable income **after** the standard deduction.
 
 ### 6. USA — federal + Pennsylvania state tax (two regimes)
 
@@ -195,12 +204,13 @@ This is the crux of the sub-monthly fix: base splits per cycle, tax projects ove
 - It is **genuinely config-over-code**: the test imports only the public engine API; switching
   countries is switching _data_. A new country is a new config object, not new code.
 
-**Now also covered (depth additions §4–§7):** India surcharge, India §87A (in-zone), US state tax
+**Now also covered (depth additions §4–§7):** India surcharge, India §87A across all three zones
+(in-zone / marginal relief / above — gap closed via an income-conditional credit), US state tax
 (second regime), and a Philippines semi-monthly cycle (per-cycle base + ÷24 tax + apportioned SSS,
 matching the live backend).
 
-**Open finding:** India **§87A above ₹12L** — the flat `taxCredits` primitive can't express the
-income-conditional cut-off + marginal relief (§5 above). Needs a conditional/threshold-capped credit.
+**No open engine findings.** The one gap the litmus surfaced (§87A above ₹12L) was fixed by adding
+`TaxCredit.maxIncome` + `marginalRelief` to the engine — the litmus now locks the correct behaviour.
 
 **Still NOT covered (by design / scope):**
 

@@ -74,10 +74,20 @@ export function computeRegimeTax(taxableAnnual: number, regime: TaxRegime): numb
 
   if (regime.cess) tax += tax * (regime.cess.rate / 100);
 
-  // Annual credits/rebates apply last, after slab+surcharge+cess; floor at 0.
-  // Mirrors the backend order exactly. Inert when absent (India unchanged).
-  const credits = (regime.taxCredits ?? []).reduce((sum, c) => sum + c.amount, 0);
-  return Math.max(0, tax - credits);
+  // Credits/rebates apply last, after slab+surcharge+cess, against taxable income (afterStd):
+  //  - unconditional (no maxIncome): always subtract (e.g. SA primary rebate).
+  //  - income-conditional (maxIncome set): subtract only at/below the ceiling (India §87A).
+  //  - marginal relief: just above the ceiling, cap tax at (income − ceiling) so crossing the
+  //    threshold never costs more tax than the income that exceeds it.
+  let result = tax;
+  for (const c of regime.taxCredits ?? []) {
+    if (c.maxIncome == null || afterStd <= c.maxIncome) {
+      result = Math.max(0, result - c.amount);
+    } else if (c.marginalRelief) {
+      result = Math.min(result, afterStd - c.maxIncome);
+    }
+  }
+  return Math.max(0, result);
 }
 
 /**

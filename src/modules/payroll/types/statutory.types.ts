@@ -33,11 +33,23 @@ export interface TaxSlab {
   base?: number;
 }
 
-/** Annual tax credit / rebate (e.g. SA primary rebate, KE personal relief). Minor units. */
+/** Annual tax credit / rebate (e.g. SA primary rebate, KE personal relief, India §87A). Minor units. */
 export interface TaxCredit {
   code: string;
   /** Annual credit amount, minor units. */
   amount: number;
+  /**
+   * Income ceiling (taxable income, minor units) above which the credit does NOT apply —
+   * an income-conditional rebate like India §87A. Omit for an unconditional credit (e.g. SA
+   * primary rebate, which always applies).
+   */
+  maxIncome?: number;
+  /**
+   * Marginal relief: in the band just above `maxIncome`, cap the tax at `(income − maxIncome)`
+   * so crossing the threshold never costs more tax than the income that exceeds it. Requires
+   * `maxIncome`. (India §87A new-regime relief.)
+   */
+  marginalRelief?: boolean;
 }
 
 export interface TaxSurcharge {

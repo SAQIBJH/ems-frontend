@@ -312,27 +312,33 @@ describe('Litmus depth — India surcharge (₹60,00,000, new regime)', () => {
 
 /* ── DEPTH 2: India §87A rebate + its conditionality LIMITATION ───────────────── */
 
-// §87A new regime FY25-26: income ≤ ₹12L → tax rebated to 0 (rebate cap ₹60,000).
+// §87A new regime FY25-26: rebate (cap ₹60,000) only if taxable income ≤ ₹12L, with marginal
+// relief just above — now an income-conditional credit (engine enhancement 8a1e39c → this commit).
 const IN_REGIME_87A: TaxRegime = {
   ...IN_NEW_REGIME,
-  taxCredits: [{ code: 'REBATE_87A', amount: INR(60_000) }],
+  taxCredits: [
+    { code: 'REBATE_87A', amount: INR(60_000), maxIncome: INR(1_200_000), marginalRelief: true },
+  ],
 };
 
-describe('Litmus depth — India §87A rebate', () => {
-  it('zeroes tax for an income inside the rebate zone (₹10,00,000 → ₹0)', () => {
-    // afterStd ₹9,25,000 → slab ₹32,500 + cess = ₹33,800; rebate ₹60,000 floors it to 0.
+describe('Litmus depth — India §87A rebate (income-conditional + marginal relief)', () => {
+  it('zeroes tax inside the rebate zone (₹10,00,000 income → ₹0)', () => {
+    // afterStd ₹9,25,000 ≤ ₹12L → slab ₹32,500 + cess ₹33,800; rebate ₹60,000 floors it to 0.
     expect(computeRegimeTax(INR(1_000_000), IN_REGIME_87A)).toBe(0);
   });
 
-  it('GAP: a flat taxCredit cannot turn §87A OFF above ₹12L (engine over-credits)', () => {
-    // ₹15,00,000: correct tax (no §87A) = ₹97,500. The flat ₹60,000 credit WRONGLY yields
-    // ₹37,500 — §87A is income-conditional + has marginal relief, which the unconditional
-    // `taxCredits` primitive can't express. Engine enhancement needed (threshold-capped credit).
-    const correctNo87A = computeRegimeTax(INR(1_500_000), IN_NEW_REGIME);
-    const withFlatCredit = computeRegimeTax(INR(1_500_000), IN_REGIME_87A);
-    expect(correctNo87A).toBe(INR(97_500));
-    expect(withFlatCredit).toBe(INR(37_500)); // documents the current (incorrect) behavior
-    expect(withFlatCredit).not.toBe(correctNo87A);
+  it('FIXED: §87A turns OFF above ₹12L — full tax, no over-credit (₹15,00,000 → ₹97,500)', () => {
+    // afterStd ₹14,25,000 > ₹12L → rebate does not apply; identical to the no-rebate regime.
+    expect(computeRegimeTax(INR(1_500_000), IN_REGIME_87A)).toBe(INR(97_500));
+    expect(computeRegimeTax(INR(1_500_000), IN_REGIME_87A)).toBe(
+      computeRegimeTax(INR(1_500_000), IN_NEW_REGIME),
+    );
+  });
+
+  it('marginal relief just above ₹12L caps tax at (income − ₹12L): ₹12,85,000 → ₹10,000', () => {
+    // gross ₹12,85,000 − ₹75k std = ₹12,10,000 taxable; full tax ₹63,960, but relief caps it at
+    // ₹12,10,000 − ₹12,00,000 = ₹10,000.
+    expect(computeRegimeTax(INR(1_285_000), IN_REGIME_87A)).toBe(INR(10_000));
   });
 });
 

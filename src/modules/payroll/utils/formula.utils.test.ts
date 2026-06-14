@@ -264,6 +264,45 @@ describe('computeRegimeTax', () => {
       expect(computeRegimeTax(100000, flat10)).toBe(10000);
     });
   });
+
+  describe('conditional credit — income ceiling + marginal relief (India §87A shape)', () => {
+    // Flat 10% tax (std 0, no cess) → tax = 10% of income. Rebate ₹50,000, ceiling ₹10,00,000.
+    const base: TaxRegime = {
+      code: 'X',
+      fiscalYear: '1',
+      currency: 'INR',
+      standardDeduction: 0,
+      slabs: [{ from: 0, to: null, rate: 10 }],
+    };
+    const credit = { code: 'REBATE', amount: 50_000, maxIncome: 1_000_000, marginalRelief: true };
+
+    it('rebates (can zero) tax inside the income ceiling', () => {
+      expect(computeRegimeTax(400_000, { ...base, taxCredits: [credit] })).toBe(0); // 40k − 50k → 0
+      expect(computeRegimeTax(1_000_000, { ...base, taxCredits: [credit] })).toBe(50_000); // 100k − 50k
+    });
+
+    it('does NOT rebate above the ceiling — the §87A gap fix', () => {
+      // 1,200,000 → tax 120,000; income−ceiling (200k) > tax → full tax, no relief.
+      expect(computeRegimeTax(1_200_000, { ...base, taxCredits: [credit] })).toBe(120_000);
+    });
+
+    it('applies marginal relief just above the ceiling (tax capped at income − ceiling)', () => {
+      // 1,020,000 → tax 102,000; capped at income−ceiling = 20,000.
+      expect(computeRegimeTax(1_020_000, { ...base, taxCredits: [credit] })).toBe(20_000);
+    });
+
+    it('compares against taxable income AFTER the standard deduction', () => {
+      // gross 1,050,000 − 100,000 std = 950,000 ≤ ceiling → rebate. tax 95,000 − 50,000 = 45,000.
+      const withStd: TaxRegime = { ...base, standardDeduction: 100_000, taxCredits: [credit] };
+      expect(computeRegimeTax(1_050_000, withStd)).toBe(45_000);
+    });
+
+    it('an unconditional credit (no maxIncome) still always subtracts (SA rebate unchanged)', () => {
+      expect(
+        computeRegimeTax(1_000_000, { ...base, taxCredits: [{ code: 'R', amount: 50_000 }] }),
+      ).toBe(50_000);
+    });
+  });
 });
 
 describe('computeBonusTax', () => {
