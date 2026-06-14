@@ -17,7 +17,12 @@
  *    $15,000; FICA — Social Security 6.2% to the $176,100 wage base, Medicare 1.45% (no cap).
  */
 import { describe, it, expect } from 'vitest';
-import { computeRegimeTax, computeContribution, evaluateLocalTax } from './formula.utils';
+import {
+  computeRegimeTax,
+  computeContribution,
+  evaluateLocalTax,
+  projectPeriodTax,
+} from './formula.utils';
 import { toMinor, fromMinor, formatMoney } from './money.utils';
 import type { TaxRegime, ContributionScheme, LocalTaxSlab } from '../types/statutory.types';
 
@@ -282,5 +287,112 @@ describe('Litmus — USA (federal brackets + FICA)', () => {
       netMonthly: Math.round(netMonthly),
     });
     expect(annualTax).toBe(USD(18_047));
+  });
+});
+
+/* ── DEPTH 1: India surcharge (high earner) ──────────────────────────────────── */
+
+// New-regime surcharge bands (on tax): 10% over ₹50L, 15% over ₹1Cr, 25% over ₹2Cr.
+const IN_REGIME_SURCHARGE: TaxRegime = {
+  ...IN_NEW_REGIME,
+  surcharge: [
+    { thresholdAnnual: INR(5_000_000), rate: 10 },
+    { thresholdAnnual: INR(10_000_000), rate: 15 },
+    { thresholdAnnual: INR(20_000_000), rate: 25 },
+  ],
+};
+
+describe('Litmus depth — India surcharge (₹60,00,000, new regime)', () => {
+  // afterStd ₹59,25,000 → slab ₹13,57,500; +10% surcharge ₹1,35,750 = ₹14,93,250;
+  // +4% cess ₹59,730 = ₹15,52,980.
+  it('applies the 10% surcharge band (income > ₹50L) before cess', () => {
+    expect(computeRegimeTax(INR(6_000_000), IN_REGIME_SURCHARGE)).toBe(INR(1_552_980));
+  });
+});
+
+/* ── DEPTH 2: India §87A rebate + its conditionality LIMITATION ───────────────── */
+
+// §87A new regime FY25-26: income ≤ ₹12L → tax rebated to 0 (rebate cap ₹60,000).
+const IN_REGIME_87A: TaxRegime = {
+  ...IN_NEW_REGIME,
+  taxCredits: [{ code: 'REBATE_87A', amount: INR(60_000) }],
+};
+
+describe('Litmus depth — India §87A rebate', () => {
+  it('zeroes tax for an income inside the rebate zone (₹10,00,000 → ₹0)', () => {
+    // afterStd ₹9,25,000 → slab ₹32,500 + cess = ₹33,800; rebate ₹60,000 floors it to 0.
+    expect(computeRegimeTax(INR(1_000_000), IN_REGIME_87A)).toBe(0);
+  });
+
+  it('GAP: a flat taxCredit cannot turn §87A OFF above ₹12L (engine over-credits)', () => {
+    // ₹15,00,000: correct tax (no §87A) = ₹97,500. The flat ₹60,000 credit WRONGLY yields
+    // ₹37,500 — §87A is income-conditional + has marginal relief, which the unconditional
+    // `taxCredits` primitive can't express. Engine enhancement needed (threshold-capped credit).
+    const correctNo87A = computeRegimeTax(INR(1_500_000), IN_NEW_REGIME);
+    const withFlatCredit = computeRegimeTax(INR(1_500_000), IN_REGIME_87A);
+    expect(correctNo87A).toBe(INR(97_500));
+    expect(withFlatCredit).toBe(INR(37_500)); // documents the current (incorrect) behavior
+    expect(withFlatCredit).not.toBe(correctNo87A);
+  });
+});
+
+/* ── DEPTH 3: USA + Pennsylvania state tax (second tax regime) ────────────────── */
+
+// Pennsylvania personal income tax: flat 3.07% of compensation, no deductions.
+const US_PA_STATE: TaxRegime = {
+  code: 'US_PA',
+  name: 'Pennsylvania State Tax',
+  taxCode: 'PA_STATE_TAX',
+  taxName: 'PA State Income Tax',
+  fiscalYear: '2025',
+  currency: 'USD',
+  standardDeduction: 0,
+  slabs: [{ from: USD(0), to: null, rate: 3.07 }],
+};
+
+describe('Litmus depth — USA + Pennsylvania state tax (federal + state regimes)', () => {
+  const monthlyGross = USD(10_000);
+  const annualGross = USD(120_000);
+
+  const federal = computeRegimeTax(USD(120_000), US_FEDERAL); // $18,047 (on $105k after std)
+  const state = computeRegimeTax(annualGross, US_PA_STATE); // 3.07% of $120,000
+  const ss = computeContribution(monthlyGross, US_SOCIAL_SECURITY);
+  const medicare = computeContribution(monthlyGross, US_MEDICARE);
+
+  it('PA state tax = $3,684/yr (flat 3.07% of $120,000, no deductions)', () => {
+    expect(state).toBe(USD(3_684));
+  });
+  it('total annual statutory burden = fed $18,047 + state $3,684 + FICA EE $9,180', () => {
+    const annualNet = annualGross - federal - state - (ss.employee + medicare.employee) * 12;
+    expect(fromMinor(annualNet, 'USD')).toBe(89_089); // 120,000 − 30,911
+  });
+});
+
+/* ── DEPTH 4: Philippines semi-monthly cycle (apportionment) ──────────────────── */
+
+describe('Litmus depth — Philippines semi-monthly cycle (H1)', () => {
+  const monthlyGross = PHP(100_000);
+  const annualTaxable = PHP(1_200_000);
+
+  // Per-cycle base = monthly × 12/24 (semi-monthly = 24 periods/yr).
+  const cycleGross = Math.round((monthlyGross * 12) / 24);
+  // Tax projected on a 24-period basis (not 12) — the sub-monthly true-up.
+  const cycleTax = projectPeriodTax({ annualTaxable, regime: PH_TRAIN, periodsRemaining: 24 });
+  // SSS is a MONTHLY-capped contribution → the monthly amount apportions across the 2 cycles.
+  const sssMonthly = computeContribution(monthlyGross, PH_SSS).employee; // ₱1,750
+  const cycleSss = Math.round(sssMonthly / 2); // ₱875
+  const cycleNet = cycleGross - Math.round(cycleTax) - cycleSss;
+
+  it('per-cycle gross = ₱50,000 (½ of monthly)', () => {
+    expect(cycleGross).toBe(PHP(50_000));
+  });
+  it('per-cycle tax = ₱8,437.50 (annual ₱202,500 ÷ 24 periods, not ÷12)', () => {
+    expect(fromMinor(cycleTax, 'PHP')).toBeCloseTo(8_437.5, 2);
+  });
+  it('SSS apportions to ₱875/cycle (monthly ₱1,750 ÷ 2 — not charged twice)', () => {
+    expect(cycleSss).toBe(PHP(875));
+  });
+  it('per-cycle net ≈ ₱40,687.50 — matches the live backend H1 payslip (₱40,688)', () => {
+    expect(fromMinor(cycleNet, 'PHP')).toBeCloseTo(40_687.5, 0);
   });
 });

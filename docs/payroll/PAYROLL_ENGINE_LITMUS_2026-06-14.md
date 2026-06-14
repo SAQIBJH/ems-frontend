@@ -12,8 +12,8 @@
 > and _config-only_. Money is integer **minor units** (paise / centavos / cents); displayed here
 > in major units.
 >
-> **Source test:** `src/modules/payroll/utils/payroll-global-litmus.test.ts` — **14/14 PASS**
-> (re-run: `pnpm test payroll-global-litmus`). Generated 2026-06-14.
+> **Source test:** `src/modules/payroll/utils/payroll-global-litmus.test.ts` — **23/23 PASS**
+> (3 base countries + 4 depth cases; re-run: `pnpm test payroll-global-litmus`). Generated 2026-06-14.
 
 ---
 
@@ -132,6 +132,59 @@ Annual: `120,000 − 18,047 − 9,180 (FICA EE)` = **$92,773 / year** ✅
 
 ---
 
+## Depth additions (2026-06-14)
+
+Four harder cases were added to stress the engine further. **23/23 PASS.**
+
+### 4. India — surcharge (high earner, ₹60,00,000)
+
+Income > ₹50L triggers the 10% surcharge band (on tax), before cess:
+
+| Step                                    | Amount            |
+| --------------------------------------- | ----------------- |
+| Slab tax on ₹59,25,000 (after ₹75k std) | ₹13,57,500        |
+| + 10% surcharge (income > ₹50L)         | ₹1,35,750         |
+| + 4% cess on (tax + surcharge)          | ₹59,730           |
+| **Total**                               | **₹15,52,980** ✅ |
+
+The engine's `surcharge` bands (10% / 15% / 25%) pick the highest applicable and apply it before cess — correct.
+
+### 5. India — §87A rebate ✅ … and a real ENGINE GAP ⚠️
+
+- **Inside the rebate zone (₹10,00,000):** a configured §87A credit floors tax to **₹0** ✅ — correct.
+- **GAP — the flat credit can't turn §87A _off_ above ₹12L.** At ₹15,00,000 the correct tax (no §87A) is **₹97,500**, but the same flat ₹60,000 credit yields **₹37,500**. §87A is **income-conditional** and carries **marginal relief** just above the threshold — neither is expressible with the current unconditional `taxCredits` primitive.
+  - **Recommended engine enhancement:** a _threshold-capped / conditional_ credit (e.g. `taxCredits[].appliesUpToIncome` + a marginal-relief rule), or a `REBATE()` formula function. Until then, India §87A can only be modelled correctly for the ≤₹12L population.
+
+> This is the one genuine finding from the whole litmus — worth a backend/engine ticket. Everything else is correct as configured.
+
+### 6. USA — federal + Pennsylvania state tax (two regimes)
+
+A pack can hold multiple tax regimes; federal and state compute independently and stack:
+
+| Tax       | Basis                                               | Annual              |
+| --------- | --------------------------------------------------- | ------------------- |
+| Federal   | brackets on $105,000 (after $15,000 std)            | $18,047             |
+| PA State  | flat 3.07% of $120,000 compensation (no deductions) | $3,684              |
+| FICA (EE) | SS $7,440 + Medicare $1,740                         | $9,180              |
+| **Net**   | `120,000 − 30,911`                                  | **$89,089 / yr** ✅ |
+
+Demonstrates a second, structurally different regime (flat, no deduction) layered on the federal one — config-only.
+
+### 7. Philippines — semi-monthly cycle (H1) apportionment
+
+A single ₱100,000/mo employee paid on a **semi-monthly** calendar (24 periods/yr):
+
+| Per-cycle item | Value          | Rule                                                              |
+| -------------- | -------------- | ----------------------------------------------------------------- |
+| Gross          | ₱50,000        | monthly × 12/24                                                   |
+| Income tax     | ₱8,437.50      | annual ₱202,500 ÷ **24** (not ÷12)                                |
+| SSS (EE)       | ₱875           | monthly ₱1,750 **÷ 2** — the monthly cap is **not** charged twice |
+| **Net**        | **₱40,687.50** | ✅ **matches the live backend H1 payslip (₱40,688)**              |
+
+This is the crux of the sub-monthly fix: base splits per cycle, tax projects over 24 periods, and the monthly-capped contribution apportions instead of doubling. The engine's `projectPeriodTax(periodsRemaining: 24)` + monthly-total apportionment reproduce the live figure exactly.
+
+---
+
 ## What this proves (and what it doesn't)
 
 **Proves:**
@@ -142,13 +195,18 @@ Annual: `120,000 − 18,047 − 9,180 (FICA EE)` = **$92,773 / year** ✅
 - It is **genuinely config-over-code**: the test imports only the public engine API; switching
   countries is switching _data_. A new country is a new config object, not new code.
 
-**Does NOT cover (by design / scope):**
+**Now also covered (depth additions §4–§7):** India surcharge, India §87A (in-zone), US state tax
+(second regime), and a Philippines semi-monthly cycle (per-cycle base + ÷24 tax + apportioned SSS,
+matching the live backend).
 
-- Live-backend end-to-end (run → calculate → payslip render against Render). Run a separate live
-  litmus for that.
-- India §87A rebate / surcharge and US additional-Medicare / state taxes (supported by the engine
-  but out of these representative scenarios).
-- Per-period withholding nuance: income tax here is the **annual liability ÷ 12**; real payroll
-  applies a YTD true-up across periods (the engine's `projectPeriodTax` does this when wired to
-  YTD — not exercised in this single-period snapshot).
-- Sub-monthly per-cycle proration (covered separately; backend-side).
+**Open finding:** India **§87A above ₹12L** — the flat `taxCredits` primitive can't express the
+income-conditional cut-off + marginal relief (§5 above). Needs a conditional/threshold-capped credit.
+
+**Still NOT covered (by design / scope):**
+
+- Live-backend end-to-end (run → calculate → payslip render against Render). A separate live litmus
+  script is available on request.
+- US additional-Medicare surtax (0.9% over $200k) and a progressive _bracketed_ state (only a flat
+  state was exercised; the engine handles brackets — see India/PH/federal).
+- Full YTD true-up across many periods (the single-cycle snapshot uses `projectPeriodTax` with a
+  fixed `periodsRemaining`; the YTD-paid carry-forward isn't exercised here).
