@@ -53,21 +53,20 @@ for all roles.)
 
 ### 3. HTTP end-to-end of the new write paths (deploy + confirm)
 
-Per the parity audit §5, these were validated by code/DB read-only but **not** over
-authenticated HTTP on the deployed server. Deploy the parity commit and confirm:
+Per the parity audit §5, these were validated by code/DB read-only. Status after the FE
+live-verify pass (2026-06-15, authenticated HTTP):
 
+- `PATCH`/`DELETE /timesheets/entries/:id` on a `SUBMITTED` week → **`422 WEEK_LOCKED`** —
+  ✅ **CONFIRMED LIVE** over HTTP.
 - `POST/PATCH /timesheets/projects` with a duplicate `code` → **`409 DUPLICATE_CODE`**
-  (case-insensitive).
-- `PATCH`/`DELETE /timesheets/entries/:id` on a `SUBMITTED`/`APPROVED` week → **`422
-WEEK_LOCKED`** (see §4).
+  (case-insensitive) — ⏳ **still unconfirmed** (creating a project mutates the shared
+  tenant; not run). Please confirm server-side.
 
-### 4. Lock-code value — ensure `WEEK_LOCKED` is what's deployed
+### 4. Lock-code value — ✅ confirmed `WEEK_LOCKED`
 
-Two backend docs conflicted: the settings/entry-rules doc said live returns
-`TIMESHEET_LOCKED`; the parity audit says it was renamed to **`WEEK_LOCKED`** to match the
-reference MSW. The FE/MSW now expects **`WEEK_LOCKED`**. Please confirm the deployed value
-is `WEEK_LOCKED` (a no-op `PATCH` on a locked entry → `422 WEEK_LOCKED`). The FE doesn't
-branch on the code (shows `message`), so this is contract-fidelity, not a functional break.
+Resolved. The earlier docs conflicted (`TIMESHEET_LOCKED` vs `WEEK_LOCKED`); the FE
+live-verify pass (2026-06-15) confirmed the deployed value is **`WEEK_LOCKED`** (a no-op
+`PATCH` on a `SUBMITTED` entry returned `422 WEEK_LOCKED`). FE/MSW match. No action.
 
 ### 5. Minor / low priority
 

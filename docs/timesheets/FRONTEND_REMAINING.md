@@ -26,21 +26,21 @@ confirmation, a merge, and explicitly-deferred accelerators.
 
 ## Remaining FE work
 
-### 1. The authorized live-verify pass (only verification owed) — BLOCKER for merge
+### 1. The authorized live-verify pass — ✅ DONE (2026-06-15, all green)
 
-Run once, self-cleaning, on a throwaway future week against live (`USE_MOCKS=false`):
+Ran once, self-cleaning, on a throwaway future week (`2027-01-04`) against live. Every
+assertion passed and all created data was deleted (`requireTaskOnEntry` reverted to
+`false`):
 
-- **Lock code**: a no-op `PATCH /timesheets/entries/:id` on a `SUBMITTED` entry → assert
-  `422` **`WEEK_LOCKED`** (confirms the value our MSW now uses; currently doc-asserted only).
-- **`taskId:null`**: `POST /timesheets/entries` with `taskId:null` → `201`, stored `null`
-  (no 500).
-- **`TASK_REQUIRED`**: set `requireTaskOnEntry:true` → `POST` without task → `422
-TASK_REQUIRED` → revert the setting.
-- **copy-week**: `POST /timesheets/copy-week` → `201`, `meta.copied`, rows at `hours:0`;
-  re-run → idempotent. Tolerate `employeeName:""` in the response.
-- **recall**: submit a throwaway week → `POST /:id/recall` → `SUBMITTED→DRAFT`; call again
-  → `422 NOT_RECALLABLE`.
-  Then **merge PR #1**.
+- **Lock code** — no-op `PATCH` on a `SUBMITTED` entry → `422` **`WEEK_LOCKED`** ✅
+  (confirms the value; the `TIMESHEET_LOCKED` doc was stale).
+- **`taskId:null`** — `POST /entries` `taskId:null` → `201`, stored `null` (no 500) ✅
+- **`TASK_REQUIRED`** — `requireTaskOnEntry:true` → no-task `POST` → `422 TASK_REQUIRED`
+  → reverted ✅
+- **copy-week** — `201`, `meta.copied=1`, rows `hours:0`; re-run `copied=0` (idempotent) ✅
+- **recall** — `200 SUBMITTED→DRAFT`; re-call → `422 NOT_RECALLABLE` ✅
+
+**The self-service contract is live-verified end-to-end. PR #1 is ready to merge.**
 
 ### 2. Reminder notification shape — confirm (defensive code already shipped)
 
