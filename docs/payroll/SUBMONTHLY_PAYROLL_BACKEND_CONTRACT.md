@@ -1,9 +1,12 @@
 # Payroll Global-Readiness — Bi-Weekly & Semi-Monthly Backend Contract
 
 > **Audience:** backend team (separate repo).
-> **Status:** feature spec. Not implemented. **This is the heaviest remaining payroll
-> item — it touches the run-engine core (period model + frequency-aware compute +
-> contribution apportionment). Scope as weeks, not days.**
+> **Status:** feature spec — **SHIPPED, but DEFECTIVE in compute.** ⚠️ The capability landed
+> (SEMI_MONTHLY enum, `YYYY-MM-H1` periods, cycles endpoint, cycle working days) but a live
+> E2E on 2026-06-14 found it **pays a full month per cycle → gross/tax/statutory DOUBLE**.
+> **➡️ For the fix work, use `SUBMONTHLY_PAYROLL_DEFECTS_BACKEND_CONTRACT.md`** (defect report
+> with reproductions, numbers, and an acceptance suite). This file remains the original
+> feature spec for reference only.
 > **Found via:** live staging litmus, 2026-06-13 (`superadmin@acme.test`).
 > **Depends on:** `WORK_WEEK_BACKEND_CONTRACT.md` (the cycle proration denominator needs
 > the per-entity work pattern). Build that first.
