@@ -30,9 +30,12 @@ import {
   useCalculatePayrollRun,
   usePayrollRoster,
   usePayrollRuns,
+  usePayCalendars,
+  usePayCalendarCycles,
   payrollRunsApi,
+  PAY_FREQUENCY_CONFIG,
 } from '@/modules/payroll';
-import type { PayrollRunType } from '@/modules/payroll';
+import type { PayrollRunType, PayrollRunInput } from '@/modules/payroll';
 
 /* ── constants ────────────────────────────────────────────────────────────── */
 
@@ -79,6 +82,20 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
   const [includeAll, setIncludeAll] = useState(true);
   const [runType, setRunType] = useState<PayrollRunType>('REGULAR');
   const [calculatingId, setCalculatingId] = useState<string | null>(null);
+
+  // Pay calendar drives the period model: monthly → month+year; sub-monthly → cycle dropdown.
+  const { data: calendars = [] } = usePayCalendars();
+  const [calendarId, setCalendarId] = useState('');
+  const [cyclePeriod, setCyclePeriod] = useState('');
+  const selectedCalendar = calendars.find((c) => c.id === calendarId) ?? calendars[0];
+  const isSubMonthly = !!selectedCalendar && selectedCalendar.frequency !== 'MONTHLY';
+  const ym = `${year}-${month}`;
+  const { data: cycles = [] } = usePayCalendarCycles(
+    isSubMonthly ? (selectedCalendar?.id ?? null) : null,
+    isSubMonthly ? { from: ym, to: ym } : null,
+  );
+  // Derived fallbacks (no effects): an unset/stale selection resolves to the first option.
+  const selectedCycle = cycles.find((c) => c.period === cyclePeriod) ?? cycles[0];
 
   // FnF inputs
   const [fnfEmployee, setFnfEmployee] = useState('');
@@ -143,10 +160,22 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
   const isPending = initiateMutation.isPending || calculateMutation.isPending || isCalculating;
 
   async function handleSubmit() {
-    const period = `${year}-${month}`;
+    // Sub-monthly: source period + schedule + dates from the chosen cycle. Monthly: YYYY-MM.
+    const cycleFields: Partial<PayrollRunInput> =
+      isSubMonthly && selectedCycle
+        ? {
+            period: selectedCycle.period,
+            paySchedule: selectedCycle.paySchedule,
+            periodLabel: selectedCycle.periodLabel,
+            startDate: selectedCycle.startDate,
+            endDate: selectedCycle.endDate,
+            payDate: selectedCycle.payDate,
+          }
+        : { period: `${year}-${month}` };
     try {
       const run = await initiateMutation.mutateAsync({
-        period,
+        ...cycleFields,
+        period: cycleFields.period!,
         includeAllActiveEmployees: includeAll,
         type: runType,
         fnf: isFnf
@@ -214,6 +243,31 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
             </Select>
           </div>
 
+          {/* Pay calendar — its frequency decides month vs cycle selection */}
+          {calendars.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Pay Calendar</Label>
+              <Select
+                value={selectedCalendar?.id}
+                onValueChange={(v) => v && setCalendarId(v)}
+                disabled={isPending}
+              >
+                <SelectTrigger className="w-full cursor-pointer">
+                  <SelectValue>
+                    {(v) => calendars.find((c) => c.id === v)?.name ?? 'Select a pay calendar'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {calendars.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} ({PAY_FREQUENCY_CONFIG[c.frequency].label})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Period */}
           <div className="space-y-1.5">
             <Label>Payroll Period</Label>
@@ -243,8 +297,39 @@ export function InitiateRunDialog({ open, onOpenChange }: InitiateRunDialogProps
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Sub-monthly: pick the specific pay cycle within the chosen month */}
+            {isSubMonthly && (
+              <div className="space-y-1.5 pt-1">
+                <Label>Pay Cycle</Label>
+                <Select
+                  value={selectedCycle?.period}
+                  onValueChange={(v) => v && setCyclePeriod(v)}
+                  disabled={isPending || cycles.length === 0}
+                >
+                  <SelectTrigger className="w-full cursor-pointer">
+                    <SelectValue placeholder="Select a pay cycle">
+                      {(v) =>
+                        cycles.find((c) => c.period === v)?.periodLabel ?? 'Select a pay cycle'
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cycles.map((c) => (
+                      <SelectItem key={c.period} value={c.period}>
+                        {c.periodLabel}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <p className="text-xs text-fg-muted">
-              Selected: {MONTHS.find((m) => m.value === month)?.label} {year}
+              Selected:{' '}
+              {isSubMonthly && selectedCycle
+                ? selectedCycle.periodLabel
+                : `${MONTHS.find((m) => m.value === month)?.label} ${year}`}
             </p>
           </div>
 

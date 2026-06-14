@@ -36,6 +36,19 @@ let payCalendars: PayCalendar[] = [
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   },
+  {
+    id: 'cal-ph-semi',
+    name: 'Philippines Semi-Monthly',
+    legalEntityId: null,
+    frequency: 'SEMI_MONTHLY',
+    periodAnchor: 1,
+    payDateRule: 'FIXED_DAY',
+    payDay: 15,
+    cutoffDay: 13,
+    holidayCalendarId: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
 ];
 let calendarCounter = 100;
 

@@ -456,6 +456,11 @@ export interface PayrollRun {
   /** Target run a REVERSAL offsets, plus its label for display. */
   reversalOfRunId?: string | null;
   reversalOfPeriodLabel?: string | null;
+  /** Sub-monthly run: pay schedule + cycle dates from the pay calendar (absent on monthly). */
+  paySchedule?: PaySchedule | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  payDate?: string | null;
   createdAt: string;
 }
 
@@ -469,6 +474,12 @@ export interface PayrollRunInput {
   employeeIds?: string[];
   /** REVERSAL: the prior run this offsets. */
   reversalOfRunId?: string;
+  /** Sub-monthly run: the cycle's schedule + dates + label, sourced from the pay calendar. */
+  paySchedule?: PaySchedule;
+  periodLabel?: string;
+  startDate?: string;
+  endDate?: string;
+  payDate?: string;
 }
 
 export interface RosterMember {

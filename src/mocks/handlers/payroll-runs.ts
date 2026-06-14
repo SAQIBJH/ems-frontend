@@ -408,6 +408,11 @@ export const payrollRunHandlers = [
       fnf?: FnfParams;
       employeeIds?: string[];
       reversalOfRunId?: string;
+      paySchedule?: PayrollRun['paySchedule'];
+      periodLabel?: string;
+      startDate?: string;
+      endDate?: string;
+      payDate?: string;
     };
     const type: PayrollRunType = body.type ?? 'REGULAR';
     const VALID_TYPES: PayrollRunType[] = [
@@ -460,10 +465,17 @@ export const payrollRunHandlers = [
     const created: PayrollRun = {
       id: `run-${++idCounter}`,
       period: body.period,
-      periodLabel: new Date(body.period + '-01').toLocaleDateString('en-US', {
-        month: 'long',
-        year: 'numeric',
-      }),
+      // Sub-monthly cycles supply their own label; monthly periods derive it from YYYY-MM.
+      periodLabel:
+        body.periodLabel ??
+        new Date(body.period + '-01').toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        }),
+      paySchedule: body.paySchedule ?? null,
+      startDate: body.startDate ?? null,
+      endDate: body.endDate ?? null,
+      payDate: body.payDate ?? null,
       type,
       status: 'DRAFT',
       employeeCount: 0,
