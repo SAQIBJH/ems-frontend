@@ -43,6 +43,19 @@ const POLICY_OPTIONS: { value: TimesheetSettings['unloggedHoursPolicy']; label: 
   { value: 'DEDUCT', label: 'Deduct shortfall from pay' },
 ];
 
+/** Reminder-day Select uses an 'off' sentinel for `null` (Base UI disallows empty values). */
+const REMINDER_OFF = 'off';
+const REMINDER_DAY_OPTIONS = [
+  { value: REMINDER_OFF, label: 'Off — no reminder' },
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
+  { value: '7', label: 'Sunday' },
+];
+
 function PanelSkeleton() {
   return (
     <div className="space-y-0 divide-y divide-subtle">
@@ -51,7 +64,7 @@ function PanelSkeleton() {
         <Skeleton className="h-6 w-44" />
         <Skeleton className="h-4 w-72" />
       </div>
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="grid grid-cols-[200px_1fr] gap-6 py-5">
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-28" />
@@ -76,6 +89,8 @@ function SettingsForm({ data }: { data: TimesheetSettings }) {
       approvalRequired: data.approvalRequired,
       unloggedHoursPolicy: data.unloggedHoursPolicy,
       billableDefault: data.billableDefault,
+      submitReminderDay: data.submitReminderDay,
+      requireTaskOnEntry: data.requireTaskOnEntry,
     },
   });
 
@@ -83,6 +98,8 @@ function SettingsForm({ data }: { data: TimesheetSettings }) {
   const billableDefault = useWatch({ control: form.control, name: 'billableDefault' });
   const roundingMinutes = useWatch({ control: form.control, name: 'roundingMinutes' });
   const policy = useWatch({ control: form.control, name: 'unloggedHoursPolicy' });
+  const submitReminderDay = useWatch({ control: form.control, name: 'submitReminderDay' });
+  const requireTaskOnEntry = useWatch({ control: form.control, name: 'requireTaskOnEntry' });
 
   function onSubmit(values: TimesheetSettingsFormValues) {
     mutation.mutate(values, {
@@ -228,6 +245,58 @@ function SettingsForm({ data }: { data: TimesheetSettings }) {
               aria-label="Billable default"
             />
           </div>
+        </FormRow>
+
+        <FormRow label="Require task" help="Force a task on every time entry.">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-subtle px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-fg">Require a task on every entry</p>
+              <p className="mt-0.5 text-xs text-fg-muted">
+                When on, logging or timing against a project with no task is blocked.
+              </p>
+            </div>
+            <Switch
+              checked={requireTaskOnEntry}
+              onCheckedChange={(val) =>
+                form.setValue('requireTaskOnEntry', val, { shouldDirty: true })
+              }
+              aria-label="Require task on entry"
+            />
+          </div>
+        </FormRow>
+
+        <FormRow
+          label="Submit reminder"
+          help="Weekday to nudge employees about an unsubmitted prior week (and approvers about pending sheets)."
+        >
+          <Select
+            value={submitReminderDay == null ? REMINDER_OFF : String(submitReminderDay)}
+            onValueChange={(v) =>
+              form.setValue('submitReminderDay', v === REMINDER_OFF ? null : Number(v), {
+                shouldDirty: true,
+              })
+            }
+          >
+            <SelectTrigger className="max-w-[220px]">
+              <SelectValue>
+                {(v) =>
+                  REMINDER_DAY_OPTIONS.find((o) => o.value === String(v))?.label ??
+                  'Off — no reminder'
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {REMINDER_DAY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-fg-muted">
+            Reminders arrive as in-app notifications. <span className="font-medium">Off</span>{' '}
+            disables them.
+          </p>
         </FormRow>
       </div>
 

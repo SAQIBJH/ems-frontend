@@ -128,6 +128,10 @@ export interface TimesheetSettings {
   approvalRequired: boolean;
   unloggedHoursPolicy: UnloggedHoursPolicy;
   billableDefault: boolean;
+  /** ISO weekday (Mon=1 … Sun=7) the reminder job nudges on; `null` = reminders off. */
+  submitReminderDay: number | null;
+  /** When true, a time entry must carry a `taskId` (server returns 422 TASK_REQUIRED). */
+  requireTaskOnEntry: boolean;
   updatedAt: string;
 }
 
@@ -138,4 +142,6 @@ export interface TimesheetSettingsInput {
   approvalRequired?: boolean;
   unloggedHoursPolicy?: UnloggedHoursPolicy;
   billableDefault?: boolean;
+  submitReminderDay?: number | null;
+  requireTaskOnEntry?: boolean;
 }

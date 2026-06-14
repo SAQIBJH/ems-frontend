@@ -14,6 +14,9 @@ export const timesheetSettingsSchema = z.object({
   approvalRequired: z.boolean(),
   unloggedHoursPolicy: z.enum(['IGNORE', 'FLAG', 'DEDUCT']),
   billableDefault: z.boolean(),
+  // ISO weekday 1..7 (Mon=1 … Sun=7); null disables the submit reminder.
+  submitReminderDay: z.number().int().min(1).max(7).nullable(),
+  requireTaskOnEntry: z.boolean(),
 });
 
 export type TimesheetSettingsFormValues = z.infer<typeof timesheetSettingsSchema>;

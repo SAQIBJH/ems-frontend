@@ -39,6 +39,8 @@ let timesheetSettings: TimesheetSettings = {
   approvalRequired: true,
   unloggedHoursPolicy: 'FLAG',
   billableDefault: true,
+  submitReminderDay: null,
+  requireTaskOnEntry: false,
   updatedAt: '2026-04-01T00:00:00.000Z',
 };
 
