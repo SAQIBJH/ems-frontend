@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { currencyDecimals, toMinor, fromMinor, formatMoney, formatMajor } from './money.utils';
+import {
+  currencyDecimals,
+  toMinor,
+  fromMinor,
+  formatMoney,
+  formatMajor,
+  isFormattableCurrency,
+} from './money.utils';
 
 describe('currencyDecimals', () => {
   it('defaults to 2 decimals', () => {
@@ -45,5 +52,37 @@ describe('formatMajor (major units)', () => {
     const out = formatMajor(4_800_000, 'INR', { locale: 'en-IN', fractionDigits: 0 });
     expect(out).toContain('48,00,000');
     expect(out).not.toContain('.00');
+  });
+});
+
+describe('isFormattableCurrency', () => {
+  it('accepts valid ISO 4217 codes', () => {
+    expect(isFormattableCurrency('INR')).toBe(true);
+    expect(isFormattableCurrency('PHP')).toBe(true);
+    expect(isFormattableCurrency('zar')).toBe(true); // case-insensitive
+  });
+  it('rejects the non-ISO "MULTI" run-header sentinel', () => {
+    expect(isFormattableCurrency('MULTI')).toBe(false);
+  });
+  it('rejects empty / nullish / malformed codes', () => {
+    expect(isFormattableCurrency('')).toBe(false);
+    expect(isFormattableCurrency(null)).toBe(false);
+    expect(isFormattableCurrency(undefined)).toBe(false);
+    expect(isFormattableCurrency('US')).toBe(false);
+  });
+});
+
+describe('formatMajor — non-ISO sentinel (currency: "MULTI") must not crash', () => {
+  it('does not throw on "MULTI" and shows amount + code', () => {
+    expect(() => formatMajor(50_000, 'MULTI')).not.toThrow();
+    const out = formatMajor(50_000, 'MULTI');
+    expect(out).toContain('50,000');
+    expect(out).toContain('MULTI');
+  });
+  it('formatMoney also survives a "MULTI" run-header currency', () => {
+    expect(() => formatMoney(5_000_000, 'MULTI')).not.toThrow();
+  });
+  it('still formats real currencies as before', () => {
+    expect(formatMajor(50_000, 'PHP')).toContain('50,000');
   });
 });

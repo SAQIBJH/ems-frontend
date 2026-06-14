@@ -61,6 +61,7 @@ import {
   PAYROLL_EVENT_CATALOGUE,
   PAYROLL_EVENT_CONFIG,
   formatMoney,
+  formatMajor,
   payrollRunsApi,
 } from '@/modules/payroll';
 import type {
@@ -81,12 +82,10 @@ import { AuditPackPanel } from './AuditPackPanel';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
+// Routes through the guarded shared formatter so a multi-currency run header
+// (currency: "MULTI") renders as a plain number + code instead of crashing.
 function fmtCurrency(amount: number, currency = 'INR'): string {
-  return amount.toLocaleString('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
+  return formatMajor(amount, currency, { fractionDigits: 0 });
 }
 
 function StatusBadge({ status }: { status: PayrollRunStatus }) {

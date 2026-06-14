@@ -16,15 +16,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { cn } from '@/lib/utils';
 
-import { useRunJournal, payrollRunsApi, JOURNAL_EXPORT_FORMATS } from '@/modules/payroll';
+import {
+  useRunJournal,
+  payrollRunsApi,
+  JOURNAL_EXPORT_FORMATS,
+  formatMajor,
+} from '@/modules/payroll';
 import type { JournalExportFormat } from '@/modules/payroll';
 
+// Guarded against the "MULTI" run-header sentinel via the shared formatter.
 function fmtCurrency(amount: number, currency: string): string {
-  return amount.toLocaleString('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
+  return formatMajor(amount, currency, { fractionDigits: 0 });
 }
 
 export function JournalPanel({ runId }: { runId: string }) {

@@ -26,16 +26,13 @@ import {
   BANK_FILE_FORMATS,
   PAYOUT_STATUS_CONFIG,
   PAYMENT_BATCH_STATUS_CONFIG,
+  formatMajor,
 } from '@/modules/payroll';
 import type { BankFileFormat, PaymentBatchStatus } from '@/modules/payroll';
 
-/** Currency-aware whole-unit formatter — matches the payslips table above. */
+/** Currency-aware whole-unit formatter — guarded against the "MULTI" run-header sentinel. */
 function fmtCurrency(amount: number, currency: string): string {
-  return amount.toLocaleString('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
+  return formatMajor(amount, currency, { fractionDigits: 0 });
 }
 
 function apiMessage(err: unknown, fallback: string): string {

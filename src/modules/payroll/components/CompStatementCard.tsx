@@ -9,13 +9,11 @@ import { cn } from '@/lib/utils';
 
 import { useEmployeeSalary } from '../hooks/useEmployeeSalary';
 import { COMPONENT_TYPE_CONFIG } from '../constants';
+import { formatMajor } from '../utils/money.utils';
 
+// Guarded against non-ISO currency sentinels via the shared formatter.
 function fmtMoney(amount: number, currency = 'INR'): string {
-  return amount.toLocaleString('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
+  return formatMajor(amount, currency, { fractionDigits: 0 });
 }
 
 /**

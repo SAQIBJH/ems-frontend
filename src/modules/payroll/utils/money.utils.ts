@@ -51,6 +51,22 @@ export function localeForCurrency(currency: string): string {
   return CURRENCY_LOCALE[currency.toUpperCase()] ?? 'en-US';
 }
 
+/**
+ * Whether a code is a real ISO 4217 currency that `Intl.NumberFormat({style:'currency'})`
+ * can format. Guards the non-ISO run-header sentinel `"MULTI"` (a run spanning multiple
+ * pay-group currencies) and any malformed code, which otherwise throw `RangeError`.
+ */
+export function isFormattableCurrency(code?: string | null): boolean {
+  const c = (code ?? '').toUpperCase();
+  if (!/^[A-Z]{3}$/.test(c)) return false; // 'MULTI' (5 chars), '', 'US' → false
+  try {
+    new Intl.NumberFormat('en', { style: 'currency', currency: c });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Convert a major-unit amount (e.g. 1234.50) to integer minor units (123450). */
 export function toMinor(major: number, currency: string): number {
   return Math.round(major * 10 ** currencyDecimals(currency));
@@ -73,10 +89,22 @@ export function formatMajor(
   currency: string,
   opts: FormatMoneyOptions = {},
 ): string {
-  const digits = opts.fractionDigits ?? currencyDecimals(currency);
-  return new Intl.NumberFormat(opts.locale ?? localeForCurrency(currency), {
+  const code = (currency ?? '').toUpperCase();
+  const digits = opts.fractionDigits ?? currencyDecimals(code);
+  const locale = opts.locale ?? localeForCurrency(code);
+  // Non-ISO sentinels like the multi-currency run-header "MULTI" can't be formatted as a
+  // currency (Intl throws RangeError) — fall back to a plain number suffixed with the code.
+  if (!isFormattableCurrency(code)) {
+    const n = new Intl.NumberFormat(locale, {
+      style: 'decimal',
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(major);
+    return code ? `${n} ${code}` : n;
+  }
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency,
+    currency: code,
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(major);
