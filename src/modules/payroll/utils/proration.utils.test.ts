@@ -63,4 +63,31 @@ describe('prorationFactor', () => {
   it('never goes below 0', () => {
     expect(prorationFactor({ basis: 'CALENDAR_DAYS', year: 2026, month: 2, lopDays: 100 })).toBe(0);
   });
+
+  it('deducts more per LOP day on WORKING_DAYS than CALENDAR_DAYS (weekends paid vs not)', () => {
+    // Same 2-day LOP: calendar-days denominator (~30, weekends paid) keeps more pay than
+    // working-days denominator (~22) — proving the basis actually changes the money.
+    const cal = prorationFactor({ basis: 'CALENDAR_DAYS', year: 2026, month: 6, lopDays: 2 });
+    const work = prorationFactor({ basis: 'WORKING_DAYS', year: 2026, month: 6, lopDays: 2 });
+    expect(work).toBeLessThan(cal);
+  });
+
+  it('WORKING_DAYS honours a configured work week (Mon–Sat denominator > Mon–Fri)', () => {
+    const monFri = prorationFactor({
+      basis: 'WORKING_DAYS',
+      year: 2026,
+      month: 6,
+      lopDays: 1,
+      workWeekDays: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+    });
+    const monSat = prorationFactor({
+      basis: 'WORKING_DAYS',
+      year: 2026,
+      month: 6,
+      lopDays: 1,
+      workWeekDays: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+    });
+    // A 6-day week has a larger denominator, so one LOP day is a smaller fraction → higher factor.
+    expect(monSat).toBeGreaterThan(monFri);
+  });
 });

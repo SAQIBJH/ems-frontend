@@ -324,7 +324,17 @@ function computeEmployeeMonth(
   const { year, month } = parsePeriod(period);
   const { workWeekDays, hoursPerDay } = resolveWorkPattern(emp);
   const workingDays = workingDaysInMonth(year, month, workWeekDays);
-  const factor = prorationFactor({ basis: 'CALENDAR_DAYS', year, month, lopDays });
+  const pack = resolveActivePack(emp.country, period);
+  // Proration basis is configuration (the statutory pack), never hardcoded. CALENDAR_DAYS
+  // keeps weekends paid (default); WORKING_DAYS uses the entity's real work week as the
+  // denominator; FIXED_30 always divides by 30.
+  const factor = prorationFactor({
+    basis: pack?.proration?.basis ?? 'CALENDAR_DAYS',
+    year,
+    month,
+    lopDays,
+    workWeekDays,
+  });
   const compByCode = new Map(components.map((c) => [c.code, c]));
   const breakdown = computeComponentBreakdown(components, emp.annualCtc);
 
@@ -387,7 +397,6 @@ function computeEmployeeMonth(
     });
   }
 
-  const pack = resolveActivePack(emp.country, period);
   // Multi-jurisdiction: the engine taxes the resolved set (residence + work locations).
   const jurisdictions = resolveJurisdictions(emp.residenceJurisdiction, emp.workLocations);
   const minWageFloor = pack?.minimumWages ? minimumWageFloor(jurisdictions, pack.minimumWages) : 0;
