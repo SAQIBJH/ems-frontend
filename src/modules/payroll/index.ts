@@ -118,6 +118,7 @@ export type {
   PayDateRule,
   PayCalendar,
   PayCalendarInput,
+  PayCalendarCycle,
   OpeningBalance,
   OpeningBalanceInput,
   HistoricalPayslipImportRow,
@@ -276,6 +277,7 @@ export {
 } from './hooks/useLocalization';
 export {
   usePayCalendars,
+  usePayCalendarCycles,
   useCreatePayCalendar,
   useUpdatePayCalendar,
   useOpeningBalances,

@@ -42,6 +42,7 @@ interface PayGroupDrawerProps {
 
 const PAY_SCHEDULES = [
   { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'SEMI_MONTHLY', label: 'Semi-monthly' },
   { value: 'BIWEEKLY', label: 'Bi-weekly' },
   { value: 'WEEKLY', label: 'Weekly' },
 ] as const;

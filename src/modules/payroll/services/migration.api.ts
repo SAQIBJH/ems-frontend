@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api-client';
 import type {
   PayCalendar,
   PayCalendarInput,
+  PayCalendarCycle,
   OpeningBalance,
   OpeningBalanceInput,
   HistoricalPayslipImportRow,
@@ -31,6 +32,22 @@ export const payrollMigrationApi = {
       input,
     );
     return data.data;
+  },
+
+  /**
+   * Resolve the pay cycles for a calendar across a month range. The response is a
+   * NESTED object `{ payCalendarId, paySchedule, cycles[] }` — unwrap `data.cycles`,
+   * NOT a bare array (verified against the live API 2026-06-14).
+   */
+  getPayCalendarCycles: async (
+    id: string,
+    range: { from: string; to: string },
+  ): Promise<PayCalendarCycle[]> => {
+    const { data } = await apiClient.get<{ data: { cycles: PayCalendarCycle[] } }>(
+      `/payroll/pay-calendars/${id}/cycles`,
+      { params: range },
+    );
+    return data.data.cycles;
   },
 
   /* ── Opening YTD balances ───────────────────────────────────────────────── */

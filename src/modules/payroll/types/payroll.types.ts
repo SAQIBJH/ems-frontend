@@ -10,7 +10,7 @@ export type ComponentType =
 export type CalculationType = 'FLAT' | 'PERCENTAGE' | 'FORMULA';
 /** How a component's cost is allocated to cost centers in the GL journal (§11). */
 export type CostCenterRule = 'DEPARTMENT' | 'NONE';
-export type PaySchedule = 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
+export type PaySchedule = 'MONTHLY' | 'SEMI_MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
 export type PayrollRunStatus =
   | 'DRAFT'
   | 'CALCULATING'
@@ -1093,6 +1093,21 @@ export interface PayCalendarInput {
   payDay: number | null;
   cutoffDay: number;
   holidayCalendarId: string | null;
+}
+
+/**
+ * One pay cycle from `GET /payroll/pay-calendars/:id/cycles` — used as a run `period`.
+ * Unwrap path is `data.cycles` (a nested object), NOT a bare `data[]` array.
+ */
+export interface PayCalendarCycle {
+  /** Cycle id used as a run `period`, e.g. "2057-01-H1" (semi-monthly) or "2057-W01". */
+  period: string;
+  periodLabel: string;
+  startDate: string;
+  endDate: string;
+  payDate: string;
+  cutoffDate: string;
+  paySchedule: PaySchedule;
 }
 
 /** Imported opening YTD ledger for an employee — seeds mid-year go-live tax. */

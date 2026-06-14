@@ -19,6 +19,21 @@ export function usePayCalendars() {
   });
 }
 
+/**
+ * Pay cycles for a calendar across a month range. Disabled until a calendar id and
+ * range are supplied (the run-create cycle picker enables it on demand).
+ */
+export function usePayCalendarCycles(
+  calendarId: string | null,
+  range: { from: string; to: string } | null,
+) {
+  return useQuery({
+    queryKey: [...MIGRATION_KEY, 'pay-calendars', calendarId, 'cycles', range],
+    queryFn: () => payrollMigrationApi.getPayCalendarCycles(calendarId!, range!),
+    enabled: !!calendarId && !!range,
+  });
+}
+
 export function useCreatePayCalendar() {
   const qc = useQueryClient();
   return useMutation({

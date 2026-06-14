@@ -8,7 +8,7 @@ export const payGroupSchema = z.object({
     .max(30)
     .regex(/^[A-Z][A-Z0-9_]*$/, 'Code must be UPPER_SNAKE_CASE'),
   currency: z.string().min(3, 'Currency is required').max(3),
-  paySchedule: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY']),
+  paySchedule: z.enum(['MONTHLY', 'SEMI_MONTHLY', 'BIWEEKLY', 'WEEKLY']),
   description: z.string().max(500).nullable().optional(),
   active: z.boolean(),
   components: z.array(
